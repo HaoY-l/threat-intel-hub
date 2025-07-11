@@ -1,4 +1,4 @@
-import os
+import os,logging
 import pymysql
 from dotenv import load_dotenv
 
@@ -42,6 +42,7 @@ def create_database_and_tables():
 
         """
         cursor.execute(create_cve_table_sql)
+        logging.info("CVE data table created or already exists.")
 
         # 创建IP威胁表
         create_ip_threat_table_sql = """
@@ -59,6 +60,7 @@ def create_database_and_tables():
         )ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='威胁IP情报表';
         """
         cursor.execute(create_ip_threat_table_sql)
+        logging.info("IP threat intel table created or already exists.")
 
         # 创建URL威胁表
         create_url_threat_table_sql = """
@@ -76,6 +78,7 @@ def create_database_and_tables():
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
         """
         cursor.execute(create_url_threat_table_sql)
+        logging.info("URL threat intel table created or already exists.")
 
         # 创建文件哈希威胁表
         create_file_hash_threat_table_sql = """
@@ -96,8 +99,10 @@ def create_database_and_tables():
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='文件威胁情报表';
         """
         cursor.execute(create_file_hash_threat_table_sql)
+        logging.info("File threat intel table created or already exists.")
 
     conn.close()
 
 if __name__ == "__main__":
     create_database_and_tables()
+    logging.info("Database and tables initialized successfully.")

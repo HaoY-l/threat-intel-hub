@@ -1,5 +1,5 @@
 import requests
-import os, json
+import os, json,logging
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from ._BaseThreat import ThreatIntelCollector  # 确保路径正确
@@ -51,8 +51,9 @@ class VirusTotalCollector(ThreatIntelCollector):
 
         data_obj = data.get('data', {})
         target_id = data_obj.get('id')
+        target_url = data_obj.get('attributes', {}).get('url', '')
         if not target_id:
-            print("没有有效的ID，无法保存")
+            logging.error(f"数据对象中缺少 'id' 字段")
             return False
 
         type_ = data_obj.get('type', 'default')
@@ -67,23 +68,10 @@ class VirusTotalCollector(ThreatIntelCollector):
                 last_update_ts = attributes.get('last_analysis_date')
                 last_update = datetime.fromtimestamp(last_update_ts) if last_update_ts else None
 
-                cursor.execute("SELECT last_update FROM ip_threat_intel WHERE id=%s AND source=%s", (target_id, source))
+                cursor.execute("SELECT id FROM ip_threat_intel WHERE id=%s AND source=%s", (target_id, source))
                 row = cursor.fetchone()
 
-                if row:
-                    if row['last_update'] and (datetime.now() - row['last_update']) < timedelta(days=30):
-                        print("数据最新，不更新")
-                        return True
-                    cursor.execute(
-                        """
-                        UPDATE ip_threat_intel
-                        SET type=%s, reputation_score=%s, threat_level=%s, last_update=%s, details=%s, updated_at=NOW()
-                        WHERE id=%s AND source=%s
-                        """,
-                        (type_, reputation_score, threat_level, last_update, details_json, target_id, source)
-                    )
-                    print("数据已更新")
-                else:
+                if not row:  # 修复：只有当记录不存在时才插入
                     cursor.execute(
                         """
                         INSERT INTO ip_threat_intel (id, type, source, reputation_score, threat_level, last_update, details)
@@ -91,7 +79,18 @@ class VirusTotalCollector(ThreatIntelCollector):
                         """,
                         (target_id, type_, source, reputation_score, threat_level, last_update, details_json)
                     )
-                    print("数据已插入")
+                    logging.info(f"IP数据{target_id}已插入")
+                else:
+                    # 如果记录存在，更新数据
+                    cursor.execute(
+                        """
+                        UPDATE ip_threat_intel 
+                        SET reputation_score=%s, threat_level=%s, last_update=%s, details=%s 
+                        WHERE id=%s AND source=%s
+                        """,
+                        (reputation_score, threat_level, last_update, details_json, target_id, source)
+                    )
+                    logging.info(f"IP数据{target_id}已更新")
 
             elif type_ == 'url':
                 reputation_score = attributes.get('reputation', 0)
@@ -99,23 +98,10 @@ class VirusTotalCollector(ThreatIntelCollector):
                 last_update = datetime.fromtimestamp(last_update_ts) if last_update_ts else None
                 target_url = attributes.get('url') or attributes.get('last_final_url') or ''
 
-                cursor.execute("SELECT last_update FROM url_threat_intel WHERE id=%s AND source=%s", (target_id, source))
+                cursor.execute("SELECT id FROM url_threat_intel WHERE id=%s AND source=%s", (target_id, source))
                 row = cursor.fetchone()
 
-                if row:
-                    if row['last_update'] and (datetime.now() - row['last_update']) < timedelta(days=30):
-                        print("URL 数据最新，不更新")
-                        return True
-                    cursor.execute(
-                        """
-                        UPDATE url_threat_intel
-                        SET target_url=%s, reputation_score=%s, last_update=%s, details=%s, updated_at=NOW()
-                        WHERE id=%s AND source=%s
-                        """,
-                        (target_url, reputation_score, last_update, details_json, target_id, source)
-                    )
-                    print("URL 数据已更新")
-                else:
+                if not row:  # 修复：只有当记录不存在时才插入
                     cursor.execute(
                         """
                         INSERT INTO url_threat_intel (id, type, source, target_url, reputation_score, last_update, details)
@@ -123,7 +109,19 @@ class VirusTotalCollector(ThreatIntelCollector):
                         """,
                         (target_id, type_, source, target_url, reputation_score, last_update, details_json)
                     )
-                    print("URL 数据已插入")
+                    logging.info(f"URL数据 {target_url} 已插入")
+                else:
+                    # 如果记录存在，更新数据
+                    cursor.execute(
+                        """
+                        UPDATE url_threat_intel 
+                        SET target_url=%s, reputation_score=%s, last_update=%s, details=%s 
+                        WHERE id=%s AND source=%s
+                        """,
+                        (target_url, reputation_score, last_update, details_json, target_id, source)
+                    )
+                    logging.info(f"URL数据 {target_url} 已更新")
+
             elif type_ == 'file':
                 reputation_score = attributes.get('reputation', 0)
                 
@@ -141,23 +139,10 @@ class VirusTotalCollector(ThreatIntelCollector):
                 last_update_ts = attributes.get('last_analysis_date')
                 last_update = datetime.fromtimestamp(last_update_ts) if last_update_ts else None
 
-                cursor.execute("SELECT last_update FROM file_threat_intel WHERE id=%s AND source=%s", (target_id, source))
+                cursor.execute("SELECT id FROM file_threat_intel WHERE id=%s AND source=%s", (target_id, source))
                 row = cursor.fetchone()
 
-                if row:
-                    if row['last_update'] and (datetime.now() - row['last_update']) < timedelta(days=30):
-                        print("文件数据最新，不更新")
-                        return True
-                    cursor.execute(
-                        """
-                        UPDATE file_threat_intel
-                        SET type=%s, reputation_score=%s, threat_level=%s, last_update=%s, details=%s, updated_at=NOW()
-                        WHERE id=%s AND source=%s
-                        """,
-                        (type_, reputation_score, threat_level, last_update, details_json, target_id, source)
-                    )
-                    print("文件数据已更新")
-                else:
+                if not row:  # 修复：只有当记录不存在时才插入
                     cursor.execute(
                         """
                         INSERT INTO file_threat_intel (id, type, source, reputation_score, threat_level, last_update, details)
@@ -165,10 +150,21 @@ class VirusTotalCollector(ThreatIntelCollector):
                         """,
                         (target_id, type_, source, reputation_score, threat_level, last_update, details_json)
                     )
-                    print("文件数据已插入")
+                    logging.info(f"文件数据 {target_id} 已插入")
+                else:
+                    # 如果记录存在，更新数据
+                    cursor.execute(
+                        """
+                        UPDATE file_threat_intel 
+                        SET reputation_score=%s, threat_level=%s, last_update=%s, details=%s 
+                        WHERE id=%s AND source=%s
+                        """,
+                        (reputation_score, threat_level, last_update, details_json, target_id, source)
+                    )
+                    logging.info(f"文件数据 {target_id} 已更新")
 
             else:
-                print(f"不支持的类型: {type_}")
+                logging.info(f"不支持的类型: {type_}")
                 return False
 
             self.conn.commit()
