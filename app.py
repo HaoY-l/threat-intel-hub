@@ -51,7 +51,24 @@ def run_threat():
     virustotal_threat.save_to_db(file)
     pass
 
+def run_otx():
+    # 示例用法
+    collector = OtxCollector()
 
+    # 查询 IP
+    ip_result = collector.query_ip("8.8.8.8")
+    print("IP Query Result:", json.dumps(ip_result, indent=2))
+    # collector.save_to_db(ip_result)
+
+    # # 查询 URL
+    # url_result = collector.query_url("http://example.com")
+    # print("URL Query Result:", json.dumps(url_result, indent=2))
+    # collector.save_to_db(url_result)
+
+    # # 查询文件哈希（MD5 示例）
+    # file_result = collector.query_file("d41d8cd98f00b204e9800998ecf8427e")
+    # print("File Query Result:", json.dumps(file_result, indent=2))
+    # collector.save_to_db(file_result)
 
 # ---------------- 启动定时任务调度器 ---------------- #
 scheduler = BackgroundScheduler()

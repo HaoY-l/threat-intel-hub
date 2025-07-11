@@ -53,7 +53,7 @@ class VirusTotalCollector(ThreatIntelCollector):
         target_id = data_obj.get('id')
         target_url = data_obj.get('attributes', {}).get('url', '')
         if not target_id:
-            logging.error(f"数据对象中缺少 'id' 字段")
+            logging.error(f"平台{self.name()}数据对象中缺少 'id' 字段")
             return False
 
         type_ = data_obj.get('type', 'default')
@@ -79,7 +79,7 @@ class VirusTotalCollector(ThreatIntelCollector):
                         """,
                         (target_id, type_, source, reputation_score, threat_level, last_update, details_json)
                     )
-                    logging.info(f"IP数据{target_id}已插入")
+                    logging.info(f"平台{self.name()}的IP数据{target_id}已插入")
                 else:
                     # 如果记录存在，更新数据
                     cursor.execute(
@@ -90,7 +90,7 @@ class VirusTotalCollector(ThreatIntelCollector):
                         """,
                         (reputation_score, threat_level, last_update, details_json, target_id, source)
                     )
-                    logging.info(f"IP数据{target_id}已更新")
+                    logging.info(f"平台{self.name()}的IP数据{target_id}已更新")
 
             elif type_ == 'url':
                 reputation_score = attributes.get('reputation', 0)
@@ -109,7 +109,7 @@ class VirusTotalCollector(ThreatIntelCollector):
                         """,
                         (target_id, type_, source, target_url, reputation_score, last_update, details_json)
                     )
-                    logging.info(f"URL数据 {target_url} 已插入")
+                    logging.info(f"平台{self.name()}的URL数据 {target_url} 已插入")
                 else:
                     # 如果记录存在，更新数据
                     cursor.execute(
@@ -120,7 +120,7 @@ class VirusTotalCollector(ThreatIntelCollector):
                         """,
                         (target_url, reputation_score, last_update, details_json, target_id, source)
                     )
-                    logging.info(f"URL数据 {target_url} 已更新")
+                    logging.info(f"平台{self.name()}的URL数据 {target_url} 已更新")
 
             elif type_ == 'file':
                 reputation_score = attributes.get('reputation', 0)
@@ -150,7 +150,7 @@ class VirusTotalCollector(ThreatIntelCollector):
                         """,
                         (target_id, type_, source, reputation_score, threat_level, last_update, details_json)
                     )
-                    logging.info(f"文件数据 {target_id} 已插入")
+                    logging.info(f"平台{self.name()}的文件数据 {target_id} 已插入")
                 else:
                     # 如果记录存在，更新数据
                     cursor.execute(
@@ -161,10 +161,10 @@ class VirusTotalCollector(ThreatIntelCollector):
                         """,
                         (reputation_score, threat_level, last_update, details_json, target_id, source)
                     )
-                    logging.info(f"文件数据 {target_id} 已更新")
+                    logging.info(f"平台{self.name()}的文件数据 {target_id} 已更新")
 
             else:
-                logging.info(f"不支持的类型: {type_}")
+                logging.info(f"平台{self.name()}的不支持的类型: {type_}")
                 return False
 
             self.conn.commit()
