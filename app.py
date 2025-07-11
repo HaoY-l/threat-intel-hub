@@ -11,8 +11,11 @@ from src.api import api_bp
 from src.routes.cve.tenable import TenableCrawler 
 from src.routes.cve.alicloud import AliyunAVDCrawler 
 from src.routes.threat.virustotal import VirusTotalCollector
-import logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S',filename='app.log', filemode='a', encoding='utf-8')
+import logging,os 
+from dotenv import load_dotenv
+# -----------------------------------------------
+load_dotenv()
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S',filename=os.getenv('file_log'), filemode='a', encoding='utf-8')
 
 app = Flask(__name__)
 app.register_blueprint(api_bp)
