@@ -32,5 +32,7 @@ cp -r threat_intel_front/dist/* src/static/
 
 # === 5. 启动 Flask 后端 ===
 echo "🚀 启动 Flask 服务..."
-flask run --host=0.0.0.0 --port=5001
+export FLASK_APP=app.py
+export FLASK_ENV=production
+venv/bin/flask run --host=0.0.0.0 --port=5001
 echo "✅ 部署完成！项目已启动在 http://localhost:5001"
