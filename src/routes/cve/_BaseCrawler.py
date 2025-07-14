@@ -16,7 +16,7 @@ class BaseCrawler(ABC):
             port=int(os.getenv("MYSQL_PORT", 3306)),
             user=os.getenv("MYSQL_USER"),
             password=os.getenv("MYSQL_PASSWORD"),
-            database=os.getenv("MYSQL_DB"),
+            database=os.getenv("MYSQL_NAME"),
             charset="utf8mb4",
             cursorclass=pymysql.cursors.DictCursor,
             autocommit=True

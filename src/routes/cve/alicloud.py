@@ -8,7 +8,7 @@ class AliyunAVDCrawler(BaseCrawler):
         return "Aliyun AVD"
 
     def source_url(self) -> str:
-        return "https://avd.aliyun.com/high-risk/list"
+        return "https://avd.aliyun.com/"
 
     def crawl(self) -> list:
         url = self.source_url()
@@ -19,7 +19,7 @@ class AliyunAVDCrawler(BaseCrawler):
 
         # 简单解析页面漏洞列表行
         rows = soup.select('table.table tbody tr')
-        print(rows)
+        # print(rows)
         for tr in rows:
             tds = tr.find_all('td')
             cve_id_tag = tds[0].find('a')

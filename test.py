@@ -1,34 +1,65 @@
-import os
-import requests
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+# @Author : Haoyu
+# @Time   : 2025/07/11 14:10
+# @File   : app.py
+# -----------------------------------------------
+from flask import Flask, jsonify
+from apscheduler.schedulers.background import BackgroundScheduler
+from data.db_init import create_database_and_tables
+from src.api import api_bp
+from src.routes.cve.tenable import TenableCrawler 
+from src.routes.cve.alicloud import AliyunAVDCrawler 
+from src.routes.threat.virustotal import VirusTotalCollector
+import logging,os 
 from dotenv import load_dotenv
-
+import requests
+from bs4 import BeautifulSoup
+from datetime import datetime
+# -----------------------------------------------
 load_dotenv()
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S',filename=os.getenv('file_log'), filemode='a', encoding='utf-8')
 
-def query_otx_ip(ip):
-    api_key = os.getenv("otx_api_key")
-    if not api_key:
-        raise ValueError("请先在环境变量中设置 otx_api_key")
+app = Flask(__name__)
+app.register_blueprint(api_bp)
 
-    base_url = "https://otx.alienvault.com/api/v1"
-    headers = {
-        "accept": "application/json",
-        "X-OTX-API-KEY": api_key
-    }
+headers = {
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
+}
+def crawl() -> list:
+    url = 'https://avd.aliyun.com/'
+    resp = requests.get(url,headers=headers, timeout=10)
+    # print(resp.text)
+    resp.raise_for_status()
+    soup = BeautifulSoup(resp.text, 'html.parser')
+    items = []
 
-    url = f"{base_url}/indicators/IPv4/{ip}/general"
-    try:
-        resp = requests.get(url, headers=headers, timeout=10)
-        resp.raise_for_status()
-        return resp.json()
-    except requests.RequestException as e:
-        print(f"请求失败: {e}")
-        return None
+    # 简单解析页面漏洞列表行
+    rows = soup.select('table.table tbody tr')
+    # print(rows)
+    for tr in rows:
+        tds = tr.find_all('td')
+        cve_id_tag = tds[0].find('a')
+        cve_id = cve_id_tag.text.strip() if cve_id_tag else ''
+        title = tds[1].text.strip()
+        published = tds[3].text.strip()
+        source = "Aliyun AVD"
+        severity = tds[4].text.strip() if len(tds) > 4 else ""
+        url_detail = "https://avd.aliyun.com" + (cve_id_tag.get('href') if cve_id_tag else "")
 
-if __name__ == "__main__":
-    ip_to_query = "8.8.8.8"  # 测试IP
-    result = query_otx_ip(ip_to_query)
-    if result:
-        print("查询结果：")
-        print(result)
-    else:
-        print("查询失败或无结果。")
+        items.append({
+            "cve_id": cve_id,
+            "title": title,
+            "published": datetime.strptime(published, "%Y-%m-%d").date() if published else None,
+            "source": source,
+            "severity": severity,
+            "url": url_detail,
+            "description": "",  # 可扩展后面爬详情页
+        })
+
+
+if __name__ == '__main__':
+    crawl()  # 直接运行爬虫任务
+
+
+

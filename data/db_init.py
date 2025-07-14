@@ -31,7 +31,7 @@ def create_database_and_tables():
             title VARCHAR(255) NOT NULL DEFAULT '',
             published DATE NOT NULL DEFAULT '1970-01-01',
             source VARCHAR(50) NOT NULL DEFAULT '',
-            severity VARCHAR(20) DEFAULT '',
+            severity VARCHAR(50) DEFAULT '',
             url VARCHAR(255) DEFAULT '',
             description TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

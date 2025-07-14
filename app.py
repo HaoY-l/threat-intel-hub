@@ -36,6 +36,7 @@ def run_cve():
     #     print(f"{item['cve_id']} | {item['title']} | {item['published']}")
 
 # ---------------- 启动定时任务调度器 ---------------- #
+run_cve()  # 启动时立即执行一次
 scheduler = BackgroundScheduler()
 scheduler.add_job(run_cve, 'interval', hours=3, id='cve_task')
 scheduler.start()
