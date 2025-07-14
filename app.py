@@ -4,7 +4,7 @@
 # @Time   : 2025/07/11 14:10
 # @File   : app.py
 # -----------------------------------------------
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory
 from apscheduler.schedulers.background import BackgroundScheduler
 from data.db_init import create_database_and_tables
 from src.api import api_bp
@@ -31,7 +31,7 @@ logging.basicConfig(
     ]
 )
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='src/static', static_url_path='/')
 
 # 更完整的CORS配置
 CORS(app, resources={
@@ -129,11 +129,7 @@ def handle_exception(e):
 
 @app.route('/')
 def index():
-    return jsonify({
-        'message': 'Threat Intelligence API is up and running',
-        'status': 'success',
-        'version': '1.0.0'
-    })
+    return send_from_directory(app.static_folder, 'index.html')
 
 @app.route('/health')
 def health_check():
