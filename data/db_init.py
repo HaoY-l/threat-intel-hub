@@ -102,6 +102,31 @@ def create_database_and_tables():
         cursor.execute(create_file_hash_threat_table_sql)
         logging.info("File threat intel table created or already exists.")
 
+        # 创建操作历史表
+        create_search_history_table_sql = """
+        CREATE TABLE IF NOT EXISTS search_history (
+            id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '自增主键',
+            query VARCHAR(255) NOT NULL COMMENT '查询关键字',
+            type VARCHAR(20) NOT NULL COMMENT '查询类型，如ip/url/file',
+            timestamp DATETIME NOT NULL COMMENT '查询时间',
+            results INT DEFAULT 0 COMMENT '结果数量',
+            max_score INT DEFAULT 0 COMMENT '最大风险评分',
+            max_threat_level VARCHAR(20) DEFAULT NULL COMMENT '最大威胁等级',
+
+            -- 存储简化的详情数据，JSON格式
+            detail_results JSON DEFAULT NULL COMMENT '查询结果详情，去掉大字段详情，方便快速读取',
+
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '记录创建时间',
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+
+            INDEX idx_query (query),
+            INDEX idx_type (type),
+            INDEX idx_timestamp (timestamp),
+            INDEX idx_max_threat_level (max_threat_level)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='操作查询历史表';"""
+        cursor.execute(create_search_history_table_sql)
+        logging.info("Search history table created or already exists.")
+        
     conn.close()
 
 if __name__ == "__main__":
