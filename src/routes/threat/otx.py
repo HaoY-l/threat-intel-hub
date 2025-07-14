@@ -28,16 +28,14 @@ class OtxCollector(ThreatIntelCollector):
         return self._get(url)
 
     def query_url(self, url: str) -> dict:
-        """查询 URL 的情报信息"""
+        """查询 URL 的情报信息（不主动请求目标 URL）"""
         try:
-            # 使用 requests 获取实际 URL（处理重定向）
-            response = requests.get(url, timeout=5, allow_redirects=True)
-            response.raise_for_status()
-            resolved_url = response.url
-            url = f"{self.base_url}/indicators/url/{resolved_url}/general"
-            return self._get(url)
-        except requests.RequestException as e:
-            logging.error(f"平台{self.name()}Error resolving URL {url}: {e}")
+            # URL 编码避免路径参数导致接口异常
+            encoded_url = requests.utils.quote(url, safe='')
+            otx_url = f"{self.base_url}/indicators/url/{encoded_url}/general"
+            return self._get(otx_url)
+        except Exception as e:
+            logging.error(f"平台{self.name()} 解析 URL 时异常: {url} - {e}")
             return {"error": str(e)}
 
     def query_file(self, file_hash: str) -> dict:
@@ -100,11 +98,11 @@ class OtxCollector(ThreatIntelCollector):
                 reputation_score = attributes.get('reputation', 0)
 
                 if reputation_score > 0:
-                    threat_level = '无风险'
+                    threat_level = 'low'
                 elif reputation_score == 0:
-                    threat_level = '中立'
+                    threat_level = 'medium'
                 else:
-                    reputation_score = '有风险'
+                    reputation_score = 'high'
 
                 # OTX返回的时间字段不固定，尝试用 modified 或 None
                 last_update_ts = attributes.get('modified')
@@ -160,7 +158,9 @@ class OtxCollector(ThreatIntelCollector):
                             last_update = datetime.fromisoformat(last_update_ts.replace('Z', '+00:00'))
                     except Exception:
                         last_update = None
-
+                # 如果最终没有拿到时间，使用当前时间
+                if last_update is None:
+                    last_update = datetime.now(timezone.utc)
                 cursor.execute("SELECT id FROM url_threat_intel WHERE id=%s AND source=%s", (target_id, source))
                 row = cursor.fetchone()
 
@@ -184,14 +184,14 @@ class OtxCollector(ThreatIntelCollector):
                     )
                     logging.info(f"平台{self.name()}的URL数据 {target_url} 已更新")
 
-            elif type_ == 'file':
+            elif type_ == 'file' or type_ in ['sha256']:
                 reputation_score = attributes.get('reputation', 0)
                 analysis_stats = attributes.get('last_analysis_stats', {})
                 malicious_count = analysis_stats.get('malicious', 0)
 
-                if malicious_count > 5:
+                if malicious_count < 0:
                     threat_level = 'high'
-                elif malicious_count > 0:
+                elif malicious_count == 0:
                     threat_level = 'medium'
                 else:
                     threat_level = 'low'
@@ -206,7 +206,9 @@ class OtxCollector(ThreatIntelCollector):
                             last_update = datetime.fromisoformat(last_update_ts.replace('Z', '+00:00'))
                     except Exception:
                         last_update = None
-
+                # 如果最终没有拿到时间，使用当前时间
+                if last_update is None:
+                    last_update = datetime.now(timezone.utc)
                 cursor.execute("SELECT id FROM file_threat_intel WHERE id=%s AND source=%s", (target_id, source))
                 row = cursor.fetchone()
 

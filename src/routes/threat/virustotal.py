@@ -64,8 +64,14 @@ class VirusTotalCollector(ThreatIntelCollector):
         with self.conn.cursor() as cursor:
             if type_ == 'ip_address':
                 reputation_score = attributes.get('reputation', 0)
-                threat_level = None  # 可自定义威胁等级
+                if reputation_score > 0:
+                    threat_level = 'low'
+                elif reputation_score == 0:
+                    threat_level = 'medium'
+                else:
+                    threat_level = 'high'
                 last_update_ts = attributes.get('last_analysis_date')
+                type_ = 'ip'  # 确保类型一致
                 last_update = datetime.fromtimestamp(last_update_ts) if last_update_ts else None
 
                 cursor.execute("SELECT id FROM ip_threat_intel WHERE id=%s AND source=%s", (target_id, source))

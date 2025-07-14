@@ -85,13 +85,13 @@ def query_threat():
 
     logging.info(f"收到查询请求 type={query_type}, value={query_value}")
 
-    if query_type not in ['ip', 'IPv4', 'url', 'file'] or not query_value:
+    if query_type not in ['ip', 'url', 'file'] or not query_value:
         return jsonify({'error': 'Invalid type or value'}), 400
 
     # 所有接入平台
     platforms = {
-        "virustotal": VirusTotalCollector(),
-        "otx": OtxCollector(),
+        "VirusTotal": VirusTotalCollector(),
+        "AlienVault OTX": OtxCollector(),
         # 预留扩展平台
         # "xforce": XForceCollector(),
     }
@@ -108,7 +108,7 @@ def query_threat():
                 continue
 
             # 没有缓存或数据过期，发起 API 查询
-            if query_type == 'ip' or query_type == 'IPv4':
+            if query_type == 'ip':
                 api_result = collector.query_ip(query_value)
             elif query_type == 'url':
                 api_result = collector.query_url(query_value)
