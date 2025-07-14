@@ -83,7 +83,7 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  max-height: 24rem;
+  max-height: 38rem;
   overflow-y: auto;
 }
 
