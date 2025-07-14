@@ -1,0 +1,20 @@
+{
+  "name": "threat-intel-dashboard",
+  "version": "1.0.0",
+  "description": "网络安全威胁情报仪表板",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "serve": "vite preview"
+  },
+  "dependencies": {
+    "@fortawesome/fontawesome-free": "^6.4.0",
+    "axios": "^1.5.0",
+    "js-sha256": "^0.11.1",
+    "vue": "^3.3.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^4.4.0",
+    "vite": "^4.4.0"
+  }
+}
