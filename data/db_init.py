@@ -83,7 +83,7 @@ def create_database_and_tables():
         # 创建文件哈希威胁表
         create_file_hash_threat_table_sql = """
         CREATE TABLE IF NOT EXISTS file_threat_intel (
-            id VARCHAR(255) PRIMARY KEY COMMENT '文件标识符(通常为SHA256)',
+            id VARCHAR(255) NOT NULL COMMENT '文件标识符(通常为SHA256)',
             type VARCHAR(50) DEFAULT 'file' COMMENT '数据类型',
             source VARCHAR(100) NOT NULL COMMENT '数据源',
             reputation_score INT DEFAULT 0 COMMENT '信誉分数',
@@ -92,6 +92,7 @@ def create_database_and_tables():
             details JSON DEFAULT NULL COMMENT '详细信息(JSON格式)',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+            PRIMARY KEY (id, source),
             INDEX idx_source (source),
             INDEX idx_reputation (reputation_score),
             INDEX idx_threat_level (threat_level),
