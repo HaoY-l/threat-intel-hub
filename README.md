@@ -1,7 +1,9 @@
 # 威胁情报聚合平台 (Threat Intelligence Hub)
 
-🔥 一个集成多源威胁情报的聚合平台，为安全研究人员和运维团队提供实时威胁情报查询和播报服务。
-
+🔥 一个集成多源威胁情报的聚合平台，为安全研究人员和运维团队提供实时威胁情报查询和播报服务。   
+![仪表盘](./data/public/1.png)   
+![查询结果](./data/public/2.png)   
+![历史历史](./data/public/3.png)   
 ## 👥 目标用户
 
 ### 🛡️ 安全运维团队
@@ -102,41 +104,11 @@
 - MySQL 8.0+
 
 ### 安装步骤
-
-1. **克隆项目**
+脚本一件安装
 ```bash
-git clone https://github.com/HaoY-l/threat-intel-hub.git
-cd threat-intel-hub
+./deploy.sh
 ```
-
-2. **安装依赖**
-```bash
-# Python项目
-pip install -r requirements.txt
-
-# 或 Node.js项目
-npm install
-```
-
-3. **配置数据库**
-```bash
-# 直接初始化mysql
-```
-
-4. **配置环境变量**
-```bash
-cp .env.example .env
-# 编辑.env文件，配置数据库连接和API密钥
-```
-
-5. **启动服务**
-```bash
-# 启动后端服务
-python app.py
-
-# 启动前端服务
-npm run serve
-```
+**注意：程序运行端口默认为8891**
 
 ## 🔧 配置说明
 
@@ -167,12 +139,8 @@ file_log=app.log
 - **VirusTotal**: 恶意文件检测
 - **AbuseIPDB**: IP声誉查询
 - **其他开源情报源**: 可根据需求扩展
+**目前CVE仅展示了阿里云漏洞平台的漏洞信息，IP、URL、File检测依赖了VirusTotal和AlienVault OTX的API**
 
-## 📝 API文档
-
-### 查询接口
-
-```
 
 ## 🔄 工作流程
 
@@ -189,7 +157,10 @@ file_log=app.log
 3. **缓存命中**: 如有缓存且未过期，直接返回缓存数据
 4. **API调用**: 缓存未命中时，调用外部API获取数据
 5. **数据缓存**: 将API返回的数据存储到数据库
-6. **结果返回**: 返回查询结果给用户
+6. **结果返回**: 返回查询结果给用户   
 
+---
+**项目不得用于任何非法用途，一切行为自行承担后果，与作者无关；若该工具的任何行为有违规请联系作者✍️**。  
 
-⭐ 如果这个项目对你有帮助，请给我们一个星标！
+---
+**⭐ 如果这个项目对你有帮助，请给我们一个星标！**
