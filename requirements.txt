@@ -2,3 +2,5 @@ requests
 python-dotenv
 OTXv2
 apscheduler
+flask
+flask-cors
