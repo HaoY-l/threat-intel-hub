@@ -10,7 +10,20 @@ class AliyunAVDCrawler(BaseCrawler):
     def source_url(self) -> str:
         return "https://avd.aliyun.com/"
 
+    def clear_source_data(self):
+        """删除当前来源的旧数据"""
+        try:
+            with self.conn.cursor() as cursor:
+                sql = "DELETE FROM cve_data WHERE source = %s"
+                cursor.execute(sql, (self.name(),))
+            self.conn.commit()
+        except Exception as e:
+            print(f"[!] 清理旧数据失败: {e}")
+
     def crawl(self) -> list:
+        # 先清理旧数据
+        self.clear_source_data()
+
         url = self.source_url()
         resp = requests.get(url, timeout=self.timeout)
         resp.raise_for_status()
@@ -19,14 +32,13 @@ class AliyunAVDCrawler(BaseCrawler):
 
         # 简单解析页面漏洞列表行
         rows = soup.select('table.table tbody tr')
-        # print(rows)
         for tr in rows:
             tds = tr.find_all('td')
             cve_id_tag = tds[0].find('a')
             cve_id = cve_id_tag.text.strip() if cve_id_tag else ''
             title = tds[1].text.strip()
             published = tds[3].text.strip()
-            source = "Aliyun AVD"
+            source = self.name()
             severity = tds[4].text.strip() if len(tds) > 4 else ""
             url_detail = "https://avd.aliyun.com" + (cve_id_tag.get('href') if cve_id_tag else "")
 
