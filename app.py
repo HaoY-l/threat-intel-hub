@@ -34,14 +34,7 @@ logging.basicConfig(
 app = Flask(__name__, static_folder='src/static', static_url_path='/')
 
 # 更完整的CORS配置
-CORS(app, resources={
-    r"/api/*": {
-        "origins": ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000"],
-        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization", "X-Requested-With"],
-        "supports_credentials": True
-    }
-})
+CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 # 注册蓝图
 app.register_blueprint(api_bp)
