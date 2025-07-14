@@ -161,7 +161,7 @@ if __name__ == '__main__':
     # 启动Flask应用
     try:
         logging.info("启动Flask应用...")
-        app.run(debug=True, host='0.0.0.0', port=5001, threaded=True)
+        app.run(debug=True, host='0.0.0.0', port=8891, threaded=True)
     except Exception as e:
         logging.error(f"Flask应用启动失败: {e}")
         if scheduler:

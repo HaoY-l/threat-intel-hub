@@ -3,4 +3,7 @@ python-dotenv
 OTXv2
 apscheduler
 flask
+beautifulsoup4
 flask-cors
+pymysql
+lxml
