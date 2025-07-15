@@ -278,7 +278,7 @@ json数组
 ---
 
 
-## GET /api/deletewhite
+## POST /api/deletewhite
 
 ### 描述
 通过阿里云WAF的白名单规则id，删除对应的白名单规则
@@ -375,7 +375,7 @@ json数组
 ---
 
 
-## GET /api/modifyblackrule
+## POST /api/modifyblackrule
 
 ### 描述
 添加黑名单IP接口

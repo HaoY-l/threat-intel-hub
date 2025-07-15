@@ -4,10 +4,30 @@
       <h1 class="logo">威胁情报仪表板</h1>
       <nav class="nav">
         <ul>
-          <li><a href="#" class="nav-link">首页</a></li>
-          <li><a href="#" class="nav-link">威胁情报</a></li>
-          <li><a href="#" class="nav-link">CVE漏洞</a></li>
-          <li><a href="#" class="nav-link">设置</a></li>
+          <li>
+            <a
+              href="#"
+              class="nav-link"
+              :class="{ active: active === 'threat' }"
+              @click.prevent="setActiveTab('threat')"
+            >威胁情报</a>
+          </li>
+          <li>
+            <a
+              href="#"
+              class="nav-link"
+              :class="{ active: active === 'waf' }"
+              @click.prevent="setActiveTab('waf')"
+            >WAF协同</a>
+          </li>
+          <li>
+            <a
+              href="#"
+              class="nav-link"
+              :class="{ active: active === 'settings' }"
+              @click.prevent="setActiveTab('settings')"
+            >设置</a>
+          </li>
         </ul>
       </nav>
     </div>
@@ -16,7 +36,18 @@
 
 <script>
 export default {
-  name: 'Header'
+  name: 'Header',
+  props: {
+    active: {
+      type: String,
+      required: true
+    }
+  },
+  methods: {
+    setActiveTab(tab) {
+      this.$emit('tab-change', tab);
+    }
+  }
 }
 </script>
 
@@ -41,39 +72,37 @@ export default {
 }
 
 .logo {
-  color: white;
   font-size: 1.5rem;
   font-weight: bold;
+  color: #fff;
   margin: 0;
 }
 
 .nav ul {
-  display: flex;
   list-style: none;
+  display: flex;
+  gap: 2rem;
   margin: 0;
   padding: 0;
-  gap: 2rem;
 }
 
 .nav-link {
-  color: rgba(255, 255, 255, 0.8);
+  color: #fff;
   text-decoration: none;
   font-weight: 500;
-  transition: color 0.3s ease;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  transition: all 0.3s ease;
+  border: 1px solid transparent;
 }
 
 .nav-link:hover {
-  color: white;
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.3);
 }
 
-@media (max-width: 768px) {
-  .container {
-    flex-direction: column;
-    gap: 1rem;
-  }
-  
-  .nav ul {
-    gap: 1rem;
-  }
+.nav-link.active {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.4);
 }
 </style>
