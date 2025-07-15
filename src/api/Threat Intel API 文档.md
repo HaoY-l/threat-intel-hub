@@ -201,6 +201,140 @@
 ---
 
 
+## GET /api/listwhite
+
+### 描述
+列举阿里云WAF所有白名单列表
+
+### 请求参数
+
+无
+
+### 示例响应
+```json
+{
+  "message": [
+    {
+      "rule_id": 10238952,
+      "rule_name": "yyy白名单",
+      "rule_template": 208428
+    },
+    {
+      "rule_id": 10238951,
+      "rule_name": "xxx白名单",
+      "rule_template": 208428
+    }]
+}
+```
+### 响应字段
+| 字段名         | 类型     | 描述                 |
+| ----------- | ------ | ------------------ |
+| rule_id          | number | 白名单id              |
+| rule_name     | string | 白名单命名             |
+| rule_template       | number | 白名单模版id                 |
+
+
+---
+
+## GET /api/addwhite
+
+### 描述
+添加阿里云WAF白名单
+
+### 请求参数
+json数组
+```json
+[
+    {
+        "name": "test1",
+        "tags": ["waf"],
+        "status": 1,
+        "origin": "custom",
+        "conditions": [
+            {
+                "key": "IP",
+                "opValue": "contain",
+                "subKey": "",
+                "values": "124.222.195.27"
+            }
+        ]
+    }
+]
+```
+### 示例响应
+```json
+{
+  "message": "白名单添加成功",
+  "status": "success"
+}
+```
+
+### 响应字段
+
+| 字段名         | 类型     | 描述                 |
+| ----------- | ------ | ------------------ |
+| message          | string | 消息              |
+| status     | string | 返回状态             |
+---
+
+
+## GET /api/deletewhite
+
+### 描述
+通过阿里云WAF的白名单规则id，删除对应的白名单规则
+
+### 请求参数
+```json
+{
+    "rule_id":"10238959"
+}
+```
+### 示例响应
+```json
+{
+  "code": 200,
+  "msg": "删除成功"
+}
+```
+### 响应字段
+
+
+---
+
+
+## GET /api/descblackrule
+
+### 描述
+显示固定模版下固定规则的黑名单IP列表
+
+### 请求参数
+
+无
+
+### 示例响应
+```json
+{
+  "message": [
+    {
+      "ip_list": [
+        "116.238.81.166",
+        "183.223.240.178",
+      ],
+      "rule_id": 20705051,
+      "rule_name": "IpBlackList",
+      "template_id": 179863
+    }
+  ],
+  "status": "success"
+}
+```
+
+### 响应字段
+
+
+---
+
+
 ## GET /api/xxx
 
 ### 描述
@@ -220,25 +354,6 @@
 
 ---
 
-## GET /api/xxx
-
-### 描述
-
-
-### 请求参数
-
-无
-
-### 示例响应
-```json
-
-```
-
-### 响应字段
-
-
----
-
 
 ## GET /api/xxx
 
@@ -260,74 +375,16 @@
 ---
 
 
-## GET /api/xxx
+## GET /api/modifyblackrule
 
 ### 描述
-
+添加黑名单IP接口
 
 ### 请求参数
 
-无
-
-### 示例响应
-```json
-
-```
-
-### 响应字段
-
-
----
-
-
-## GET /api/xxx
-
-### 描述
-
-
-### 请求参数
-
-无
-
-### 示例响应
-```json
-
-```
-
-### 响应字段
-
-
----
-
-
-## GET /api/xxx
-
-### 描述
-
-
-### 请求参数
-
-无
-
-### 示例响应
-```json
-
-```
-
-### 响应字段
-
-
----
-
-
-## GET /api/xxx
-
-### 描述
-
-
-### 请求参数
-
-无
+{
+    "black_ip": "247.xx.xx.42"
+}
 
 ### 示例响应
 ```json

@@ -44,54 +44,62 @@ def create_client() -> waf_openapi20211001Client:
 # 修改黑名单规则
 @waf_modifyblackrule.route('/modifyblackrule', methods=['POST'])
 def modify_black_rule():
-    # 获取请求中的用户输入的 IP 地址
-    user_ip = request.get_json().get('black_ip')  # 获取用户提交的 'black_ip' 字段
+    try:
+        # 获取请求中的用户输入的 IP 地址
+        user_ip = request.get_json().get('black_ip')
 
-    # 调用 descblackrule 接口，获取现有的黑名单配置
-    response = requests.get('http://localhost:5003/api/waf/descblackrule')
-    
-    if response.status_code == 200:
-        data = response.json()  # 将响应解析为 JSON 字典
-        
-        # 检查返回的结构是否包含我们需要的字段
-        if "message" not in data or "Config" not in data["message"]:
-            return jsonify({'status': 'error', 'message': 'Invalid response data structure'}), 500
-        
-        config = data["message"]["Config"]
+        if not user_ip or not is_valid_ip(user_ip):
+            return jsonify({'status': 'error', 'message': '无效或缺失的 IP 地址'}), 400
 
-        # 如果 config 是字符串，尝试将其解析为字典
-        if isinstance(config, str):
-            try:
-                config = json.loads(config)  # 尝试将字符串转换为 JSON 对象
-            except json.JSONDecodeError as e:
-                return jsonify({'status': 'error', 'message': f"Failed to parse config JSON: {e}"}), 500
-        
-        # 确保 config 现在是字典
-        if not isinstance(config, dict):
-            return jsonify({'status': 'error', 'message': 'Config is not a valid dictionary'}), 500
-        
-        remote_addr = config.get("remoteAddr", [])
-        
-        if user_ip and user_ip not in remote_addr:  # 检查用户 IP 是否存在于列表中，避免重复
-            remote_addr.append(user_ip)  # 将用户输入的 IP 加入到 remoteAddr 列表中
-        # 更新后的配置数据
-        updated_data = [{'action': 'block', 'id': os.getenv("BLACKLIST_RULES_ID"), 'name': 'IpBlackList', 'remoteAddr': remote_addr}]
+        # 调用 descblackrule 接口，获取现有的黑名单配置
+        response = requests.get('http://localhost:8891/api/descblackrule')
+
+        if response.status_code != 200:
+            return jsonify({'status': 'error', 'message': 'Failed to fetch data from descblackrule'}), 500
+
+        data = response.json()
+        # print(data)
+
+        # 检查 message 是非空列表
+        if "message" not in data or not isinstance(data["message"], list) or not data["message"]:
+            return jsonify({'status': 'error', 'message': 'Invalid response structure'}), 500
+
+        rule_info = data["message"][0]
+        ip_list = rule_info.get("ip_list", [])
+        rule_id = rule_info.get("rule_id")
+        template_id = rule_info.get("template_id")
+
+        if not rule_id or not template_id:
+            return jsonify({'status': 'error', 'message': '缺少必要的规则 ID 或模板 ID'}), 500
+
+        # 避免重复添加 IP
+        if user_ip not in ip_list:
+            ip_list.append(user_ip)
+
+        # 构造新的规则数据
+        updated_data = [{
+            "action": "block",
+            "id": rule_id,
+            "name": "IpBlackList",
+            "remoteAddr": ip_list
+        }]
         rules_str = json.dumps(updated_data)
+        # print(rules_str)
+
         # 创建防护规则请求
         client = create_client()
-        create_defense_rule_request = waf_openapi_20211001_models.CreateDefenseRuleRequest(
+        modify_defense_rule_request = waf_openapi_20211001_models.ModifyDefenseRuleRequest(
             region_id=os.getenv("REGION_ID"),
             instance_id=os.getenv("INSTANCE_ID"),
-            template_id=os.getenv("BLACKLIST_TEMPLATE_ID"),
+            template_id=str(template_id),
             defense_scene='ip_blacklist',
-            rules=rules_str  # 转换为 JSON 字符串
+            rules=rules_str
         )
-        
+
         runtime = util_models.RuntimeOptions()
-        try:
-            client.create_defense_rule_with_options(create_defense_rule_request, runtime)
-            return jsonify({'status': 'success', 'message': 'Rule updated successfully'}), 200
-        except Exception as error:
-            return jsonify({'status': 'error', 'message': str(error)}), 500
-    else:
-        return jsonify({'status': 'error', 'message': 'Failed to fetch data from descblackrule'}), 500
+        client.modify_defense_rule_with_options(modify_defense_rule_request, runtime)
+
+        return jsonify({'status': 'success', 'message': '黑名单规则已更新'}), 200
+
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': f'内部错误: {str(e)}'}), 500
