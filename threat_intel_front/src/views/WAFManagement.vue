@@ -370,31 +370,66 @@ button:hover:not(:disabled) {
   background-color: #2727ff;
 }
 
+/* ==== 优化后的添加白名单和黑名单表单 ==== */
 form.add-form {
   display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  align-items: flex-end;
+  flex-direction: column;  /* 垂直排列 */
+  gap: 1rem;               /* 行间距 */
+  max-width: 400px;        /* 最大宽度限制 */
+  padding: 1rem;
+  background-color: #1a1a40; /* 背景色，稍微突出 */
+  border-radius: 8px;
+  border: 1px solid #444466;
+  box-shadow: 0 0 8px rgba(74, 74, 255, 0.3);
   margin-top: 1rem;
 }
 
 form.add-form label {
   display: flex;
   flex-direction: column;
-  font-weight: 500;
-  color: #ccc;
-  min-width: 200px;
+  font-weight: 600;
+  color: #bbbbee;
+  font-size: 0.95rem;
 }
 
 form.add-form input {
   width: 100%;
-  padding: 0.4rem 0.6rem;
-  border-radius: 4px;
-  border: 1px solid #666;
-  background: #222;
-  color: #fff;
+  padding: 0.5rem 0.7rem;
+  border-radius: 6px;
+  border: 1px solid #666688;
+  background: #222244;
+  color: #eeeef0;
   font-size: 1rem;
-  margin-top: 0.3rem;
+  margin-top: 0.4rem;
+  transition: border-color 0.3s ease;
+}
+
+form.add-form input:focus {
+  outline: none;
+  border-color: #4a4aff;
+  box-shadow: 0 0 6px #4a4aff;
+}
+
+form.add-form button {
+  align-self: flex-start;  /* 按钮靠左对齐 */
+  padding: 0.5rem 1.2rem;
+  font-weight: 700;
+  font-size: 1rem;
+  border-radius: 6px;
+  background-color: #4a4aff;
+  box-shadow: 0 4px 8px rgba(74, 74, 255, 0.3);
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+form.add-form button:hover:not(:disabled) {
+  background-color: #2727ff;
+  box-shadow: 0 6px 12px rgba(39, 39, 255, 0.6);
+}
+
+form.add-form button:disabled {
+  background-color: #555577;
+  box-shadow: none;
+  cursor: not-allowed;
 }
 
 .pagination {
