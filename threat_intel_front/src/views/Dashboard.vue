@@ -1,7 +1,7 @@
 // ✅ Dashboard.vue
 <template>
   <div class="dashboard">
-    <Header />
+    <!-- <Header /> -->
 
     <main class="main-content">
       <div class="container">
@@ -39,7 +39,7 @@
 </template>
 
 <script>
-import Header from '../components/common/Header.vue'
+// import Header from '../components/common/Header.vue'
 import AppFooter from '../components/common/AppFooter.vue'
 import CVEList from '../components/cve/CVEList.vue'
 import SearchPanel from '../components/search/SearchPanel.vue'
@@ -50,7 +50,6 @@ import { getAllCVE, queryThreatIntel } from '../utils/api.js'
 export default {
   name: 'Dashboard',
   components: {
-    Header,
     AppFooter,
     CVEList,
     SearchPanel,
