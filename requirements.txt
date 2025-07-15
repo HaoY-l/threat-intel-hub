@@ -7,3 +7,4 @@ beautifulsoup4
 flask-cors
 pymysql
 lxml
+alibabacloud_waf_openapi20211001
