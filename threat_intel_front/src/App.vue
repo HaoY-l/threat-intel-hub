@@ -11,7 +11,7 @@
 <script>
 import Header from './components/common/Header.vue'
 import Dashboard from './views/Dashboard.vue'
-import Settings from './views/Settings.vue'
+import Tools from './views/Tools.vue'
 import WAFManagement from './views/WAFManagement.vue'
 
 export default {
@@ -19,7 +19,7 @@ export default {
   components: {
     Header,
     Dashboard,
-    Settings,
+    Tools,
     WAFManagement
   },
   data() {
@@ -30,8 +30,8 @@ export default {
   computed: {
     activeView() {
       switch (this.activeTab) {
-        case 'settings':
-          return 'Settings'
+        case 'tools':
+          return 'Tools'
         case 'waf':
           return 'WAFManagement'
         case 'threat':

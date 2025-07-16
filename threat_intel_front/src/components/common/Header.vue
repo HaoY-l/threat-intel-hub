@@ -10,7 +10,7 @@
               class="nav-link"
               :class="{ active: active === 'threat' }"
               @click.prevent="setActiveTab('threat')"
-            >威胁情报</a>
+            >威胁情报🚨</a>
           </li>
           <li>
             <a
@@ -18,15 +18,15 @@
               class="nav-link"
               :class="{ active: active === 'waf' }"
               @click.prevent="setActiveTab('waf')"
-            >WAF协同</a>
+            >WAF协同🚀</a>
           </li>
           <li>
             <a
               href="#"
               class="nav-link"
-              :class="{ active: active === 'settings' }"
-              @click.prevent="setActiveTab('settings')"
-            >设置</a>
+              :class="{ active: active === 'tools' }"
+              @click.prevent="setActiveTab('tools')"
+            >工具箱🧰</a>
           </li>
         </ul>
       </nav>
