@@ -542,6 +542,7 @@ def create_article():
     }
     headers = {"Content-Type": "application/json"}
     response = requests.post(url, data=json.dumps(data, ensure_ascii=False), headers=headers)
+    print(response)
     if response.json()["media_id"]:
         logging.info("草稿发布成功")
     else:
@@ -550,19 +551,19 @@ def create_article():
 
 # 微信发布正式内容（草稿）接口如下，有free publish、batchget、get_status等功能
 # 微信 Free Publish - 获取草稿箱列表
-def get_wechat_draft_list(access_token):
+def get_wechat_draft_list(access_token, offset=0, count=20):
     """
     获取草稿箱列表 (微信官方draft_batchget接口)
     """
     try:
-        # 兼容 application/json 和 x-www-form-urlencoded
-        if request.is_json:
-            data = request.get_json()
-        else:
-            data = request.form.to_dict() if request.form else {}
+        # # 兼容 application/json 和 x-www-form-urlencoded
+        # # if request.is_json:
+        # #     data = request.get_json()
+        # # else:
+        # #     data = request.form.to_dict() if request.form else {}
 
-        offset = int(data.get('offset', 0))
-        count = int(data.get('count', 20))
+        # offset = int(data.get('offset', 0))
+        # count = int(data.get('count', 20))
 
         if not access_token:
             return jsonify({'error': '获取access_token失败'}), 500
