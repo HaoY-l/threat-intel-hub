@@ -1,9 +1,10 @@
-import requests,json,os,markdown
+import requests,json,os,markdown,time
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 import sys,os,logging
 from data.db_init import get_db_connection
 from flask import Blueprint, request, jsonify
+from datetime import datetime
 # 加载环境变量
 load_dotenv()
 
@@ -31,10 +32,11 @@ def get_article_content():
         logging.exception("数据库查询接口出错")
         return jsonify({"error": str(err)}), 500
 
-def render_cve_list_to_html(cve_list: list) -> str:
+def render_cve_list_to_html(cve_list: list, tech_news: dict = None) -> str:
     """
-    将CVE信息渲染为公众号风格的HTML内容。
+    将CVE信息和技术新闻渲染为公众号风格的HTML内容。
     :param cve_list: List[Dict]，每个字典包含CVE相关信息
+    :param tech_news: Dict，包含技术新闻数据的字典
     :return: HTML字符串
     """
     
@@ -81,7 +83,7 @@ def render_cve_list_to_html(cve_list: list) -> str:
         else:
             description_short = '暂无描述'
         
-        # 构建CVE条目HTML - 统一的滑动展示样式
+        # 构建CVE条目HTML
         item_html = f'''
             <div style="margin-bottom:15px;padding:15px 18px;background:#ffffff;
                 border:1px solid #e0e0e0;border-radius:8px;
@@ -135,6 +137,100 @@ def render_cve_list_to_html(cve_list: list) -> str:
         
         return item_html
 
+    def render_news_item(item):
+        """渲染单个新闻条目"""
+        channel = item.get('channel', '未知来源')
+        channel_type = item.get('channel_type', '未知类型')
+        title = item.get('title', '暂无标题')
+        description = item.get('description', '暂无描述')
+        author = item.get('author', '未知作者')
+        url = item.get('url', '#')
+        hot = item.get('hot', 0)
+        category = item.get('category', '未知分类')
+        language = item.get('language', '')
+        stars = item.get('stars', '')
+        
+        # 处理描述内容
+        if description and description.strip():
+            description_short = description[:120] + '...' if len(description) > 120 else description
+        else:
+            description_short = '暂无描述'
+        
+        # 处理热度显示
+        if hot >= 1000000:
+            hot_display = f"{hot // 1000000}M"
+        elif hot >= 1000:
+            hot_display = f"{hot // 1000}K"
+        else:
+            hot_display = str(hot)
+        
+        # 根据不同渠道显示不同的标识
+        if channel == 'GitHub':
+            channel_icon = '🐱'
+            channel_color = '#24292e'
+            extra_info = f"⭐ {stars}" if stars else ""
+            language_info = f"📝 {language}" if language else ""
+        else:  # CSDN
+            channel_icon = '📚'
+            channel_color = '#fd7e14'
+            extra_info = f"🔥 {hot_display}"
+            language_info = ""
+        
+        # 构建新闻条目HTML
+        item_html = f'''
+            <div style="margin-bottom:15px;padding:15px 18px;background:#ffffff;
+                border:1px solid #e0e0e0;border-radius:8px;
+                box-shadow:0 2px 6px rgba(0,0,0,0.08);
+                transition:all 0.3s ease;position:relative;">
+                
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                    <span style="background:{channel_color};color:white;
+                        padding:4px 10px;border-radius:15px;font-size:12px;font-weight:bold;">
+                        {channel_icon} {channel}
+                    </span>
+                    <span style="color:#999;font-size:11px;">{category}</span>
+                </div>
+                
+                <h4 style="margin:0 0 10px 0;color:#2c3e50;font-size:14px;font-weight:bold;line-height:1.4;">
+                    {title}
+                </h4>
+                
+                <p style="color:#666;font-size:12px;line-height:1.5;margin:8px 0;">
+                    {description_short}
+                </p>
+                
+                <div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;">
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <span style="background:#28a745;color:white;
+                            padding:2px 8px;border-radius:10px;font-size:10px;">
+                            {extra_info}
+                        </span>
+                        <span style="color:#999;font-size:10px;">作者: {author}</span>
+                        {f'<span style="color:#666;font-size:10px;">{language_info}</span>' if language_info else ''}
+                    </div>
+                    
+                    <div style="color:#28a745;font-size:11px;padding:3px 8px;
+                        border:1px solid #28a745;border-radius:4px;cursor:pointer;
+                        text-decoration:none;">
+                        📖 查看详情
+                    </div>
+                </div>
+                
+                <!-- 链接信息展示区域 -->
+                <div style="margin-top:10px;padding:8px 12px;background:#f8f9fa;
+                    border-radius:6px;border-left:3px solid #28a745;">
+                    <p style="margin:0;font-size:10px;color:#666;line-height:1.4;">
+                        🔗 详情链接: <span style="color:#28a745;word-break:break-all;">{url}</span>
+                    </p>
+                    <p style="margin:5px 0 0 0;font-size:9px;color:#999;">
+                        💡 复制链接到浏览器访问查看完整内容
+                    </p>
+                </div>
+            </div>
+        '''
+        
+        return item_html
+
     def get_severity_color(severity):
         """根据严重程度返回对应颜色"""
         if '⚠️' in severity or 'PoC' in severity:
@@ -166,56 +262,79 @@ def render_cve_list_to_html(cve_list: list) -> str:
         <h2 style="font-weight:bold;background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color:white;padding:15px 20px;border-radius:8px;margin:25px 0 20px 0;font-size:18px;
             text-align:center;box-shadow:0 2px 10px rgba(0,0,0,0.1);">
-            🔐 最新 CVE 安全公告
+            🔐 最新 CVE 安全公告与技术资讯
         </h2>
     ''')
     
     # 添加统计信息
-    total_count = len(cve_list)
+    cve_count = len(cve_list)
+    news_count = tech_news.get('total', 0) if tech_news else 0
     html_parts.append(f'''
         <div style="background:linear-gradient(135deg, #ffeaa7 0%, #fab1a0 100%);
             padding:12px 20px;border-radius:8px;margin-bottom:20px;text-align:center;">
             <span style="color:#2d3436;font-weight:bold;font-size:14px;">
-                📊 本期共收录 {total_count} 个CVE漏洞 | 滑动查看更多
+                📊 本期共收录 {cve_count} 个CVE漏洞 | {news_count} 条技术资讯 | 滑动查看更多
             </span>
         </div>
     ''')
     
-    # 滑动窗口展示所有CVE信息
-    html_parts.append('''
-        <div style="margin-top:20px;">
-            
-            <div style="max-height:600px;overflow-y:auto;border:1px solid #dee2e6;
-                padding:15px;border-radius:8px;background:#f8f9fa;
-                box-shadow:inset 0 2px 4px rgba(0,0,0,0.1);">
-    ''')
-    
-    # 渲染所有CVE信息
-    for item in cve_list:
-        html_parts.append(render_cve_item(item))
-    
-    html_parts.append('''
+    # CVE 安全公告区域
+    if cve_list:
+        html_parts.append('''
+            <div style="margin-top:20px;">
+                <h3 style="font-weight:bold;background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color:white;padding:12px 18px;border-radius:6px;margin:20px 0 15px 0;font-size:16px;
+                    text-align:center;">
+                    🛡️ CVE 安全漏洞公告
+                </h3>
+                
+                <div style="max-height:500px;overflow-y:auto;border:1px solid #dee2e6;
+                    padding:15px;border-radius:8px;background:#f8f9fa;
+                    box-shadow:inset 0 2px 4px rgba(0,0,0,0.1);">
+        ''')
+        
+        # 渲染所有CVE信息
+        for item in cve_list:
+            html_parts.append(render_cve_item(item))
+        
+        html_parts.append('''
+                </div>
+                
+                <div style="text-align:center;margin-top:10px;padding:8px;
+                    background:#e9ecef;border-radius:6px;color:#6c757d;font-size:12px;">
+                    💡 提示：上方区域可滑动查看更多CVE信息
+                </div>
             </div>
-            
-            <div style="text-align:center;margin-top:15px;padding:12px;
-                background:#e9ecef;border-radius:8px;color:#6c757d;font-size:12px;">
-                💡 提示：上方区域可滑动查看更多CVE信息 | 复制链接到浏览器访问详情
-            </div>
-        </div>
-    ''')
+        ''')
     
-    # 添加链接说明区域
-    html_parts.append('''
-        <div style="background:#fff3cd;border:1px solid #ffeaa7;border-radius:8px;
-            padding:15px;margin-top:20px;text-align:center;">
-            <p style="margin:0 0 10px 0;color:#856404;font-size:13px;font-weight:bold;">
-                🔗 如何访问详情链接
-            </p>
-            <p style="margin:0;color:#856404;font-size:11px;line-height:1.5;">
-                由于微信限制，无法直接点击跳转。请复制上方展示的链接地址，粘贴到浏览器中访问查看完整CVE详情。
-            </p>
-        </div>
-    ''')
+    # 技术新闻区域
+    if tech_news and tech_news.get('data'):
+        html_parts.append('''
+            <div style="margin-top:25px;">
+                <h3 style="font-weight:bold;background:linear-gradient(135deg, #28a745 0%, #20c997 100%);
+                    color:white;padding:12px 18px;border-radius:6px;margin:20px 0 15px 0;font-size:16px;
+                    text-align:center;">
+                    📰 技术资讯热点
+                </h3>
+                
+                <div style="max-height:500px;overflow-y:auto;border:1px solid #dee2e6;
+                    padding:15px;border-radius:8px;background:#f8f9fa;
+                    box-shadow:inset 0 2px 4px rgba(0,0,0,0.1);">
+        ''')
+        
+        # 渲染所有新闻信息
+        for item in tech_news['data']:
+            html_parts.append(render_news_item(item))
+        
+        html_parts.append('''
+                </div>
+                
+                <div style="text-align:center;margin-top:10px;padding:8px;
+                    background:#e9ecef;border-radius:6px;color:#6c757d;font-size:12px;">
+                    💡 提示：上方区域可滑动查看更多技术资讯 | 数据更新时间：''' + tech_news.get('update_time', '') + '''
+                </div>
+            </div>
+        ''')
     
     # 添加尾部CTA区块
     html_parts.append('''
@@ -246,6 +365,135 @@ def render_cve_list_to_html(cve_list: list) -> str:
     
     return '\n'.join(html_parts)
 
+
+
+def get_tech_news():
+    """
+    获取技术新闻汇总 (CSDN + GitHub)
+    
+    Returns:
+        dict: 包含新闻数据的字典
+    """
+    combined_news = []
+    
+    # 获取CSDN热榜数据
+    try:
+        url = "https://blog.csdn.net/phoenix/web/blog/hot-rank?page=0&pageSize=30"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+        }
+        
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+        result = response.json()
+        
+        data_list = result.get("data", [])
+        
+        for item in data_list:
+            pic_list = item.get("picList", [])
+            cover = pic_list[0] if pic_list else None
+            
+            combined_news.append({
+                "channel": "CSDN",
+                "channel_type": "技术社区",
+                "title": item.get("articleTitle", ""),
+                "description": None,
+                "author": item.get("nickName", ""),
+                "cover": cover,
+                "url": item.get("articleDetailUrl", ""),
+                "hot": int(item.get("hotRankScore", 0)),
+                "timestamp": int(time.time()),
+                "category": "排行榜"
+            })
+        
+        logging.info(f"✅ CSDN数据获取成功: {len(data_list)} 条")
+    except Exception as e:
+        logging.error(f"❌ CSDN数据获取失败: {str(e)}")
+    
+    # 获取GitHub趋势数据
+    try:
+        url = "https://github.com/trending?since=daily"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.5",
+            "Accept-Encoding": "gzip, deflate, br",
+            "Connection": "keep-alive"
+        }
+        
+        response = requests.get(url, headers=headers, timeout=20)
+        response.raise_for_status()
+        html = response.text
+        
+        soup = BeautifulSoup(html, "html.parser")
+        articles = soup.select("article.Box-row")
+        
+        github_count = 0
+        max_github_items = 6
+        for article in articles:
+            if github_count >= max_github_items:  # 达到限制数量就跳出循环
+                break
+            a_tag = article.find("h2").find("a")
+            full_name = a_tag.get_text(strip=True).replace("\n", "").replace(" ", "")
+            
+            # 处理 "owner / repo" 格式
+            parts = [p.strip() for p in full_name.split("/") if p.strip()]
+            owner = parts[0] if len(parts) > 0 else ""
+            repo = parts[1] if len(parts) > 1 else ""
+            
+            repo_url = "https://github.com" + a_tag["href"]
+            
+            description_tag = article.select_one("p.col-9.color-fg-muted")
+            description = description_tag.get_text(strip=True) if description_tag else ""
+            
+            language_tag = article.select_one('[itemprop="programmingLanguage"]')
+            language = language_tag.get_text(strip=True) if language_tag else ""
+            
+            stars_tag = article.select_one('a[href$="/stargazers"]')
+            stars = stars_tag.get_text(strip=True) if stars_tag else "0"
+            
+            # 转换stars为数字
+            hot_score = 0
+            if stars:
+                stars_str = stars.replace(",", "").lower()
+                if 'k' in stars_str:
+                    hot_score = int(float(stars_str.replace('k', '')) * 1000)
+                elif 'm' in stars_str:
+                    hot_score = int(float(stars_str.replace('m', '')) * 1000000)
+                else:
+                    try:
+                        hot_score = int(stars_str)
+                    except:
+                        hot_score = 0
+            
+            combined_news.append({
+                "channel": "GitHub",
+                "channel_type": "开源社区",
+                "title": f"{owner}/{repo}",
+                "description": description,
+                "author": owner,
+                "cover": None,
+                "url": repo_url,
+                "hot": hot_score,
+                "timestamp": int(time.time()),
+                "category": "趋势",
+                "language": language,
+                "stars": stars
+            })
+            github_count += 1
+        
+        logging.info(f"✅ GitHub数据获取成功: {github_count} 条")
+    except Exception as e:
+        logging.error(f"❌ GitHub数据获取失败: {str(e)}")
+    
+    # 按热度排序
+    combined_news.sort(key=lambda x: x['hot'], reverse=True)
+    
+    return {
+        "total": len(combined_news),
+        "update_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "data": combined_news
+    }
 
 # 获取access_token
 def get_access_token(appid, appsecret):
@@ -286,13 +534,21 @@ def create_article():
 
     THUMB_MEDIA_ID = get_media_id()
 
-    # 构建图文文章
-    json_data = get_article_content()
+    # 获取CVE数据
+    cve_data = get_article_content()
+    
+    # 获取技术新闻数据
+    tech_news = get_tech_news()
 
-    TITLE = "测试标题"
-    DIGEST = "测试摘要"
+    # 获取当前日期并格式化标题和摘要
+    today = datetime.now()
+    date_str = today.strftime("%Y-%m-%d")  # 格式：2025-07-16
+    
+    TITLE = f"{date_str} 最新CVE漏洞情报和技术资讯头条"
+    DIGEST = f"{date_str} 最新CVE漏洞情报和技术资讯头条"
 
-    content_html = render_cve_list_to_html(json_data)
+    # 同时传入CVE数据和技术新闻数据
+    content_html = render_cve_list_to_html(cve_data, tech_news)
 
     url = f'https://api.weixin.qq.com/cgi-bin/draft/add?access_token={access_token}'
     data = {
@@ -313,9 +569,9 @@ def create_article():
     headers = {"Content-Type": "application/json"}
     response = requests.post(url, data=json.dumps(data, ensure_ascii=False), headers=headers)
     if response.json()["media_id"]:
-        print("草稿发布成功")
+        logging.info("草稿发布成功")
     else:
-        print("草稿发布失败:{response.json()}")
+        logging.error("草稿发布失败:{response.json()}")
 
 
 # 微信发布正式内容（草稿）接口如下，有free publish、batchget、get_status等功能
@@ -328,7 +584,7 @@ def get_wechat_draft_list():
         data = request.json or {}
         offset = int(data.get('offset', 0))
         count = int(data.get('count', 20))
-
+        
         access_token = get_access_token(appid, appsecret)
         if not access_token:
             return jsonify({'error': '获取access_token失败'}), 500
@@ -424,5 +680,6 @@ def wechat_submit():
 @wxgzh_bp.route('/wxgzh', methods=['POST'])
 def draft_article():
     create_article()
+    # message = get_tech_news()
     
     return jsonify({"message": f"1"})
