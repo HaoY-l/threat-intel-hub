@@ -576,16 +576,20 @@ def create_article():
 
 # 微信发布正式内容（草稿）接口如下，有free publish、batchget、get_status等功能
 # 微信 Free Publish - 获取草稿箱列表
-def get_wechat_draft_list():
+def get_wechat_draft_list(access_token):
     """
     获取草稿箱列表 (微信官方draft_batchget接口)
     """
     try:
-        data = request.json or {}
+        # 兼容 application/json 和 x-www-form-urlencoded
+        if request.is_json:
+            data = request.get_json()
+        else:
+            data = request.form.to_dict() if request.form else {}
+
         offset = int(data.get('offset', 0))
         count = int(data.get('count', 20))
-        
-        access_token = get_access_token(appid, appsecret)
+
         if not access_token:
             return jsonify({'error': '获取access_token失败'}), 500
 
@@ -649,7 +653,8 @@ def get_wechat_draft_list():
                 continue
 
         # 直接返回处理后的数据
-        return jsonify(wx_data)
+        # return jsonify(wx_data)
+        return wx_data
 
     except Exception as e:
         import traceback
@@ -659,16 +664,31 @@ def get_wechat_draft_list():
 
 
 # 微信 Free Publish - 发布草稿
-def wechat_submit():
+def wechat_submit(access_token):
     """发布草稿"""
     try:
-        access_token = get_access_token(appid, appsecret)
         if not access_token:
             return jsonify({'error': '获取access_token失败'}), 500
 
-        data = request.json or {}
+        # 获取草稿列表
+        wx_data = get_wechat_draft_list(access_token)
+        if not isinstance(wx_data, dict):
+            return jsonify({'error': '草稿获取失败或格式错误'}), 500
+
+        items = wx_data.get("item", [])
+        if not items:
+            return jsonify({'error': '草稿列表为空，无法发布'}), 400
+
+        media_id = items[0].get("media_id")
+        if not media_id:
+            return jsonify({'error': '缺少 media_id'}), 400
+
+        # 请求发布
         url = f"https://api.weixin.qq.com/cgi-bin/freepublish/submit?access_token={access_token}"
-        resp = requests.post(url, json=data, timeout=30)
+        payload = {
+            "media_id": media_id
+        }
+        resp = requests.post(url, json=payload, timeout=30)
         return jsonify(resp.json())
 
     except Exception as e:
@@ -679,7 +699,15 @@ def wechat_submit():
 
 @wxgzh_bp.route('/wxgzh', methods=['POST'])
 def draft_article():
+    APPID = os.getenv("wx_appid")
+    APPSECRET = os.getenv("wx_secret")
+    access_token = get_access_token(APPID, APPSECRET)
+    if not access_token:
+        return jsonify({'error': '获取 access_token 失败'}), 500
+    # 创建上传草稿
     create_article()
-    # message = get_tech_news()
+
+    # wechat_submit(access_token)
+
     
     return jsonify({"message": f"1"})
