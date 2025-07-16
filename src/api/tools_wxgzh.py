@@ -39,23 +39,22 @@ def render_cve_list_to_html(cve_list: list, tech_news: dict = None) -> str:
     :param tech_news: Dict，包含技术新闻数据的字典
     :return: HTML字符串
     """
-    
+
     def render_cve_item(item):
         """渲染单个CVE条目"""
         cve_id = item.get('cve_id', '未知CVE')
         title = item.get('title', '暂无标题')
-        description = item.get('description', '暂无描述')
+        description = item.get('description', '')
         severity = item.get('severity', '未知')
         source = item.get('source', '未知来源')
         published = item.get('published', '未知时间')
         url = item.get('url', '#')
-        
+
         # 处理发布时间格式
         if published and published != '未知时间':
             try:
                 from datetime import datetime
                 if isinstance(published, str):
-                    # 尝试解析时间字符串
                     if 'GMT' in published:
                         pub_date = datetime.strptime(published, '%a, %d %b %Y %H:%M:%S %Z')
                         formatted_date = pub_date.strftime('%Y-%m-%d')
@@ -67,8 +66,8 @@ def render_cve_list_to_html(cve_list: list, tech_news: dict = None) -> str:
                 formatted_date = str(published)
         else:
             formatted_date = '未知时间'
-        
-        # 处理严重程度，提取有用信息
+
+        # 处理严重程度显示
         severity_text = severity.strip() if severity else '未知'
         if 'CVE' in severity_text and 'PoC' in severity_text:
             severity_display = '⚠️ 有PoC验证'
@@ -76,20 +75,23 @@ def render_cve_list_to_html(cve_list: list, tech_news: dict = None) -> str:
             severity_display = '🔍 已确认'
         else:
             severity_display = severity_text
-        
-        # 截取描述内容，避免过长
+
+        # 构建描述段落
+        description_html = ""
         if description and description.strip():
-            description_short = description[:100] + '...' if len(description) > 100 else description
-        else:
-            description_short = '暂无描述'
-        
-        # 构建CVE条目HTML
+            short = description[:100] + '...' if len(description) > 100 else description
+            description_html = f'''
+                <p style="color:#666;font-size:12px;line-height:1.5;margin:8px 0;">
+                    {short}
+                </p>
+            '''
+
         item_html = f'''
             <div style="margin-bottom:15px;padding:15px 18px;background:#ffffff;
                 border:1px solid #e0e0e0;border-radius:8px;
                 box-shadow:0 2px 6px rgba(0,0,0,0.08);
                 transition:all 0.3s ease;position:relative;">
-                
+
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
                     <span style="background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);color:white;
                         padding:4px 10px;border-radius:15px;font-size:12px;font-weight:bold;">
@@ -97,15 +99,13 @@ def render_cve_list_to_html(cve_list: list, tech_news: dict = None) -> str:
                     </span>
                     <span style="color:#999;font-size:11px;">{formatted_date}</span>
                 </div>
-                
+
                 <h4 style="margin:0 0 10px 0;color:#2c3e50;font-size:14px;font-weight:bold;line-height:1.4;">
                     {title}
                 </h4>
-                
-                <p style="color:#666;font-size:12px;line-height:1.5;margin:8px 0;">
-                    {description_short}
-                </p>
-                
+
+                {description_html}
+
                 <div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;">
                     <div style="display:flex;align-items:center;gap:8px;">
                         <span style="background:{get_severity_color(severity_display)};color:white;
@@ -114,15 +114,14 @@ def render_cve_list_to_html(cve_list: list, tech_news: dict = None) -> str:
                         </span>
                         <span style="color:#999;font-size:10px;">来源: {source}</span>
                     </div>
-                    
+
                     <div style="color:#667eea;font-size:11px;padding:3px 8px;
                         border:1px solid #667eea;border-radius:4px;cursor:pointer;
                         text-decoration:none;">
                         📖 详情链接
                     </div>
                 </div>
-                
-                <!-- 链接信息展示区域 -->
+
                 <div style="margin-top:10px;padding:8px 12px;background:#f8f9fa;
                     border-radius:6px;border-left:3px solid #667eea;">
                     <p style="margin:0;font-size:10px;color:#666;line-height:1.4;">
@@ -134,7 +133,6 @@ def render_cve_list_to_html(cve_list: list, tech_news: dict = None) -> str:
                 </div>
             </div>
         '''
-        
         return item_html
 
     def render_news_item(item):
@@ -142,47 +140,50 @@ def render_cve_list_to_html(cve_list: list, tech_news: dict = None) -> str:
         channel = item.get('channel', '未知来源')
         channel_type = item.get('channel_type', '未知类型')
         title = item.get('title', '暂无标题')
-        description = item.get('description', '暂无描述')
+        description = item.get('description', '')
         author = item.get('author', '未知作者')
         url = item.get('url', '#')
         hot = item.get('hot', 0)
         category = item.get('category', '未知分类')
         language = item.get('language', '')
         stars = item.get('stars', '')
-        
-        # 处理描述内容
+
+        # 描述部分
+        description_html = ""
         if description and description.strip():
-            description_short = description[:120] + '...' if len(description) > 120 else description
-        else:
-            description_short = '暂无描述'
-        
-        # 处理热度显示
+            short = description[:120] + '...' if len(description) > 120 else description
+            description_html = f'''
+                <p style="color:#666;font-size:12px;line-height:1.5;margin:8px 0;">
+                    {short}
+                </p>
+            '''
+
+        # 热度
         if hot >= 1000000:
             hot_display = f"{hot // 1000000}M"
         elif hot >= 1000:
             hot_display = f"{hot // 1000}K"
         else:
             hot_display = str(hot)
-        
-        # 根据不同渠道显示不同的标识
+
+        # GitHub/CSDN 样式
         if channel == 'GitHub':
             channel_icon = '🐱'
             channel_color = '#24292e'
             extra_info = f"⭐ {stars}" if stars else ""
             language_info = f"📝 {language}" if language else ""
-        else:  # CSDN
+        else:
             channel_icon = '📚'
             channel_color = '#fd7e14'
             extra_info = f"🔥 {hot_display}"
             language_info = ""
-        
-        # 构建新闻条目HTML
+
         item_html = f'''
             <div style="margin-bottom:15px;padding:15px 18px;background:#ffffff;
                 border:1px solid #e0e0e0;border-radius:8px;
                 box-shadow:0 2px 6px rgba(0,0,0,0.08);
                 transition:all 0.3s ease;position:relative;">
-                
+
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
                     <span style="background:{channel_color};color:white;
                         padding:4px 10px;border-radius:15px;font-size:12px;font-weight:bold;">
@@ -190,15 +191,13 @@ def render_cve_list_to_html(cve_list: list, tech_news: dict = None) -> str:
                     </span>
                     <span style="color:#999;font-size:11px;">{category}</span>
                 </div>
-                
+
                 <h4 style="margin:0 0 10px 0;color:#2c3e50;font-size:14px;font-weight:bold;line-height:1.4;">
                     {title}
                 </h4>
-                
-                <p style="color:#666;font-size:12px;line-height:1.5;margin:8px 0;">
-                    {description_short}
-                </p>
-                
+
+                {description_html}
+
                 <div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;">
                     <div style="display:flex;align-items:center;gap:8px;">
                         <span style="background:#28a745;color:white;
@@ -208,15 +207,14 @@ def render_cve_list_to_html(cve_list: list, tech_news: dict = None) -> str:
                         <span style="color:#999;font-size:10px;">作者: {author}</span>
                         {f'<span style="color:#666;font-size:10px;">{language_info}</span>' if language_info else ''}
                     </div>
-                    
+
                     <div style="color:#28a745;font-size:11px;padding:3px 8px;
                         border:1px solid #28a745;border-radius:4px;cursor:pointer;
                         text-decoration:none;">
                         📖 查看详情
                     </div>
                 </div>
-                
-                <!-- 链接信息展示区域 -->
+
                 <div style="margin-top:10px;padding:8px 12px;background:#f8f9fa;
                     border-radius:6px;border-left:3px solid #28a745;">
                     <p style="margin:0;font-size:10px;color:#666;line-height:1.4;">
@@ -228,36 +226,31 @@ def render_cve_list_to_html(cve_list: list, tech_news: dict = None) -> str:
                 </div>
             </div>
         '''
-        
         return item_html
 
     def get_severity_color(severity):
         """根据严重程度返回对应颜色"""
         if '⚠️' in severity or 'PoC' in severity:
-            return '#dc3545'  # 红色
+            return '#dc3545'
         elif '🔍' in severity or '已确认' in severity:
-            return '#fd7e14'  # 橙色
+            return '#fd7e14'
         else:
-            return '#6c757d'  # 灰色
+            return '#6c757d'
 
-    # 开始构建HTML
     html_parts = []
-    
-    # 添加头部固定内容
+
     html_parts.append('''
         <div style="max-width:100%;margin:0 auto;font-family:'PingFang SC','Microsoft YaHei',Arial,sans-serif;">
             <p style="background:linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);padding:10px 15px;
                 border-radius:8px;margin-bottom:10px;color:#1565c0;font-weight:bold;text-align:left;">
                 点击上方蓝字关注我们
             </p>
-            
             <p style="border:1px solid #ddd;border-radius:8px;padding:12px 15px;margin-bottom:20px;
                 text-indent:2em;background:#f9f9f9;">
                 重要声明‼️‼️随着网络安全越来越重要，"安全info"将定期分享实用安全技术、最新行业动态、案例分析，实战技巧等。鉴于网络安全法的基础文章内容仅供学习，不做其他任何用处！
             </p>
     ''')
-    
-    # 添加主标题
+
     html_parts.append('''
         <h2 style="font-weight:bold;background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color:white;padding:15px 20px;border-radius:8px;margin:25px 0 20px 0;font-size:18px;
@@ -265,8 +258,7 @@ def render_cve_list_to_html(cve_list: list, tech_news: dict = None) -> str:
             🔐 最新 CVE 安全公告与技术资讯
         </h2>
     ''')
-    
-    # 添加统计信息
+
     cve_count = len(cve_list)
     news_count = tech_news.get('total', 0) if tech_news else 0
     html_parts.append(f'''
@@ -277,8 +269,7 @@ def render_cve_list_to_html(cve_list: list, tech_news: dict = None) -> str:
             </span>
         </div>
     ''')
-    
-    # CVE 安全公告区域
+
     if cve_list:
         html_parts.append('''
             <div style="margin-top:20px;">
@@ -287,27 +278,21 @@ def render_cve_list_to_html(cve_list: list, tech_news: dict = None) -> str:
                     text-align:center;">
                     🛡️ CVE 安全漏洞公告
                 </h3>
-                
                 <div style="max-height:500px;overflow-y:auto;border:1px solid #dee2e6;
                     padding:15px;border-radius:8px;background:#f8f9fa;
                     box-shadow:inset 0 2px 4px rgba(0,0,0,0.1);">
         ''')
-        
-        # 渲染所有CVE信息
         for item in cve_list:
             html_parts.append(render_cve_item(item))
-        
         html_parts.append('''
                 </div>
-                
                 <div style="text-align:center;margin-top:10px;padding:8px;
                     background:#e9ecef;border-radius:6px;color:#6c757d;font-size:12px;">
                     💡 提示：上方区域可滑动查看更多CVE信息
                 </div>
             </div>
         ''')
-    
-    # 技术新闻区域
+
     if tech_news and tech_news.get('data'):
         html_parts.append('''
             <div style="margin-top:25px;">
@@ -316,41 +301,32 @@ def render_cve_list_to_html(cve_list: list, tech_news: dict = None) -> str:
                     text-align:center;">
                     📰 技术资讯热点
                 </h3>
-                
                 <div style="max-height:500px;overflow-y:auto;border:1px solid #dee2e6;
                     padding:15px;border-radius:8px;background:#f8f9fa;
                     box-shadow:inset 0 2px 4px rgba(0,0,0,0.1);">
         ''')
-        
-        # 渲染所有新闻信息
         for item in tech_news['data']:
             html_parts.append(render_news_item(item))
-        
-        html_parts.append('''
+        html_parts.append(f'''
                 </div>
-                
                 <div style="text-align:center;margin-top:10px;padding:8px;
                     background:#e9ecef;border-radius:6px;color:#6c757d;font-size:12px;">
-                    💡 提示：上方区域可滑动查看更多技术资讯 | 数据更新时间：''' + tech_news.get('update_time', '') + '''
+                    💡 提示：上方区域可滑动查看更多技术资讯 | 数据更新时间：{tech_news.get('update_time', '')}
                 </div>
             </div>
         ''')
-    
-    # 添加尾部CTA区块
+
     html_parts.append('''
         <div style="background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             padding:20px 25px;border-radius:16px;margin-top:30px;text-align:center;
             color:white;font-size:16px;box-shadow:0 8px 25px rgba(102,126,234,0.3);">
-            
             <div style="max-width:600px;margin:0 auto;">
                 <p style="margin:0 0 15px 0;font-size:18px;font-weight:bold;line-height:1.6;">
                     🎉 关注网络安全，保护数字世界！👆
                 </p>
-                
                 <p style="margin:0 0 20px 0;font-size:14px;opacity:0.9;line-height:1.6;">
                     ✌️ 获取更多CVE漏洞情报和网络安全资讯，让我们一起构建更安全的网络环境！✌️
                 </p>
-                
                 <div style="background:rgba(255,255,255,0.2);padding:12px 16px;border-radius:20px;
                     display:inline-block;font-weight:bold;font-size:14px;line-height:1.5;
                     margin-top:10px;">
@@ -359,10 +335,8 @@ def render_cve_list_to_html(cve_list: list, tech_news: dict = None) -> str:
             </div>
         </div>
     ''')
-    
-    # 结束容器
+
     html_parts.append('</div>')
-    
     return '\n'.join(html_parts)
 
 
@@ -688,6 +662,7 @@ def wechat_submit(access_token):
         payload = {
             "media_id": media_id
         }
+        logging.info(f"草稿id为{media_id}")
         resp = requests.post(url, json=payload, timeout=30)
         return jsonify(resp.json())
 
@@ -707,7 +682,8 @@ def draft_article():
     # 创建上传草稿
     create_article()
 
-    # wechat_submit(access_token)
+    # 捕获返回值
+    result_response = wechat_submit(access_token)
 
-    
-    return jsonify({"message": f"1"})
+    # 直接返回这个响应
+    return result_response
