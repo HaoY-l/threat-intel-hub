@@ -1,60 +1,54 @@
 # 威胁情报聚合平台 (Threat Intelligence Hub)
 
-🔥 一个集成多源威胁情报的聚合平台，为安全研究人员和运维团队提供实时威胁情报查询和播报服务。  
+🔥 一个集成多源威胁情报的聚合平台，为安全研究人员和运维团队提供实时威胁情报查询和播报服务（支持每天微信公众号自动推送最新cve信息和安全热点）。  
 ---   
 
+<div style="max-height: 300px; overflow-y: auto; padding: 1em; border: 1px solid #ccc; border-radius: 6px; background: #f9f9f9;">
+
 ## 更新日志（Changelog）
+### 2025-07-23
+- 修复微信公众号部分不支持的html格式
+
 ### 2025-07-16
-- 新增微信公众号定时发布功能
-- 优化了CVE漏洞信息渲染效果
-- 修复了接口请求异常导致的报错
+- 新增微信公众号定时发布功能  
+- 优化了CVE漏洞信息渲染效果  
+- 修复了接口请求异常导致的报错  
 
 ### 2025-07-15
-- 增加技术新闻抓取功能（CSDN + GitHub）
-- 优化前端界面样式
-- 增加阿里云WAF协同能力
+- 增加技术新闻抓取功能（CSDN + GitHub）  
+- 优化前端界面样式  
+- 增加阿里云WAF协同能力  
+
+<!-- 更多内容可继续添加 -->
+</div>
 
 ---   
 **威胁情报截图展示**
 ![仪表盘](./data/public/1.png)   
 ![查询结果](./data/public/2.png)   
-![历史历史](./data/public/3.png) 
 ---   
 **WAF协同截图展示**。 
-![WAF白名单列表](./data/public/4.png)   
-![添加WAF白名单](./data/public/5.png)   
+![WAF白名单列表](./data/public/4.png)     
 ![黑名单列表及添加黑名单](./data/public/6.png) 
 ---   
 **Tools截图展示**。 
 ![微信公众号定时发布消息](./data/public/4.jpg)   
-![微信公众号CVE](./data/public/7.jpg)   
-![微信公众号最新资讯](./data/public/8.jpg)   
+![微信公众号CVE](./data/public/7.jpg)     
 ---
 ## 👥 目标用户
 
 ### 🛡️ 安全运维团队
-- **SOC分析师**: 快速查询可疑IP、URL的威胁情报，辅助安全事件分析
-- **网络管理员**: 监控网络流量中的恶意IP和域名，及时发现安全威胁
-- **安全工程师**: 集成到SIEM/SOAR系统，自动化威胁检测和响应
+SOC分析师快速查询可疑IP、URL的威胁情报，辅助安全事件分析；网络管理员监控网络流量中的恶意IP和域名，及时发现安全威胁；安全工程师集成到SIEM/SOAR系统，自动化威胁检测和响应
 
 ### 🔍 安全研究人员
-- **恶意软件分析师**: 查询文件哈希值，快速识别恶意样本
-- **威胁猎手**: 利用多源情报进行威胁狩猎和溯源分析
-- **漏洞研究员**: 获取最新CVE信息，跟踪漏洞披露和利用情况
+恶意软件分析师查询文件哈希值，快速识别恶意样本；威胁猎手利用多源情报进行威胁狩猎和溯源分析；漏洞研究员获取最新CVE信息，跟踪漏洞披露和利用情况
 
 ### 🏢 企业安全团队
-- **CISO/安全负责人**: 通过威胁情报播报了解最新安全态势
-- **IT运维人员**: 检测内网资产是否存在已知威胁
-- **合规审计人员**: 获取威胁情报报告，满足合规要求
-
-### 🎓 教育和培训机构
-- **网络安全教师**: 教学演示和案例分析
-- **安全培训师**: 实战演练和技能提升
-- **学生和研究生**: 学习威胁情报分析技术
+CISO/安全负责人通过威胁情报播报了解最新安全态势；IT运维人员检测内网资产是否存在已知威胁；合规审计人员获取威胁情报报告，满足合规要求
 
 ## 🎯 使用场景
 **让安全运营从被动变为主动**
-### 🚨 日常安全运维
+### 🚨 日常安全运营
 - **告警分析**: 当SIEM系统产生安全告警时，快速查询相关IP、域名的威胁情报
 - **日志分析**: 分析Web访问日志、防火墙日志中的可疑访问源
 - **网络监控**: 实时监控网络流量，识别与已知恶意IP的通信
@@ -121,7 +115,7 @@
 
 - **后端框架**: Python Flask
 - **数据库**: MySQL 8.0+
-- **前端**: Vue.js 或 React（暂未开发）
+- **前端**: Vue.js 或 React
 
 ## 📦 快速开始
 
@@ -156,6 +150,28 @@ shodan_api_key=xxx
 
 # system
 file_log=app.log
+
+# WAF API INFO
+# WAF INSTACE_ID INFO
+INSTANCE_ID = ''
+REGION_ID = ''
+# WAF AKSK INFO
+ALIBABA_CLOUD_ACCESS_KEY_ID = ''
+ALIBABA_CLOUD_ACCESS_KEY_SECRET = '' 
+# WAF SLS INFO
+SLS_PROJECT_NAME = ''
+SLS_LOGSTORE_NAME = ''
+# WAF WHITELIST INFO
+WHITELIST_TEMPLATE_ID = ''
+# WAF BLACKLIST INFO
+BLACKLIST_TEMPLATE_ID = ''
+BLACKLIST_RULES_ID = ''
+# DINGDING INFO
+DDINGTALK_WEBHOOK_URL = ''
+
+# 微信公众号
+wx_appid=''
+wx_secret=''
 ```
 
 ### 数据源配置
