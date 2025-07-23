@@ -8,3 +8,4 @@ flask-cors
 pymysql
 lxml
 alibabacloud_waf_openapi20211001
+alibabacloud_sls20201230

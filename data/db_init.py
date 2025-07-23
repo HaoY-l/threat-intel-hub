@@ -42,7 +42,7 @@ def create_database_and_tables():
 
         """
         cursor.execute(create_cve_table_sql)
-        logging.info("CVE data table created or already exists.")
+  
 
         # 创建IP威胁表
         create_ip_threat_table_sql = """
@@ -60,7 +60,7 @@ def create_database_and_tables():
         )ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='威胁IP情报表';
         """
         cursor.execute(create_ip_threat_table_sql)
-        logging.info("IP threat intel table created or already exists.")
+  
 
         # 创建URL威胁表
         create_url_threat_table_sql = """
@@ -100,7 +100,7 @@ def create_database_and_tables():
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='文件威胁情报表';
         """
         cursor.execute(create_file_hash_threat_table_sql)
-        logging.info("File threat intel table created or already exists.")
+
 
         # 创建操作历史表
         create_search_history_table_sql = """
@@ -125,7 +125,41 @@ def create_database_and_tables():
             INDEX idx_max_threat_level (max_threat_level)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='操作查询历史表';"""
         cursor.execute(create_search_history_table_sql)
-        logging.info("Search history table created or already exists.")
+
+        create_blocked_ips_table_sql = """
+        CREATE TABLE IF NOT EXISTS blocked_ips (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            block_ip VARCHAR(45) NOT NULL,
+            attack_count INT NOT NULL,
+            attack_ratio DECIMAL(5,2) DEFAULT NULL,
+            from_timestamp INT NOT NULL,
+            to_timestamp INT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;"""
+        cursor.execute(create_blocked_ips_table_sql)
+
+        create_ip_request_frequency_table_sql = """
+        CREATE TABLE IF NOT EXISTS ip_request_frequency (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            ip VARCHAR(45) NOT NULL,
+            request_count INT NOT NULL,
+            from_timestamp INT NOT NULL,
+            to_timestamp INT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;"""
+        cursor.execute(create_ip_request_frequency_table_sql)
+
+        create_daily_summary_table_sql = """
+        CREATE TABLE IF NOT EXISTS daily_summary (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            date DATE NOT NULL,
+            blocked_ip_count INT DEFAULT 0,
+            high_frequency_ip_count INT DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY (date)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;"""
+        cursor.execute(create_daily_summary_table_sql)
+
         
     conn.close()
 
