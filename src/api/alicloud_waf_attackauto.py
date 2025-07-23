@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
-import os,pymysql,time,datetime,logging
+import os,pymysql,time,datetime,logging,time
 from flask import Flask, Blueprint, request, jsonify
 from alibabacloud_sls20201230.client import Client as Sls20201230Client
 from alibabacloud_tea_openapi import models as open_api_models
@@ -26,18 +26,18 @@ def get_time_ranges_for_day(day: datetime.date):
     end = datetime.datetime.combine(day, datetime.time.max)
     return int(start.timestamp()), int(end.timestamp())
 
-@waf_logs_bp.route('/blocked_ips', methods=['POST'])
+@waf_logs_bp.route('/blocked_ips', methods=['GET'])
 def fetch_and_save_blocked_ips():
     """
     查询封禁IP，每15分钟执行一次
-    接口参数 JSON: { "from": timestamp, "to": timestamp }
     """
-    data = request.get_json() or {}
-    from_time = data.get('from')
-    to_time = data.get('to')
 
-    if not from_time or not to_time:
-        return jsonify({"error": "需要传入from和to时间戳"}), 400
+    to_dt = datetime.datetime.now()
+    from_dt = to_dt - datetime.timedelta(minutes=15)
+
+    # 转时间戳整数，方便数据库存储和查询
+    to_time = int(to_dt.timestamp())
+    from_time = int(from_dt.timestamp())
 
     client = get_sls_client()
 
@@ -72,15 +72,15 @@ ORDER BY "攻击次数" DESC'''
             for item in logs:
                 block_ip = item.get("攻击IP")
                 attack_count = int(item.get("攻击次数", 0))
-                # 查询总请求数用于计算占比
+                attack_type = item.get("攻击类型", "")
                 total_count = get_ip_request_total_count(from_time, to_time, block_ip, client)
                 attack_ratio = round(attack_count / total_count, 4) if total_count else 0.0
 
                 sql = """
-                INSERT INTO blocked_ips (block_ip, attack_count, attack_ratio, from_timestamp, to_timestamp)
-                VALUES (%s, %s, %s, %s, %s)
+                INSERT INTO blocked_ips (block_ip, attack_count, attack_ratio, attack_type, from_timestamp, to_timestamp)
+                VALUES (%s, %s, %s, %s, %s, %s)
                 """
-                cursor.execute(sql, (block_ip, attack_count, attack_ratio, from_time, to_time))
+                cursor.execute(sql, (block_ip, attack_count, attack_ratio, attack_type, from_time, to_time))
 
         return jsonify({"message": "封禁IP数据保存成功", "count": len(logs)})
 
@@ -112,18 +112,17 @@ def get_ip_request_total_count(from_time, to_time, ip, client):
         logging.error(f"查询IP请求总数失败: {e}")
         return 0
 
-@waf_logs_bp.route('/ip_request_frequency', methods=['POST'])
+@waf_logs_bp.route('/ip_request_frequency', methods=['GET'])
 def fetch_and_save_ip_request_frequency():
     """
     查询一分钟内IP请求频率，1分钟执行一次，只存大于2000条的IP
-    参数 JSON: { "from": timestamp, "to": timestamp }
+    接口无参数，自动获取当前时间往前1分钟区间
     """
-    data = request.get_json() or {}
-    from_time = data.get('from')
-    to_time = data.get('to')
+    to_dt = datetime.datetime.now()
+    from_dt = to_dt - datetime.timedelta(minutes=1)
 
-    if not from_time or not to_time:
-        return jsonify({"error": "需要传入from和to时间戳"}), 400
+    to_time = int(to_dt.timestamp())
+    from_time = int(from_dt.timestamp())
 
     client = get_sls_client()
 
@@ -150,7 +149,7 @@ ORDER BY request_count DESC'''
         )
         logs = response.body
 
-        conn = get_mysql_conn()
+        conn = get_db_connection()  # 注意：这里我改成你之前用的get_db_connection()
         with conn.cursor() as cursor:
             saved_count = 0
             for item in logs:
@@ -163,6 +162,7 @@ ORDER BY request_count DESC'''
                     """
                     cursor.execute(sql, (ip, request_count, from_time, to_time))
                     saved_count += 1
+            conn.commit()  # 别忘记提交事务
 
         return jsonify({"message": "请求频率数据保存成功", "saved_count": saved_count})
 
@@ -187,7 +187,7 @@ def save_daily_summary():
 
     from_time, to_time = get_time_ranges_for_day(date_obj)
 
-    conn = get_mysql_conn()
+    conn = get_db_connection()
     with conn.cursor() as cursor:
         # 封禁IP数量统计
         sql_blocked_count = """
@@ -216,10 +216,3 @@ def save_daily_summary():
     return jsonify({"message": "每日汇总数据保存成功", "date": date_str, "blocked_ip_count": blocked_ip_count, "high_frequency_ip_count": high_freq_ip_count})
 
 
-if __name__ == '__main__':
-    from flask import Flask
-
-    app = Flask(__name__)
-    app.register_blueprint(bp)
-
-    app.run(host='0.0.0.0', port=8891, debug=True)
