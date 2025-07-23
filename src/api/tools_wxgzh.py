@@ -34,14 +34,15 @@ def get_article_content():
 
 def render_cve_list_to_html(cve_list: list, tech_news: dict = None) -> str:
     """
-    将CVE信息和技术新闻渲染为公众号风格的HTML内容。
+    将CVE信息和技术新闻渲染为微信公众号格式的HTML内容。
+    完全符合微信公众号HTML规范，优化排版效果。
     :param cve_list: List[Dict]，每个字典包含CVE相关信息
     :param tech_news: Dict，包含技术新闻数据的字典
-    :return: HTML字符串
+    :return: 微信公众号兼容的HTML字符串
     """
 
     def render_cve_item(item):
-        """渲染单个CVE条目"""
+        """渲染单个CVE条目 - 微信公众号兼容版本"""
         cve_id = item.get('cve_id', '未知CVE')
         title = item.get('title', '暂无标题')
         description = item.get('description', '')
@@ -71,74 +72,51 @@ def render_cve_list_to_html(cve_list: list, tech_news: dict = None) -> str:
         severity_text = severity.strip() if severity else '未知'
         if 'CVE' in severity_text and 'PoC' in severity_text:
             severity_display = '⚠️ 有PoC验证'
+            severity_color = '#ff6b6b'
         elif 'CVE' in severity_text:
-            severity_display = '🔍 已确认'
+            severity_display = '🔍 已确认'  
+            severity_color = '#ffa726'
         else:
             severity_display = severity_text
+            severity_color = '#9e9e9e'
 
-        # 构建描述段落
+        # 构建描述段落 - 简化版本适配微信
         description_html = ""
         if description and description.strip():
-            short = description[:100] + '...' if len(description) > 100 else description
-            description_html = f'''
-                <p style="color:#666;font-size:12px;line-height:1.5;margin:8px 0;">
-                    {short}
-                </p>
-            '''
+            short_desc = description[:80] + '...' if len(description) > 80 else description
+            # 移除可能不兼容的特殊字符
+            short_desc = short_desc.replace('<', '&lt;').replace('>', '&gt;')
+            description_html = f'<p style="color: #666666; font-size: 13px; line-height: 1.6; margin: 8px 0 0 0;">{short_desc}</p>'
 
+        # 简化CVE项目HTML结构
         item_html = f'''
-            <div style="margin-bottom:15px;padding:15px 18px;background:#ffffff;
-                border:1px solid #e0e0e0;border-radius:8px;
-                box-shadow:0 2px 6px rgba(0,0,0,0.08);
-                transition:all 0.3s ease;position:relative;">
-
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-                    <span style="background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);color:white;
-                        padding:4px 10px;border-radius:15px;font-size:12px;font-weight:bold;">
-                        🛡️ {cve_id}
-                    </span>
-                    <span style="color:#999;font-size:11px;">{formatted_date}</span>
-                </div>
-
-                <h4 style="margin:0 0 10px 0;color:#2c3e50;font-size:14px;font-weight:bold;line-height:1.4;">
-                    {title}
-                </h4>
-
-                {description_html}
-
-                <div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;">
-                    <div style="display:flex;align-items:center;gap:8px;">
-                        <span style="background:{get_severity_color(severity_display)};color:white;
-                            padding:2px 8px;border-radius:10px;font-size:10px;">
-                            {severity_display}
-                        </span>
-                        <span style="color:#999;font-size:10px;">来源: {source}</span>
-                    </div>
-
-                    <div style="color:#667eea;font-size:11px;padding:3px 8px;
-                        border:1px solid #667eea;border-radius:4px;cursor:pointer;
-                        text-decoration:none;">
-                        📖 详情链接
-                    </div>
-                </div>
-
-                <div style="margin-top:10px;padding:8px 12px;background:#f8f9fa;
-                    border-radius:6px;border-left:3px solid #667eea;">
-                    <p style="margin:0;font-size:10px;color:#666;line-height:1.4;">
-                        🔗 详情链接: <span style="color:#667eea;word-break:break-all;">{url}</span>
-                    </p>
-                    <p style="margin:5px 0 0 0;font-size:9px;color:#999;">
-                        💡 复制链接到浏览器访问查看完整内容
-                    </p>
-                </div>
-            </div>
-        '''
+<section style="margin: 0 0 15px 0; padding: 15px; background-color: #ffffff; border: 1px solid #e8e8e8; border-radius: 8px;">
+    <section style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <span style="background-color: #4a90e2; color: #ffffff; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: bold;">🛡️ {cve_id}</span>
+        <span style="color: #999999; font-size: 11px;">{formatted_date}</span>
+    </section>
+    
+    <h3 style="margin: 0 0 8px 0; color: #333333; font-size: 15px; font-weight: bold; line-height: 1.4;">{title}</h3>
+    
+    {description_html}
+    
+    <section style="margin-top: 12px; display: flex; justify-content: space-between; align-items: center;">
+        <section>
+            <span style="background-color: {severity_color}; color: #ffffff; padding: 2px 8px; border-radius: 10px; font-size: 10px; margin-right: 8px;">{severity_display}</span>
+            <span style="color: #999999; font-size: 10px;">来源: {source}</span>
+        </section>
+    </section>
+    
+    <section style="margin-top: 10px; padding: 8px 12px; background-color: #f5f5f5; border-radius: 6px; border-left: 3px solid #4a90e2;">
+        <p style="margin: 0; font-size: 10px; color: #666666; line-height: 1.4;">🔗 详情链接: <span style="color: #4a90e2; word-break: break-all;">{url}</span></p>
+        <p style="margin: 5px 0 0 0; font-size: 9px; color: #999999;">💡 复制链接到浏览器访问查看完整内容</p>
+    </section>
+</section>'''
         return item_html
 
     def render_news_item(item):
-        """渲染单个新闻条目"""
+        """渲染单个新闻条目 - 微信公众号兼容版本"""
         channel = item.get('channel', '未知来源')
-        channel_type = item.get('channel_type', '未知类型')
         title = item.get('title', '暂无标题')
         description = item.get('description', '')
         author = item.get('author', '未知作者')
@@ -151,14 +129,11 @@ def render_cve_list_to_html(cve_list: list, tech_news: dict = None) -> str:
         # 描述部分
         description_html = ""
         if description and description.strip():
-            short = description[:120] + '...' if len(description) > 120 else description
-            description_html = f'''
-                <p style="color:#666;font-size:12px;line-height:1.5;margin:8px 0;">
-                    {short}
-                </p>
-            '''
+            short_desc = description[:100] + '...' if len(description) > 100 else description
+            short_desc = short_desc.replace('<', '&lt;').replace('>', '&gt;')
+            description_html = f'<p style="color: #666666; font-size: 13px; line-height: 1.6; margin: 8px 0 0 0;">{short_desc}</p>'
 
-        # 热度
+        # 热度显示
         if hot >= 1000000:
             hot_display = f"{hot // 1000000}M"
         elif hot >= 1000:
@@ -166,10 +141,10 @@ def render_cve_list_to_html(cve_list: list, tech_news: dict = None) -> str:
         else:
             hot_display = str(hot)
 
-        # GitHub/CSDN 样式
+        # 根据渠道设置样式
         if channel == 'GitHub':
             channel_icon = '🐱'
-            channel_color = '#24292e'
+            channel_color = '#333333'
             extra_info = f"⭐ {stars}" if stars else ""
             language_info = f"📝 {language}" if language else ""
         else:
@@ -178,168 +153,127 @@ def render_cve_list_to_html(cve_list: list, tech_news: dict = None) -> str:
             extra_info = f"🔥 {hot_display}"
             language_info = ""
 
+        # 简化新闻项目HTML结构
         item_html = f'''
-            <div style="margin-bottom:15px;padding:15px 18px;background:#ffffff;
-                border:1px solid #e0e0e0;border-radius:8px;
-                box-shadow:0 2px 6px rgba(0,0,0,0.08);
-                transition:all 0.3s ease;position:relative;">
-
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-                    <span style="background:{channel_color};color:white;
-                        padding:4px 10px;border-radius:15px;font-size:12px;font-weight:bold;">
-                        {channel_icon} {channel}
-                    </span>
-                    <span style="color:#999;font-size:11px;">{category}</span>
-                </div>
-
-                <h4 style="margin:0 0 10px 0;color:#2c3e50;font-size:14px;font-weight:bold;line-height:1.4;">
-                    {title}
-                </h4>
-
-                {description_html}
-
-                <div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;">
-                    <div style="display:flex;align-items:center;gap:8px;">
-                        <span style="background:#28a745;color:white;
-                            padding:2px 8px;border-radius:10px;font-size:10px;">
-                            {extra_info}
-                        </span>
-                        <span style="color:#999;font-size:10px;">作者: {author}</span>
-                        {f'<span style="color:#666;font-size:10px;">{language_info}</span>' if language_info else ''}
-                    </div>
-
-                    <div style="color:#28a745;font-size:11px;padding:3px 8px;
-                        border:1px solid #28a745;border-radius:4px;cursor:pointer;
-                        text-decoration:none;">
-                        📖 查看详情
-                    </div>
-                </div>
-
-                <div style="margin-top:10px;padding:8px 12px;background:#f8f9fa;
-                    border-radius:6px;border-left:3px solid #28a745;">
-                    <p style="margin:0;font-size:10px;color:#666;line-height:1.4;">
-                        🔗 详情链接: <span style="color:#28a745;word-break:break-all;">{url}</span>
-                    </p>
-                    <p style="margin:5px 0 0 0;font-size:9px;color:#999;">
-                        💡 复制链接到浏览器访问查看完整内容
-                    </p>
-                </div>
-            </div>
-        '''
+<section style="margin: 0 0 15px 0; padding: 15px; background-color: #ffffff; border: 1px solid #e8e8e8; border-radius: 8px;">
+    <section style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <span style="background-color: {channel_color}; color: #ffffff; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: bold;">{channel_icon} {channel}</span>
+        <span style="color: #999999; font-size: 11px;">{category}</span>
+    </section>
+    
+    <h3 style="margin: 0 0 8px 0; color: #333333; font-size: 15px; font-weight: bold; line-height: 1.4;">{title}</h3>
+    
+    {description_html}
+    
+    <section style="margin-top: 12px; display: flex; justify-content: space-between; align-items: center;">
+        <section>
+            <span style="background-color: #28a745; color: #ffffff; padding: 2px 8px; border-radius: 10px; font-size: 10px; margin-right: 8px;">{extra_info}</span>
+            <span style="color: #999999; font-size: 10px;">作者: {author}</span>
+            {f'<span style="color: #666666; font-size: 10px; margin-left: 8px;">{language_info}</span>' if language_info else ''}
+        </section>
+    </section>
+    
+    <section style="margin-top: 10px; padding: 8px 12px; background-color: #f5f5f5; border-radius: 6px; border-left: 3px solid #28a745;">
+        <p style="margin: 0; font-size: 10px; color: #666666; line-height: 1.4;">🔗 详情链接: <span style="color: #28a745; word-break: break-all;">{url}</span></p>
+        <p style="margin: 5px 0 0 0; font-size: 9px; color: #999999;">💡 复制链接到浏览器访问查看完整内容</p>
+    </section>
+</section>'''
         return item_html
 
-    def get_severity_color(severity):
-        """根据严重程度返回对应颜色"""
-        if '⚠️' in severity or 'PoC' in severity:
-            return '#dc3545'
-        elif '🔍' in severity or '已确认' in severity:
-            return '#fd7e14'
-        else:
-            return '#6c757d'
-
+    # 开始构建完整HTML
     html_parts = []
 
+    # 头部关注提示 - 微信标准格式
     html_parts.append('''
-        <div style="max-width:100%;margin:0 auto;font-family:'PingFang SC','Microsoft YaHei',Arial,sans-serif;">
-            <p style="background:linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);padding:10px 15px;
-                border-radius:8px;margin-bottom:10px;color:#1565c0;font-weight:bold;text-align:left;">
-                点击上方蓝字关注我们
-            </p>
-            <p style="border:1px solid #ddd;border-radius:8px;padding:12px 15px;margin-bottom:20px;
-                text-indent:2em;background:#f9f9f9;">
-                重要声明‼️‼️随着网络安全越来越重要，"安全info"将定期分享实用安全技术、最新行业动态、案例分析，实战技巧等。鉴于网络安全法的基础文章内容仅供学习，不做其他任何用处！
-            </p>
-    ''')
+<section style="font-family: -apple-system-font, BlinkMacSystemFont, 'Helvetica Neue', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei UI', 'Microsoft YaHei', Arial, sans-serif;">
+    <section style="background-color: #e3f2fd; padding: 12px 16px; border-radius: 8px; margin-bottom: 15px; text-align: center;">
+        <p style="margin: 0; color: #1565c0; font-size: 14px; font-weight: bold;">点击上方蓝字关注我们</p>
+    </section>
+    
+    <section style="border: 1px solid #dddddd; border-radius: 8px; padding: 15px; margin-bottom: 20px; background-color: #f9f9f9;">
+        <p style="margin: 0; text-indent: 2em; color: #333333; font-size: 14px; line-height: 1.6;">重要声明‼️‼️随着网络安全越来越重要，"安全info"将定期分享实用安全技术、最新行业动态、案例分析，实战技巧等。鉴于网络安全法的基础文章内容仅供学习，不做其他任何用处！</p>
+    </section>
+</section>''')
 
+    # 主标题
     html_parts.append('''
-        <h2 style="font-weight:bold;background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color:white;padding:15px 20px;border-radius:8px;margin:25px 0 20px 0;font-size:18px;
-            text-align:center;box-shadow:0 2px 10px rgba(0,0,0,0.1);">
-            🔐 最新 CVE 安全公告与技术资讯
-        </h2>
-    ''')
+<section style="background-color: #4a90e2; color: #ffffff; padding: 16px 20px; border-radius: 8px; margin: 20px 0; text-align: center;">
+    <h2 style="margin: 0; font-size: 18px; font-weight: bold;">🔐 最新 CVE 安全公告与技术资讯</h2>
+</section>''')
 
-    cve_count = len(cve_list)
-    news_count = tech_news.get('total', 0) if tech_news else 0
+    # 统计信息 - 基于限制后的数量
+    cve_count = min(len(cve_list), 10) if cve_list else 0
+    news_count = min(tech_news.get('total', 0), 10) if tech_news else 0
     html_parts.append(f'''
-        <div style="background:linear-gradient(135deg, #ffeaa7 0%, #fab1a0 100%);
-            padding:12px 20px;border-radius:8px;margin-bottom:20px;text-align:center;">
-            <span style="color:#2d3436;font-weight:bold;font-size:14px;">
-                📊 本期共收录 {cve_count} 个CVE漏洞 | {news_count} 条技术资讯 | 滑动查看更多
-            </span>
-        </div>
-    ''')
+<section style="background-color: #fff3cd; padding: 12px 20px; border-radius: 8px; margin-bottom: 20px; text-align: center; border: 1px solid #ffeaa7;">
+    <p style="margin: 0; color: #856404; font-weight: bold; font-size: 14px;">📊 本期精选 {cve_count} 个CVE漏洞 | {news_count} 条技术资讯 | 最新情报资讯</p>
+</section>''')
 
+    # CVE安全漏洞部分 - 限制显示最新10条
     if cve_list:
+        # 只取前10条最新数据
+        limited_cve_list = cve_list[:10]
+        
         html_parts.append('''
-            <div style="margin-top:20px;">
-                <h3 style="font-weight:bold;background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    color:white;padding:12px 18px;border-radius:6px;margin:20px 0 15px 0;font-size:16px;
-                    text-align:center;">
-                    🛡️ CVE 安全漏洞公告
-                </h3>
-                <div style="max-height:500px;overflow-y:auto;border:1px solid #dee2e6;
-                    padding:15px;border-radius:8px;background:#f8f9fa;
-                    box-shadow:inset 0 2px 4px rgba(0,0,0,0.1);">
-        ''')
-        for item in cve_list:
+<section style="margin-top: 20px;">
+    <section style="background-color: #4a90e2; color: #ffffff; padding: 12px 18px; border-radius: 6px; margin: 20px 0 15px 0; text-align: center;">
+        <h3 style="margin: 0; font-size: 16px; font-weight: bold;">🛡️ CVE 安全漏洞公告</h3>
+    </section>
+    
+    <section style="border: 1px solid #dee2e6; padding: 15px; border-radius: 8px; background-color: #f8f9fa;">''')
+        
+        for item in limited_cve_list:
             html_parts.append(render_cve_item(item))
-        html_parts.append('''
-                </div>
-                <div style="text-align:center;margin-top:10px;padding:8px;
-                    background:#e9ecef;border-radius:6px;color:#6c757d;font-size:12px;">
-                    💡 提示：上方区域可滑动查看更多CVE信息
-                </div>
-            </div>
-        ''')
-
-    if tech_news and tech_news.get('data'):
-        html_parts.append('''
-            <div style="margin-top:25px;">
-                <h3 style="font-weight:bold;background:linear-gradient(135deg, #28a745 0%, #20c997 100%);
-                    color:white;padding:12px 18px;border-radius:6px;margin:20px 0 15px 0;font-size:16px;
-                    text-align:center;">
-                    📰 技术资讯热点
-                </h3>
-                <div style="max-height:500px;overflow-y:auto;border:1px solid #dee2e6;
-                    padding:15px;border-radius:8px;background:#f8f9fa;
-                    box-shadow:inset 0 2px 4px rgba(0,0,0,0.1);">
-        ''')
-        for item in tech_news['data']:
-            html_parts.append(render_news_item(item))
+            
         html_parts.append(f'''
-                </div>
-                <div style="text-align:center;margin-top:10px;padding:8px;
-                    background:#e9ecef;border-radius:6px;color:#6c757d;font-size:12px;">
-                    💡 提示：上方区域可滑动查看更多技术资讯 | 数据更新时间：{tech_news.get('update_time', '')}
-                </div>
-            </div>
-        ''')
+    </section>
+    
+    <section style="text-align: center; margin-top: 10px; padding: 8px; background-color: #e9ecef; border-radius: 6px;">
+        <p style="margin: 0; color: #6c757d; font-size: 12px;">💡 显示最新 {len(limited_cve_list)} 条CVE漏洞信息</p>
+    </section>
+</section>''')
 
+    # 技术资讯部分 - 限制显示最新10条
+    if tech_news and tech_news.get('data'):
+        # 只取前10条最新数据
+        limited_news_data = tech_news['data'][:10]
+        
+        html_parts.append('''
+<section style="margin-top: 25px;">
+    <section style="background-color: #28a745; color: #ffffff; padding: 12px 18px; border-radius: 6px; margin: 20px 0 15px 0; text-align: center;">
+        <h3 style="margin: 0; font-size: 16px; font-weight: bold;">📰 技术资讯热点</h3>
+    </section>
+    
+    <section style="border: 1px solid #dee2e6; padding: 15px; border-radius: 8px; background-color: #f8f9fa;">''')
+        
+        for item in limited_news_data:
+            html_parts.append(render_news_item(item))
+            
+        update_time = tech_news.get('update_time', '')
+        html_parts.append(f'''
+    </section>
+    
+    <section style="text-align: center; margin-top: 10px; padding: 8px; background-color: #e9ecef; border-radius: 6px;">
+        <p style="margin: 0; color: #6c757d; font-size: 12px;">💡 显示最新 {len(limited_news_data)} 条技术资讯 | 数据更新时间：{update_time}</p>
+    </section>
+</section>''')
+
+    # 底部关注区域
     html_parts.append('''
-        <div style="background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding:20px 25px;border-radius:16px;margin-top:30px;text-align:center;
-            color:white;font-size:16px;box-shadow:0 8px 25px rgba(102,126,234,0.3);">
-            <div style="max-width:600px;margin:0 auto;">
-                <p style="margin:0 0 15px 0;font-size:18px;font-weight:bold;line-height:1.6;">
-                    🎉 关注网络安全，保护数字世界！👆
-                </p>
-                <p style="margin:0 0 20px 0;font-size:14px;opacity:0.9;line-height:1.6;">
-                    ✌️ 获取更多CVE漏洞情报和网络安全资讯，让我们一起构建更安全的网络环境！✌️
-                </p>
-                <div style="background:rgba(255,255,255,0.2);padding:12px 16px;border-radius:20px;
-                    display:inline-block;font-weight:bold;font-size:14px;line-height:1.5;
-                    margin-top:10px;">
-                    📬 联系作者：微信：tomorrow_me- | 知识星球：数据安全info | QQ/微信安全交流群
-                </div>
-            </div>
-        </div>
-    ''')
+<section style="background-color: #4a90e2; padding: 20px 25px; border-radius: 16px; margin-top: 30px; text-align: center; color: #ffffff;">
+    <section style="max-width: 600px; margin: 0 auto;">
+        <p style="margin: 0 0 15px 0; font-size: 18px; font-weight: bold; line-height: 1.6;">🎉 关注网络安全，保护数字世界！👆</p>
+        <p style="margin: 0 0 20px 0; font-size: 14px; line-height: 1.6; opacity: 0.9;">✌️ 获取更多CVE漏洞情报和网络安全资讯，让我们一起构建更安全的网络环境！✌️</p>
+        
+        <section style="background-color: rgba(255,255,255,0.2); padding: 12px 16px; border-radius: 20px; display: inline-block; margin-top: 10px;">
+            <p style="margin: 0; font-weight: bold; font-size: 14px; line-height: 1.5;">📬 联系作者：微信：tomorrow_me- | 知识星球：数据安全info | QQ/微信安全交流群</p>
+        </section>
+    </section>
+</section>''')
 
-    html_parts.append('</div>')
+    html_parts.append('</section>')
+    
     return '\n'.join(html_parts)
-
-
 
 def get_tech_news():
     """
