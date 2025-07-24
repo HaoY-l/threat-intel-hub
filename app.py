@@ -11,6 +11,7 @@ from src.api import api_bp
 from src.routes.cve.tenable import TenableCrawler 
 from src.routes.cve.alicloud import AliyunAVDCrawler 
 from src.routes.threat.virustotal import VirusTotalCollector
+from src.routes.waf.save_log import fetch_and_save_blocked_ips, fetch_and_save_ip_request_frequency
 import logging, os 
 from dotenv import load_dotenv
 from flask_cors import CORS
@@ -136,8 +137,12 @@ if __name__ == '__main__':
     scheduler = None
     try:
         run_cve()  # 启动时立即执行一次
+        fetch_and_save_blocked_ips()
+        fetch_and_save_ip_request_frequency()
         scheduler = BackgroundScheduler()
         scheduler.add_job(run_cve, 'interval', hours=3, id='cve_task')
+        scheduler.add_job(fetch_and_save_blocked_ips, 'interval', minutes=15, id='block_ip_job')
+        scheduler.add_job(fetch_and_save_ip_request_frequency, 'interval', minutes=1, id='freq_ip_job')
         scheduler.start()
         logging.info("定时任务调度器启动成功")
         
