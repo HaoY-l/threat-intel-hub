@@ -1,461 +1,807 @@
 <template>
   <div class="waf-management">
-    <h2>WAF 黑白名单管理</h2>
+    <div class="header">
+      <div class="header-left">
+        <h1>WAF 安全管理中心</h1>
+        <p class="header-subtitle">实时监控与威胁防护</p>
+      </div>
+      <div class="header-actions">
+        <button @click="refreshAllData" :disabled="loading" class="refresh-btn">
+          <i class="fa fa-refresh mr-2"></i>
+          <span>刷新数据</span>
+        </button>
+      </div>
+    </div>
 
-    <!-- 白名单列表区域 -->
-    <section class="white-list">
-      <h3>白名单列表</h3>
-      <div class="actions">
-        <button @click="fetchWhiteList" :disabled="loading">刷新白名单</button>
-      </div>
-      <div class="table-wrapper">
-        <table>
-          <thead>
-            <tr>
-              <th>规则ID</th>
-              <th>规则名称</th>
-              <th>模板ID</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="item in pagedWhiteList" :key="item.rule_id">
-              <td>{{ item.rule_id }}</td>
-              <td>{{ item.rule_name }}</td>
-              <td>{{ item.rule_template }}</td>
-              <td>
-                <button @click="deleteWhite(item.rule_id)" :disabled="loading">删除</button>
-              </td>
-            </tr>
-            <tr v-if="whiteList.length === 0">
-              <td colspan="4" class="empty-row">暂无白名单数据</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="pagination" v-if="whiteList.length > whitePageSize">
-        <button :disabled="whitePage === 1" @click="whitePage--">上一页</button>
-        <span>第 {{ whitePage }} 页 / 共 {{ whitePageCount }} 页</span>
-        <button :disabled="whitePage === whitePageCount" @click="whitePage++">下一页</button>
-      </div>
+    <WAFOverview :statsOverview="statsOverview" />
 
-      <h4>添加白名单</h4>
-      <form @submit.prevent="addWhite" class="add-form">
-        <label>
-          规则名称：
-          <input v-model="newWhiteName" required placeholder="输入规则名称" />
-        </label>
-        <label>
-          IP 地址：
-          <input v-model="newWhiteIP" required placeholder="输入IP地址" />
-        </label>
-        <button type="submit" :disabled="loading">添加白名单</button>
-      </form>
-    </section>
+    <div class="monitoring-grid">
+      <WAFMonitoringPanel
+        :blockedIPs="blockedIPs"
+        :blockedTimeRange="blockedTimeRange"
+        :highFreqIPs="highFreqIPs"
+        :freqTimeRange="freqTimeRange"
+        @update:blockedTimeRange="blockedTimeRange = $event"
+        @update:freqTimeRange="freqTimeRange = $event"
+        @fetchBlockedIPs="fetchBlockedIPs"
+        @fetchHighFreqIPs="fetchHighFreqIPs"
+        @addToBlacklist="addToBlacklist"
+        @blockIP="blockIP"
+      />
 
-    <!-- 黑名单列表区域 -->
-    <section class="black-list">
-      <h3>黑名单IP列表</h3>
-      <div class="actions">
-        <button @click="fetchBlackList" :disabled="loading">刷新黑名单</button>
-      </div>
-      <div class="table-wrapper">
-        <table>
-          <thead>
-            <tr>
-              <th>IP地址</th>
-              <th>规则ID</th>
-              <th>模板ID</th>
-              <th>模板名称</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(item, index) in pagedBlackList" :key="item.ip + '-' + index">
-              <td>{{ item.ip }}</td>
-              <td>{{ item.rule_id }}</td>
-              <td>{{ item.template_id }}</td>
-              <td>{{ item.rule_name }}</td>
-            </tr>
-            <tr v-if="blackList.length === 0">
-              <td colspan="4" class="empty-row">暂无黑名单数据</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="pagination" v-if="blackList.length > blackPageSize">
-        <button :disabled="blackPage === 1" @click="blackPage--">上一页</button>
-        <span>第 {{ blackPage }} 页 / 共 {{ blackPageCount }} 页</span>
-        <button :disabled="blackPage === blackPageCount" @click="blackPage++">下一页</button>
-      </div>
+      <WAFAutoProtection
+        :autoProtectionEnabled="autoProtectionEnabled"
+        :threatIntelligenceEnabled="threatIntelligenceEnabled"
+        :autoBlockEnabled="autoBlockEnabled"
+        :aiLearningEnabled="aiLearningEnabled"
+        :autoBlockedCount="autoBlockedCount"
+        :todayThreats="todayThreats"
+      />
+    </div>
 
-      <h4>添加黑名单IP</h4>
-      <form @submit.prevent="addBlack" class="add-form">
-        <label>
-          IP 地址：
-          <input v-model="newBlackIP" required placeholder="输入IP地址" />
-        </label>
-        <button type="submit" :disabled="loading">添加黑名单IP</button>
-      </form>
-    </section>
+    <WAFManagementPanel
+      :whiteList="whiteList"
+      :blackList="blackList"
+      :whitePage="whitePage" @update:whitePage="whitePage = $event"
+      :blackPage="blackPage" @update:blackPage="blackPage = $event"
+      :newWhiteName="newWhiteName"
+      :newWhiteIP="newWhiteIP"
+      :newWhiteRemark="newWhiteRemark"
+      :newBlackIP="newBlackIP"
+      :newBlackReason="newBlackReason"
+      :newBlackDuration="newBlackDuration"
+      :loading="loading"
+      @update:newWhiteName="newWhiteName = $event"
+      @update:newWhiteIP="newWhiteIP = $event"
+      @update:newWhiteRemark="newWhiteRemark = $event"
+      @update:newBlackIP="newBlackIP = $event"
+      @update:newBlackReason="newBlackReason = $event"
+      @update:newBlackDuration="newBlackDuration = $event"
+      @fetchWhiteList="fetchWhiteList"
+      @fetchBlackList="fetchBlackList"
+      @deleteWhite="deleteWhite"
+      @deleteBlack="deleteBlack"
+      @addWhite="addWhite"
+      @addBlack="addBlack"
+      @showError="showError"
+      @showSuccess="showSuccess"
+    />
 
-    <!-- 提示信息 -->
-    <div v-if="errorMsg" class="error">{{ errorMsg }}</div>
-    <div v-if="successMsg" class="success">{{ successMsg }}</div>
+    <transition name="message">
+      <div v-if="errorMsg" class="message error">
+        <i class="message-icon fa fa-exclamation-circle"></i>
+        <span>{{ errorMsg }}</span>
+        <button @click="errorMsg = ''" class="close-btn">×</button>
+      </div>
+    </transition>
+
+    <transition name="message">
+      <div v-if="successMsg" class="message success">
+        <i class="message-icon fa fa-check-circle"></i>
+        <span>{{ successMsg }}</span>
+        <button @click="successMsg = ''" class="close-btn">×</button>
+      </div>
+    </transition>
+
+    <div v-if="loading" class="loading-overlay">
+      <div class="loading-spinner">
+        <div class="spinner"></div>
+        <p>正在加载数据...</p>
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
-import axios from 'axios'
+import axios from 'axios';
+import WAFOverview from '../components/waf/WAFOverview.vue';
+import WAFMonitoringPanel from '../components/waf/WAFMonitoringPanel.vue';
+import WAFAutoProtection from '../components/waf/WAFAutoProtection.vue';
+import WAFManagementPanel from '../components/waf/WAFManagementPanel.vue';
 
 export default {
   name: 'WAFManagement',
+  components: {
+    WAFOverview,
+    WAFMonitoringPanel,
+    WAFAutoProtection,
+    WAFManagementPanel
+  },
   data() {
     return {
+      // 数据
       whiteList: [],
-      blackList: [], // 结构：[{ ip, rule_id, template_id, rule_name }]
+      blackList: [],
+      blockedIPs: [],
+      highFreqIPs: [],
+
+      // 表单
       newWhiteName: '',
       newWhiteIP: '',
+      newWhiteRemark: '',
       newBlackIP: '',
+      newBlackReason: '恶意扫描',
+      newBlackDuration: '24h',
+
+      // 状态
       loading: false,
       errorMsg: '',
       successMsg: '',
 
-      // 分页状态
-      whitePage: 1,
-      whitePageSize: 8,
-      blackPage: 1,
-      blackPageSize: 8
+      // 时间范围，默认设置为 'today'
+      blockedTimeRange: 'today', // 默认查询今天的数据
+      freqTimeRange: 'today', // 默认查询今天的数据
+
+      // 分页
+      whitePage: 1, // 父组件维护白名单当前页码
+      whitePageSize: 5,
+      blackPage: 1, // 父组件维护黑名单当前页码
+      blackPageSize: 5,
+
+      // 统计数据
+      autoBlockedCount: 0,
+      todayThreats: 0,
+
+      // 防护状态
+      autoProtectionEnabled: true,
+      threatIntelligenceEnabled: true,
+      autoBlockEnabled: true,
+      aiLearningEnabled: true,
     }
   },
+
   computed: {
-    whitePageCount() {
-      return Math.ceil(this.whiteList.length / this.whitePageSize) || 1
-    },
-    blackPageCount() {
-      return Math.ceil(this.blackList.length / this.blackPageSize) || 1
-    },
-    pagedWhiteList() {
-      const start = (this.whitePage - 1) * this.whitePageSize
-      return this.whiteList.slice(start, start + this.whitePageSize)
-    },
-    pagedBlackList() {
-      const start = (this.blackPage - 1) * this.blackPageSize
-      return this.blackList.slice(start, start + this.blackPageSize)
-    }
-  },
-  watch: {
-    whitePage(newVal) {
-      if (newVal < 1) this.whitePage = 1
-      if (newVal > this.whitePageCount) this.whitePage = this.whitePageCount
-    },
-    blackPage(newVal) {
-      if (newVal < 1) this.blackPage = 1
-      if (newVal > this.blackPageCount) this.blackPage = this.blackPageCount
-    }
-  },
-  mounted() {
-    this.fetchWhiteList()
-    this.fetchBlackList()
-  },
-  methods: {
-    async fetchWhiteList() {
-      this.errorMsg = ''
-      this.successMsg = ''
-      this.loading = true
-      try {
-        const res = await axios.get('/api/listwhite')
-        if (res.data && res.data.message) {
-          this.whiteList = res.data.message
-          this.whitePage = 1
-        } else {
-          this.whiteList = []
-          this.errorMsg = '白名单数据格式异常'
+    statsOverview() {
+      return [
+        {
+          key: 'whitelist',
+          title: '白名单规则',
+          value: this.whiteList.length,
+          icon: 'fa-shield',
+          iconClass: 'bg-green-500',
+          color: 'linear-gradient(135deg, #4CAF50, #45a049)',
+          trendClass: 'text-green-500',
+          trendIcon: 'fa-arrow-up'
+        },
+        {
+          key: 'blacklist',
+          title: '黑名单IP',
+          value: this.blackList.length,
+          icon: 'fa-ban',
+          iconClass: 'bg-red-500',
+          color: 'linear-gradient(135deg, #f44336, #d32f2f)',
+          trendClass: 'text-red-500',
+          trendIcon: 'fa-arrow-up'
+        },
+        {
+          key: 'blocked',
+          title: '规则封禁',
+          value: this.blockedIPs.length,
+          icon: 'fa-exclamation-triangle',
+          iconClass: 'bg-orange-500',
+          color: 'linear-gradient(135deg, #FF9800, #F57C00)',
+          trendClass: 'text-green-500',
+          trendIcon: 'fa-arrow-down'
+        },
+        {
+          key: 'highfreq',
+          title: '高频监控',
+          value: this.highFreqIPs.length,
+          icon: 'fa-line-chart',
+          iconClass: 'bg-blue-500',
+          color: 'linear-gradient(135deg, #2196F3, #1976D2)',
+          trendClass: 'text-red-500',
+          trendIcon: 'fa-arrow-up'
+        },
+        {
+          key: 'threatblock',
+          title: '威胁情报自动封禁',
+          value: this.todayThreats,
+          icon: 'fa-bolt',
+          iconClass: 'bg-purple-500',
+          color: 'linear-gradient(135deg, #8A2BE2, #9932CC)',
+          trendClass: 'text-purple-500',
+          trendIcon: 'fa-arrow-up'
         }
-      } catch (err) {
-        this.errorMsg = '获取白名单失败: ' + (err.response?.data?.message || err.message)
+      ]
+    },
+  },
+
+  mounted() {
+    this.initData();
+    this.setupAutoRefresh();
+  },
+
+  beforeUnmount() {
+    clearInterval(this.refreshInterval);
+  },
+
+  methods: {
+    async initData() {
+      // 首次加载时，fetchBlockedIPs 和 fetchHighFreqIPs 会根据默认的 'today' 进行查询
+      await this.refreshAllData();
+    },
+
+    setupAutoRefresh() {
+      // 每30秒自动刷新监控数据
+      this.refreshInterval = setInterval(() => {
+        // 自动刷新时，保持当前选择的时间范围
+        this.fetchBlockedIPs();
+        this.fetchHighFreqIPs();
+      }, 30000);
+    },
+
+    async refreshAllData() {
+      this.loading = true;
+      try {
+        await Promise.all([
+          this.fetchWhiteList(),
+          this.fetchBlackList(),
+          this.fetchBlockedIPs(), // 调用时会根据 blockedTimeRange 计算时间
+          this.fetchHighFreqIPs(), // 调用时会根据 freqTimeRange 计算时间
+          this.fetchProtectionStats()
+        ]);
+        this.showSuccess('数据刷新成功');
+      } catch (error) {
+        this.showError('数据刷新失败');
+        console.error('刷新数据失败:', error);
       } finally {
-        this.loading = false
+        this.loading = false;
       }
     },
-    async fetchBlackList() {
-      this.errorMsg = ''
-      this.successMsg = ''
-      this.loading = true
+
+    showError(msg) {
+      this.errorMsg = msg;
+      setTimeout(() => { this.errorMsg = ''; }, 3000); // 3秒后自动消失
+    },
+
+    showSuccess(msg) {
+      this.successMsg = msg;
+      setTimeout(() => { this.successMsg = ''; }, 3000); // 3秒后自动消失
+    },
+
+    /**
+     * 根据选择的时间范围类型（'today', '3d', '7d', '1m'）计算 from 和 to 时间。
+     * @param {string} rangeType 'today', '3d', '7d', '1m'
+     * @returns {{from: string, to: string}} 格式化后的时间字符串对象
+     */
+    getDateTimeRange(rangeType) {
+      const now = new Date();
+      let fromDate;
+      let toDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), now.getMinutes(), now.getSeconds()); // 精确到秒的当前时间
+
+      switch (rangeType) {
+        case 'today':
+          fromDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0); // 当天零点
+          break;
+        case '3d':
+          fromDate = new Date(now);
+          fromDate.setDate(now.getDate() - 3); // 3天前
+          fromDate.setHours(0, 0, 0, 0); // 从3天前零点开始
+          break;
+        case '7d':
+          fromDate = new Date(now);
+          fromDate.setDate(now.getDate() - 7); // 7天前
+          fromDate.setHours(0, 0, 0, 0); // 从7天前零点开始
+          break;
+        case '1m': // 1个月，粗略按30天计算
+          fromDate = new Date(now);
+          fromDate.setMonth(now.getMonth() - 1); // 1个月前
+          fromDate.setHours(0, 0, 0, 0); // 从1个月前零点开始
+          break;
+        default: // 如果有其他分钟数选项，可以这样处理，但目前用户只指定了今天/天/月
+          const minutes = parseInt(rangeType);
+          if (!isNaN(minutes)) {
+             fromDate = new Date(now.getTime() - minutes * 60 * 1000); // 从当前时间回溯指定分钟数
+          } else {
+             fromDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0); // 默认今天零点
+          }
+          break;
+      }
+
+      const format = (date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
+        return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+      };
+
+      return {
+        from: format(fromDate),
+        to: format(toDate)
+      };
+    },
+
+    // API 调用方法
+    async fetchWhiteList() {
       try {
-        const res = await axios.get('/api/descblackrule')
+        const res = await axios.get('/api/listwhite');
+        if (res.data && res.data.message) {
+          this.whiteList = res.data.message;
+        } else {
+          this.whiteList = [];
+        }
+      } catch (err) {
+        console.error('获取白名单失败:', err);
+        this.showError('获取白名单失败');
+      }
+    },
+
+    async fetchBlackList() {
+      try {
+        const res = await axios.get('/api/descblackrule');
         if (res.data && res.data.message && res.data.message.length > 0) {
-          // 后端只返回了一个对象，里面有 ip_list，rule_id, rule_name, template_id
-          // 展开成多个对象，方便展示
-          const msg = res.data.message[0]
-          const ipList = msg.ip_list || []
+          const msg = res.data.message[0];
+          const ipList = msg.ip_list || [];
           this.blackList = ipList.map(ip => ({
             ip,
             rule_id: msg.rule_id,
             template_id: msg.template_id,
-            rule_name: msg.rule_name
-          }))
-          this.blackPage = 1
+            rule_name: msg.rule_name,
+            reason: msg.reason,
+            created_at: msg.created_at
+          }));
         } else {
-          this.blackList = []
-          this.errorMsg = '黑名单数据格式异常或无数据'
+          this.blackList = [];
         }
       } catch (err) {
-        this.errorMsg = '获取黑名单失败: ' + (err.response?.data?.message || err.message)
-      } finally {
-        this.loading = false
+        console.error('获取黑名单失败:', err);
+        this.showError('获取黑名单失败');
       }
     },
-    async deleteWhite(ruleId) {
-      if (!confirm(`确认删除白名单规则 ID: ${ruleId} 吗？`)) return
-      this.errorMsg = ''
-      this.successMsg = ''
-      this.loading = true
+
+    async fetchBlockedIPs() {
       try {
-        const res = await axios.post('/api/deletewhite', { rule_id: ruleId })
-        if (res.data && (res.data.code === 200 || res.data.msg === '删除成功')) {
-          this.successMsg = '删除成功'
-          await this.fetchWhiteList()
+        const { from, to } = this.getDateTimeRange(this.blockedTimeRange);
+        const res = await axios.get('/api/blocked_ips', {
+          params: {
+            from: from,
+            to: to
+          }
+        });
+
+        if (res.data && res.data.data) {
+          this.blockedIPs = res.data.data.map(item => ({
+            ...item,
+            threat_level: this.getThreatLevelFromScore(item.threat_score)
+          }));
         } else {
-          this.errorMsg = '删除失败'
+          this.blockedIPs = [];
         }
       } catch (err) {
-        this.errorMsg = '删除失败: ' + (err.response?.data?.message || err.message)
-      } finally {
-        this.loading = false
+        console.error('获取封禁IP失败:', err);
+        this.showError('获取封禁IP失败');
       }
     },
+
+    async fetchHighFreqIPs() {
+      try {
+        const { from, to } = this.getDateTimeRange(this.freqTimeRange);
+        const res = await axios.get('/api/ip_request_frequency', {
+          params: {
+            from: from,
+            to: to
+          }
+        });
+
+        if (res.data && res.data.data) {
+          this.highFreqIPs = res.data.data;
+        } else {
+          this.highFreqIPs = [];
+        }
+      } catch (err) {
+        console.error('获取高频IP失败:', err);
+        this.showError('获取高频IP失败');
+      }
+    },
+
+    async fetchProtectionStats() {
+      try {
+        const res = await axios.get('/api/protection_stats');
+
+        if (res.data && res.data.data) {
+          const stats = res.data.data;
+          this.autoBlockedCount = stats.auto_blocked_count || 0;
+          this.todayThreats = stats.today_threats || 0;
+
+          // 更新防护状态
+          if (stats.protection_status) {
+            this.autoProtectionEnabled = stats.protection_status.auto_protection || true;
+            this.threatIntelligenceEnabled = stats.protection_status.threat_intelligence || true;
+            this.autoBlockEnabled = stats.protection_status.auto_block || true;
+            this.aiLearningEnabled = stats.protection_status.ai_learning || true;
+          }
+        }
+      } catch (err) {
+        console.error('获取防护统计数据失败:', err);
+      }
+    },
+
+    async deleteWhite(ruleId) {
+      if (!confirm(`确认删除白名单规则 ID: ${ruleId} 吗？`)) return;
+
+      this.loading = true;
+      try {
+        const res = await axios.post('/api/deletewhite', { rule_id: ruleId });
+        if (res.data && (res.data.code === 200 || res.data.msg === '删除成功')) {
+          this.showSuccess('删除成功');
+          await this.fetchWhiteList();
+        } else {
+          this.showError('删除失败');
+        }
+      } catch (err) {
+        this.showError('删除失败: ' + (err.response?.data?.message || err.message));
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async deleteBlack(ip) {
+      if (!confirm(`确认从黑名单中移除 ${ip} 吗？`)) return;
+
+      this.loading = true;
+      try {
+        const res = await axios.post('/api/deleteblack', { ip });
+        if (res.data && res.data.status === 'success') {
+          this.showSuccess(`IP ${ip} 已从黑名单移除`);
+          await this.fetchBlackList();
+        } else {
+          this.showError('移除失败');
+        }
+      } catch (err) {
+        this.showError('移除失败: ' + (err.response?.data?.message || err.message));
+      } finally {
+        this.loading = false;
+      }
+    },
+
     async addWhite() {
       if (!this.newWhiteName.trim() || !this.newWhiteIP.trim()) {
-        this.errorMsg = '请输入完整白名单信息'
-        return
+        this.showError('请输入完整白名单信息');
+        return;
       }
-      this.errorMsg = ''
-      this.successMsg = ''
-      this.loading = true
 
-      const payload = [
-        {
-          name: this.newWhiteName.trim(),
-          tags: ['waf'],
-          status: 1,
-          origin: 'custom',
-          conditions: [
-            {
-              key: 'IP',
-              opValue: 'contain',
-              subKey: '',
-              values: this.newWhiteIP.trim()
-            }
-          ]
-        }
-      ]
+      // 简单的IP格式验证
+      const ipPattern = /^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\/([0-9]|[1-2][0-9]|3[0-2]))?$/;
+      if (!ipPattern.test(this.newWhiteIP.trim())) {
+        this.showError('请输入有效的IP地址或CIDR范围');
+        return;
+      }
+
+      this.loading = true;
+      const payload = [{
+        name: this.newWhiteName.trim(),
+        tags: ['waf'],
+        status: 1,
+        origin: 'custom',
+        remark: this.newWhiteRemark,
+        conditions: [{
+          key: 'IP',
+          opValue: 'contain',
+          subKey: '',
+          values: this.newWhiteIP.trim()
+        }]
+      }];
+
       try {
-        const res = await axios.post('/api/addwhite', payload)
+        const res = await axios.post('/api/addwhite', payload);
         if (res.data && res.data.status === 'success') {
-          this.successMsg = '白名单添加成功'
-          this.newWhiteName = ''
-          this.newWhiteIP = ''
-          await this.fetchWhiteList()
+          this.showSuccess('白名单添加成功');
+          this.newWhiteName = '';
+          this.newWhiteIP = '';
+          this.newWhiteRemark = '';
+          await this.fetchWhiteList();
         } else {
-          this.errorMsg = '添加失败'
+          this.showError('添加失败');
         }
       } catch (err) {
-        this.errorMsg = '添加失败: ' + (err.response?.data?.message || err.message)
+        this.showError('添加失败: ' + (err.response?.data?.message || err.message));
       } finally {
-        this.loading = false
+        this.loading = false;
       }
     },
+
     async addBlack() {
       if (!this.newBlackIP.trim()) {
-        this.errorMsg = '请输入黑名单IP'
-        return
+        this.showError('请输入黑名单IP');
+        return;
       }
-      this.errorMsg = ''
-      this.successMsg = ''
-      this.loading = true
+
+      // 简单的IP格式验证
+      const ipPattern = /^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+      if (!ipPattern.test(this.newBlackIP.trim())) {
+        this.showError('请输入有效的IP地址');
+        return;
+      }
+
+      this.loading = true;
       try {
         const res = await axios.post('/api/modifyblackrule', {
-          black_ip: this.newBlackIP.trim()
-        })
-        this.successMsg = '黑名单添加成功'
-        this.newBlackIP = ''
-        this.fetchBlackList()
+          black_ip: this.newBlackIP.trim(),
+          reason: this.newBlackReason,
+          duration: this.newBlackDuration
+        });
+
+        if (res.data && res.data.status === 'success') {
+          this.showSuccess('黑名单添加成功');
+          this.newBlackIP = '';
+          await this.fetchBlackList();
+        } else {
+          this.showError('添加失败');
+        }
       } catch (err) {
-        this.errorMsg = '添加黑名单失败: ' + (err.response?.data?.message || err.message)
+        this.showError('添加黑名单失败: ' + (err.response?.data?.message || err.message));
       } finally {
-        this.loading = false
+        this.loading = false;
       }
-    }
+    },
+
+    async addToBlacklist(ip) {
+      if (!confirm(`确认将 ${ip} 加入黑名单吗？`)) return;
+
+      this.loading = true;
+      try {
+        const res = await axios.post('/api/modifyblackrule', {
+          black_ip: ip,
+          reason: '规则封禁自动添加',
+          duration: '7d'
+        });
+
+        if (res.data && res.data.status === 'success') {
+          this.showSuccess(`IP ${ip} 已成功加入黑名单`);
+          await this.fetchBlackList();
+        } else {
+          this.showError('加入黑名单失败');
+        }
+      } catch (err) {
+        this.showError('加入黑名单失败: ' + (err.response?.data?.message || err.message));
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async blockIP(ip) {
+      if (!confirm(`确认封禁IP ${ip} 吗？这将阻止该IP访问您的网站。`)) return;
+
+      this.loading = true;
+      try {
+        const res = await axios.post('/api/block_ip', {
+          ip,
+          reason: '高频请求',
+          duration: '24h'
+        });
+
+        if (res.data && res.data.status === 'success') {
+          this.showSuccess(`IP ${ip} 已成功封禁`);
+          await Promise.all([
+            this.fetchBlockedIPs(),
+            this.fetchHighFreqIPs()
+          ]);
+        } else {
+          this.showError('封禁失败');
+        }
+      } catch (err) {
+        this.showError('封禁失败: ' + (err.response?.data?.message || err.message));
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    // 工具方法
+    getThreatLevelFromScore(score) {
+      if (score === undefined || score === null) return 'unknown'; // 应对可能没有 threat_score 的情况
+      if (score >= 80) return 'high';
+      if (score >= 50) return 'medium';
+      return 'low';
+    },
   }
 }
 </script>
 
 <style scoped>
+/* 保持不变 */
+/* 基础样式 */
 .waf-management {
-  padding: 2rem;
-  color: #fff;
-  background: linear-gradient(135deg, #0f0f23 0%, #1a0033 50%, #0f0f23 100%);
   min-height: 100vh;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-}
-
-h2, h3, h4 {
-  margin-bottom: 1rem;
-}
-
-.actions {
-  margin-bottom: 0.5rem;
-}
-
-.table-wrapper {
-  overflow-x: auto;
-  border: 1px solid #444;
-  border-radius: 6px;
-  margin-bottom: 1rem;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  min-width: 600px;
-}
-
-thead {
-  background-color: #222244;
-}
-
-thead th {
-  padding: 0.7rem 1rem;
-  text-align: left;
-  font-weight: 600;
-  border-bottom: 2px solid #4a4aff;
-}
-
-tbody tr:nth-child(odd) {
-  background-color: #111133;
-}
-
-tbody tr:hover {
-  background-color: #2a2a7a;
-}
-
-td {
-  padding: 0.6rem 1rem;
-  border-bottom: 1px solid #333366;
-}
-
-.empty-row {
-  text-align: center;
-  color: #8888aa;
-}
-
-button {
-  cursor: pointer;
-  background-color: #4a4aff;
-  color: white;
-  border: none;
-  padding: 0.4rem 1rem;
-  border-radius: 4px;
-  transition: background-color 0.3s ease;
-  font-weight: 600;
-  user-select: none;
-}
-
-button:disabled {
-  background-color: #888;
-  cursor: not-allowed;
-}
-
-button:hover:not(:disabled) {
-  background-color: #2727ff;
-}
-
-/* ==== 优化后的添加白名单和黑名单表单 ==== */
-form.add-form {
-  display: flex;
-  flex-direction: column;  /* 垂直排列 */
-  gap: 1rem;               /* 行间距 */
-  max-width: 400px;        /* 最大宽度限制 */
+  background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
+  color: #ffffff;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   padding: 1rem;
-  background-color: #1a1a40; /* 背景色，稍微突出 */
-  border-radius: 8px;
-  border: 1px solid #444466;
-  box-shadow: 0 0 8px rgba(74, 74, 255, 0.3);
-  margin-top: 1rem;
 }
 
-form.add-form label {
+/* 头部样式 */
+.header {
   display: flex;
-  flex-direction: column;
-  font-weight: 600;
-  color: #bbbbee;
-  font-size: 0.95rem;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 2rem;
+  background: rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(20px);
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
 }
 
-form.add-form input {
-  width: 100%;
-  padding: 0.5rem 0.7rem;
-  border-radius: 6px;
-  border: 1px solid #666688;
-  background: #222244;
-  color: #eeeef0;
-  font-size: 1rem;
-  margin-top: 0.4rem;
-  transition: border-color 0.3s ease;
-}
-
-form.add-form input:focus {
-  outline: none;
-  border-color: #4a4aff;
-  box-shadow: 0 0 6px #4a4aff;
-}
-
-form.add-form button {
-  align-self: flex-start;  /* 按钮靠左对齐 */
-  padding: 0.5rem 1.2rem;
+.header-left h1 {
+  margin: 0;
+  font-size: 2rem;
   font-weight: 700;
-  font-size: 1rem;
-  border-radius: 6px;
-  background-color: #4a4aff;
-  box-shadow: 0 4px 8px rgba(74, 74, 255, 0.3);
-  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
-form.add-form button:hover:not(:disabled) {
-  background-color: #2727ff;
-  box-shadow: 0 6px 12px rgba(39, 39, 255, 0.6);
+.header-subtitle {
+  margin: 0.5rem 0 0 0;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.9rem;
 }
 
-form.add-form button:disabled {
-  background-color: #555577;
-  box-shadow: none;
+.refresh-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  border-radius: 12px;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+}
+
+.refresh-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box_shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+}
+
+.refresh-btn:disabled {
+  opacity: 0.6;
   cursor: not-allowed;
 }
 
-.pagination {
+/* 监控网格 */
+.monitoring-grid {
+  padding: 0 0 1.5rem 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 1.25rem;
+  height: auto;
+  min-height: 400px;
+}
+
+/* 全局消息 */
+.message {
+  position: fixed;
+  top: 2rem;
+  right: 2rem;
+  padding: 1rem 1.5rem;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  z-index: 50;
+  box_shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  opacity: 0;
+  transform: translateY(-20px);
+  transition: all 0.5s ease;
+}
+
+.message.error {
+  background: rgba(229, 62, 62, 0.95);
+  color: white;
+}
+
+.message.success {
+  background: rgba(56, 161, 105, 0.95);
+  color: white;
+}
+
+.message-enter-active,
+.message-leave-active {
+  transition: opacity 0.5s, transform 0.5s;
+}
+
+.message-enter-from,
+.message-leave-to {
+  opacity: 0;
+  transform: translateY(-20px);
+}
+
+.message-icon {
+  font-size: 1.2rem;
+}
+
+.close-btn {
+  background: transparent;
+  border: none;
+  color: white;
+  cursor: pointer;
+  font-size: 1.2rem;
+  margin-left: 1rem;
+  opacity: 0.7;
+  transition: opacity 0.3s ease;
+}
+
+.close-btn:hover {
+  opacity: 1;
+}
+
+/* 加载中遮罩 */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(5px);
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 1rem;
-  margin-bottom: 1rem;
-  user-select: none;
+  z-index: 100;
 }
 
-.pagination button {
-  min-width: 80px;
-}
-
-.error {
-  margin-top: 1rem;
-  color: #ff4c4c;
-  font-weight: 600;
+.loading-spinner {
   text-align: center;
 }
 
-.success {
-  margin-top: 1rem;
-  color: #4cff4c;
-  font-weight: 600;
-  text-align: center;
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  border-top-color: #667eea;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 1rem auto;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 自定义滚动条 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* 响应式设计 */
+@media (max-width: 1200px) {
+  .monitoring-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 800px) {
+  .header {
+    flex-direction: column;
+    gap: 1rem;
+    text-align: center;
+  }
+
+  .monitoring-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
