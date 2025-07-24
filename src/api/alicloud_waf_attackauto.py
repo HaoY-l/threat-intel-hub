@@ -38,6 +38,7 @@ def fetch_and_save_blocked_ips():
     # 转时间戳整数，方便数据库存储和查询
     to_time = int(to_dt.timestamp())
     from_time = int(from_dt.timestamp())
+    print(from_time, to_time)
 
     client = get_sls_client()
 
@@ -66,6 +67,7 @@ ORDER BY "攻击次数" DESC'''
             runtime
         )
         logs = response.body
+        print(logs)
 
         conn = get_db_connection()
         with conn.cursor() as cursor:
@@ -75,12 +77,13 @@ ORDER BY "攻击次数" DESC'''
                 attack_type = item.get("攻击类型", "")
                 total_count = get_ip_request_total_count(from_time, to_time, block_ip, client)
                 attack_ratio = round(attack_count / total_count, 4) if total_count else 0.0
-
+                from_time_dt = datetime.datetime.fromtimestamp(from_time)
+                to_time_dt = datetime.datetime.fromtimestamp(to_time)
                 sql = """
-                INSERT INTO blocked_ips (block_ip, attack_count, attack_ratio, attack_type, from_timestamp, to_timestamp)
+                INSERT INTO blocked_ips (block_ip, attack_count, attack_ratio, attack_type, from_time, to_time)
                 VALUES (%s, %s, %s, %s, %s, %s)
                 """
-                cursor.execute(sql, (block_ip, attack_count, attack_ratio, attack_type, from_time, to_time))
+                cursor.execute(sql, (block_ip, attack_count, attack_ratio, attack_type, from_time_dt, to_time_dt))
 
         return jsonify({"message": "封禁IP数据保存成功", "count": len(logs)})
 
@@ -119,7 +122,7 @@ def fetch_and_save_ip_request_frequency():
     接口无参数，自动获取当前时间往前1分钟区间
     """
     to_dt = datetime.datetime.now()
-    from_dt = to_dt - datetime.timedelta(minutes=1)
+    from_dt = to_dt - datetime.timedelta(minutes=5)
 
     to_time = int(to_dt.timestamp())
     from_time = int(from_dt.timestamp())
@@ -129,6 +132,7 @@ def fetch_and_save_ip_request_frequency():
     query = '''* | SELECT real_client_ip AS ip, COUNT(*) AS request_count
 WHERE real_client_ip != ''
 GROUP BY real_client_ip
+HAVING request_count > 3000
 ORDER BY request_count DESC'''
 
     get_logs_request = sls_20201230_models.GetLogsRequest(
@@ -157,10 +161,12 @@ ORDER BY request_count DESC'''
                 request_count = int(item.get("request_count", 0))
                 if request_count > 2000:
                     sql = """
-                    INSERT INTO ip_request_frequency (ip, request_count, from_timestamp, to_timestamp)
+                    INSERT INTO ip_request_frequency (ip, request_count, from_time, to_time)
                     VALUES (%s, %s, %s, %s)
                     """
-                    cursor.execute(sql, (ip, request_count, from_time, to_time))
+                    from_time_dt = datetime.datetime.fromtimestamp(from_time)
+                    to_time_dt = datetime.datetime.fromtimestamp(to_time)
+                    cursor.execute(sql, (ip, request_count, from_time_dt, to_time_dt))
                     saved_count += 1
             conn.commit()  # 别忘记提交事务
 
@@ -170,49 +176,49 @@ ORDER BY request_count DESC'''
         logging.error(f"查询请求频率失败: {e}")
         return jsonify({"error": str(e)}), 500
 
-@waf_logs_bp.route('/daily_summary', methods=['POST'])
-def save_daily_summary():
-    """
-    统计每日汇总数据，参数 JSON: { "date": "YYYY-MM-DD" }
-    统计封禁IP数，高频请求IP数
-    """
-    data = request.get_json() or {}
-    date_str = data.get("date")
-    if not date_str:
-        return jsonify({"error": "需要传入日期参数 date"}), 400
-    try:
-        date_obj = datetime.datetime.strptime(date_str, "%Y-%m-%d").date()
-    except Exception:
-        return jsonify({"error": "日期格式错误，应为 YYYY-MM-DD"}), 400
+# @waf_logs_bp.route('/daily_summary', methods=['POST'])
+# def save_daily_summary():
+#     """
+#     统计每日汇总数据，参数 JSON: { "date": "YYYY-MM-DD" }
+#     统计封禁IP数，高频请求IP数
+#     """
+#     data = request.get_json() or {}
+#     date_str = data.get("date")
+#     if not date_str:
+#         return jsonify({"error": "需要传入日期参数 date"}), 400
+#     try:
+#         date_obj = datetime.datetime.strptime(date_str, "%Y-%m-%d").date()
+#     except Exception:
+#         return jsonify({"error": "日期格式错误，应为 YYYY-MM-DD"}), 400
 
-    from_time, to_time = get_time_ranges_for_day(date_obj)
+#     from_time, to_time = get_time_ranges_for_day(date_obj)
 
-    conn = get_db_connection()
-    with conn.cursor() as cursor:
-        # 封禁IP数量统计
-        sql_blocked_count = """
-        SELECT COUNT(DISTINCT block_ip) AS cnt FROM blocked_ips WHERE from_timestamp >= %s AND to_timestamp <= %s
-        """
-        cursor.execute(sql_blocked_count, (from_time, to_time))
-        blocked_ip_count = cursor.fetchone().get("cnt", 0)
+#     conn = get_db_connection()
+#     with conn.cursor() as cursor:
+#         # 封禁IP数量统计
+#         sql_blocked_count = """
+#         SELECT COUNT(DISTINCT block_ip) AS cnt FROM blocked_ips WHERE from_timestamp >= %s AND to_timestamp <= %s
+#         """
+#         cursor.execute(sql_blocked_count, (from_time, to_time))
+#         blocked_ip_count = cursor.fetchone().get("cnt", 0)
 
-        # 高频请求IP数量统计
-        sql_high_freq_count = """
-        SELECT COUNT(DISTINCT ip) AS cnt FROM ip_request_frequency WHERE from_timestamp >= %s AND to_timestamp <= %s
-        """
-        cursor.execute(sql_high_freq_count, (from_time, to_time))
-        high_freq_ip_count = cursor.fetchone().get("cnt", 0)
+#         # 高频请求IP数量统计
+#         sql_high_freq_count = """
+#         SELECT COUNT(DISTINCT ip) AS cnt FROM ip_request_frequency WHERE from_timestamp >= %s AND to_timestamp <= %s
+#         """
+#         cursor.execute(sql_high_freq_count, (from_time, to_time))
+#         high_freq_ip_count = cursor.fetchone().get("cnt", 0)
 
-        # 插入或更新daily_summary表
-        sql_upsert = """
-        INSERT INTO daily_summary (date, blocked_ip_count, high_frequency_ip_count)
-        VALUES (%s, %s, %s)
-        ON DUPLICATE KEY UPDATE
-            blocked_ip_count = VALUES(blocked_ip_count),
-            high_frequency_ip_count = VALUES(high_frequency_ip_count)
-        """
-        cursor.execute(sql_upsert, (date_obj, blocked_ip_count, high_freq_ip_count))
+#         # 插入或更新daily_summary表
+#         sql_upsert = """
+#         INSERT INTO daily_summary (date, blocked_ip_count, high_frequency_ip_count)
+#         VALUES (%s, %s, %s)
+#         ON DUPLICATE KEY UPDATE
+#             blocked_ip_count = VALUES(blocked_ip_count),
+#             high_frequency_ip_count = VALUES(high_frequency_ip_count)
+#         """
+#         cursor.execute(sql_upsert, (date_obj, blocked_ip_count, high_freq_ip_count))
 
-    return jsonify({"message": "每日汇总数据保存成功", "date": date_str, "blocked_ip_count": blocked_ip_count, "high_frequency_ip_count": high_freq_ip_count})
+#     return jsonify({"message": "每日汇总数据保存成功", "date": date_str, "blocked_ip_count": blocked_ip_count, "high_frequency_ip_count": high_freq_ip_count})
 
 

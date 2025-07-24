@@ -131,11 +131,13 @@ def create_database_and_tables():
             id INT AUTO_INCREMENT PRIMARY KEY,
             block_ip VARCHAR(45) NOT NULL,
             attack_count INT NOT NULL,
+            attack_type VARCHAR(50) DEFAULT NULL,
             attack_ratio DECIMAL(5,2) DEFAULT NULL,
-            from_timestamp INT NOT NULL,
-            to_timestamp INT NOT NULL,
+            from_time DATETIME NOT NULL,
+            to_time DATETIME NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;"""
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+        """
         cursor.execute(create_blocked_ips_table_sql)
 
         create_ip_request_frequency_table_sql = """
@@ -143,8 +145,8 @@ def create_database_and_tables():
             id INT AUTO_INCREMENT PRIMARY KEY,
             ip VARCHAR(45) NOT NULL,
             request_count INT NOT NULL,
-            from_timestamp INT NOT NULL,
-            to_timestamp INT NOT NULL,
+            from_time DATETIME NOT NULL,
+            to_time DATETIME NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;"""
         cursor.execute(create_ip_request_frequency_table_sql)
