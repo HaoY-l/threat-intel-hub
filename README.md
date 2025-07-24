@@ -28,7 +28,7 @@
 ![查询结果](./data/public/2.png)   
 ---   
 **WAF协同截图展示**。 
-![WAF协同能力](./data/public/9.png)     
+![WAF协同能力](./data/public/9.jpg)     
 ---   
 **Tools截图展示**。 
 ![微信公众号定时发布消息](./data/public/4.jpg)   
