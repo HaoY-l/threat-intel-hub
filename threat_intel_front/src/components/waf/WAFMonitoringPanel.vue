@@ -20,15 +20,15 @@
     </div>
     <div class="card-content">
       <div class="scrollable-list" v-if="blockedIPs.length > 0">
-        <div v-for="(item, index) in blockedIPs" :key="item.ip" class="ip-item blocked-item">
+        <div v-for="(item, index) in blockedIPs" :key="item.ip + '_' + item.created_at" class="ip-item blocked-item">
           <div class="ip-main">
-            <code class="ip-address">{{ item.ip }}</code>
-            <span :class="['threat-badge', getThreatLevelClass(item.threat_level)]">
+            <code class="ip-address" :title="item.ip">{{ item.ip }}</code>
+            <span :class="['threat-badge', getThreatLevelClass(item.threat_level)]" :title="item.attack_type || '未知类型'">
               {{ item.attack_type || '未知类型' }}
             </span>
           </div>
           <div class="ip-details">
-            <span class="detail-time">
+            <span class="detail-time" :title="formatTime(item.created_at)">
               <i class="fa fa-clock-o mr-1"></i>{{ formatTime(item.created_at) }}
             </span>
           </div>
@@ -67,20 +67,20 @@
     </div>
     <div class="card-content">
       <div class="scrollable-list" v-if="highFreqIPs.length > 0">
-        <div v-for="(item, index) in highFreqIPs" :key="item.ip" class="ip-item freq-item">
-          <div class="ip-main">
-            <code class="ip-address">{{ item.ip }}</code>
-            <div class="freq-count">{{ item.request_count }} 次</div>
+        <div v-for="(item, index) in highFreqIPs" :key="item.ip + '_' + item.created_at" class="ip-item freq-item">
+          <div class="ip-left-info">
+            <code class="ip-address" :title="item.ip">{{ item.ip }}</code>
+            <div class="freq-count" :title="item.request_count + ' 次'">{{ item.request_count }} 次</div>
           </div>
-          <div class="ip-details">
-            <span class="detail-time">
+          <div class="ip-right-info">
+            <span class="detail-time" :title="formatTime(item.created_at)">
               <i class="fa fa-clock-o mr-1"></i>{{ formatTime(item.created_at) }}
             </span>
-          </div>
-          <div class="ip-actions">
-            <button @click="$emit('blockIP', item.ip)" class="action-btn danger action-btn-sm">
-              <i class="fa fa-ban mr-1"></i>封禁IP
-            </button>
+            <div class="ip-actions">
+              <button @click="$emit('blockIP', item.ip)" class="action-btn danger action-btn-sm">
+                <i class="fa fa-ban mr-1"></i>封禁IP
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -158,7 +158,6 @@ export default {
       return date;
     },
 
-    // Combined format for single line time display
     formatTime(timestamp) {
       const date = this.parseDate(timestamp);
       if (!date) return '-';
@@ -226,9 +225,10 @@ export default {
   border-radius: 16px;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: hidden; /* 防止内容超出圆角 */
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
+  height: var(--fixed-card-height); /* 使用父组件定义的CSS变量来统一高度 */
 }
 
 .monitor-card:hover {
@@ -242,6 +242,7 @@ export default {
   justify-content: space-between;
   align-items: center;
   background: rgba(0, 0, 0, 0.1);
+  flex-shrink: 0; /* 防止 header 被压缩 */
 }
 
 .card-title {
@@ -314,23 +315,42 @@ export default {
 
 /* Card Content - Scrollable List */
 .card-content {
-  flex: 1;
-  overflow-y: auto;
+  flex: 1; /* 填充剩余空间 */
   padding: 0.7rem 0.9rem;
+  display: flex; /* 让内部的 .scrollable-list 能够使用 flex 布局 */
+  flex-direction: column;
+  min-height: 0; /* 允许 flex item 缩小 */
 }
 
 .scrollable-list {
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
+  flex: 1; /* 关键：让列表填充 .card-content 的所有剩余空间 */
+  min-height: 0; /* 允许 flex item 缩小 */
+  overflow-y: auto; /* 确保滚动条在这里生效 */
+}
+
+.scrollable-list::-webkit-scrollbar {
+  width: 8px;
+}
+.scrollable-list::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+.scrollable-list::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+.scrollable-list::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.3);
 }
 
 /* IP Item - 重新设计布局，使用Grid实现均匀分布 */
 .ip-item {
-  display: grid;
-  grid-template-columns: 2.5fr 1.2fr 1fr;
+  display: flex; /* 使用flex布局，而不是grid */
+  justify-content: space-between; /* 左右两端对齐 */
   align-items: center;
-  gap: 1rem;
   background: rgba(255, 255, 255, 0.08);
   border-radius: 8px;
   padding: 0.6rem 0.8rem;
@@ -346,12 +366,21 @@ export default {
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
 }
 
-.ip-main {
+/* 新增的左右两边容器 */
+.ip-left-info {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  min-width: 0;
+  gap: 0.5rem; /* IP和频次之间的间距 */
+  flex-shrink: 0; /* 阻止缩小 */
 }
+
+.ip-right-info {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem; /* 时间和操作按钮之间的间距 */
+  flex-shrink: 0; /* 阻止缩小 */
+}
+
 
 .ip-address {
   font-family: 'Cascadia Code', 'Fira Code', monospace;
@@ -360,11 +389,14 @@ export default {
   border-radius: 5px;
   color: #a0f0ed;
   user-select: text;
-  white-space: nowrap;
+  white-space: nowrap; /* 确保不换行 */
+  overflow: hidden; /* 隐藏超出部分 */
+  text-overflow: ellipsis; /* 显示省略号 */
   font-size: 0.85rem;
   line-height: 1.2;
-  flex-shrink: 0;
+  flex-shrink: 0; /* 不允许缩小 */
   min-width: 120px; /* 确保IP地址有足够的显示空间 */
+  max-width: 150px; /* 可以设置最大宽度 */
 }
 
 .threat-badge {
@@ -377,6 +409,8 @@ export default {
   font-size: 0.7rem;
   flex-shrink: 0;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .bg-red-500 { background-color: #e53e3e; }
@@ -384,7 +418,7 @@ export default {
 .bg-green-500 { background-color: #38a169; }
 .bg-gray-500 { background-color: #718096; }
 
-/* High frequency count styling - 移除风险指示器 */
+/* High frequency count styling */
 .freq-count {
   background: rgba(66, 153, 225, 0.25);
   color: #4299e1;
@@ -392,25 +426,26 @@ export default {
   padding: 0.2rem 0.6rem;
   font-weight: 600;
   user-select: none;
-  white-space: nowrap;
+  white-space: nowrap; /* 确保不换行 */
+  /* 移除 overflow: hidden 和 text-overflow: ellipsis; 以确保频次不被截断 */
   font-size: 0.7rem;
   flex-shrink: 0;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-/* IP Details - 调整为单行显示 */
-.ip-details {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 0.75rem;
-  white-space: nowrap;
-}
-
+/* IP Details - 调整为单行显示，时间现在在 ip-right-info 中 */
 .detail-time {
   display: flex;
   align-items: center;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.75rem;
+  white-space: nowrap; /* 确保不换行 */
+  overflow: hidden; /* 隐藏超出部分 */
+  text-overflow: ellipsis; /* 显示省略号 */
+  /* flex-grow: 1; /* 让时间尽可能占据空间，但会在溢出时截断 */
+  min-width: 120px; /* 确保时间有足够的空间，防止过度压缩 */
+  text-align: right; /* 时间右对齐 */
+  justify-content: flex-end; /* 内部内容右对齐 */
 }
 
 .mr-1 {
@@ -421,6 +456,7 @@ export default {
 .ip-actions {
   display: flex;
   justify-content: flex-end;
+  flex-shrink: 0; /* 不允许缩小 */
 }
 
 .action-btn {
@@ -472,6 +508,7 @@ export default {
   font-size: 0.95rem;
   user-select: none;
   padding: 1.8rem 0;
+  flex: 1; /* 确保空状态也撑开空间 */
 }
 
 .empty-icon {
@@ -482,15 +519,16 @@ export default {
 
 /* Responsive Adjustments */
 @media (max-width: 1200px) {
+  /* .ip-item 现在是flex布局，不需要grid-template-columns */
   .ip-item {
-    grid-template-columns: 2.2fr 1fr 1fr;
-    gap: 0.8rem;
+    gap: 0.6rem;
     padding: 0.5rem 0.7rem;
   }
   
   .ip-address {
     font-size: 0.8rem;
-    min-width: 110px;
+    min-width: 100px; 
+    max-width: 130px; 
   }
   
   .threat-badge, .freq-count {
@@ -498,8 +536,9 @@ export default {
     padding: 0.15rem 0.5rem;
   }
   
-  .ip-details {
+  .detail-time {
     font-size: 0.7rem;
+    min-width: 100px; /* 进一步缩小最小宽度 */
   }
   
   .action-btn {
@@ -510,10 +549,16 @@ export default {
 
 @media (max-width: 992px) {
   .ip-item {
-    grid-template-columns: 1fr;
-    gap: 0.5rem;
+    flex-direction: column; /* 小屏幕下堆叠显示 */
+    align-items: center;
+    gap: 0.8rem;
     text-align: center;
     padding: 0.6rem;
+  }
+
+  .ip-left-info, .ip-right-info {
+    width: 100%; /* 占据全宽 */
+    justify-content: center; /* 内部内容居中 */
   }
 
   .ip-main {
@@ -524,12 +569,14 @@ export default {
 
   .ip-address {
     min-width: unset;
+    max-width: 100%; 
     font-size: 0.85rem;
   }
 
-  .ip-details {
-    justify-content: center;
+  .detail-time {
+    justify-content: center; /* 时间也居中 */
     font-size: 0.75rem;
+    min-width: unset; /* 取消最小宽度限制 */
   }
 
   .ip-actions {
@@ -621,7 +668,7 @@ export default {
     padding: 0.1rem 0.4rem;
   }
   
-  .ip-details {
+  .detail-time {
     font-size: 0.65rem;
   }
   

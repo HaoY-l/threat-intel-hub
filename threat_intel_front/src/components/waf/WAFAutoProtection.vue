@@ -23,11 +23,11 @@
         </div>
         <div v-else class="log-scroll-area">
           <div v-for="log in logs" :key="log.id" class="log-item">
-            <div class="log-col ip">{{ log.ip }}</div>
-            <div class="log-col action" :class="getActionClass(log.action)">{{ getActionText(log.action) }}</div>
-            <div class="log-col reason">{{ log.reason || '无' }}</div>
-            <div class="log-col score">{{ log.reputation_score !== null ? log.reputation_score : 'N/A' }}</div>
-            <div class="log-col time">{{ formatTime(log.action_time) }}</div>
+            <div class="log-col ip" :title="log.ip">{{ log.ip }}</div>
+            <div class="log-col action" :class="getActionClass(log.action)" :title="getActionText(log.action)">{{ getActionText(log.action) }}</div>
+            <div class="log-col reason" :title="log.reason || '无'">{{ log.reason || '无' }}</div>
+            <div class="log-col score" :title="log.reputation_score !== null ? log.reputation_score.toString() : 'N/A'">{{ log.reputation_score !== null ? log.reputation_score : 'N/A' }}</div>
+            <div class="log-col time" :title="formatTime(log.action_time)">{{ formatTime(log.action_time) }}</div>
           </div>
         </div>
       </div>
@@ -37,13 +37,13 @@
 
 <script>
 import axios from 'axios'
-import moment from 'moment' // 仍然使用 moment.js 进行时间格式化
+import moment from 'moment' 
 
 export default {
-  name: 'WAFAutoProtectionLogs', // 更改组件名称以反映其新焦点
+  name: 'WAFAutoProtectionLogs', 
   data() {
     return {
-      logs: [] // 存储从后端获取的日志记录
+      logs: [] 
     }
   },
   mounted() {
@@ -52,17 +52,18 @@ export default {
   methods: {
     async fetchProtectedIpLogs() {
       try {
-        const response = await axios.get('/api/protected_ip'); // 您的后端接口路径
-        // 假设后端只返回今天的记录，如果后端返回所有记录，前端需要在这里进行今天的筛选
+        const response = await axios.get('/api/protected_ip'); 
         this.logs = response.data; 
       } catch (error) {
         console.error('获取自动封禁日志失败:', error);
-        this.logs = []; // 失败时清空日志
+        this.logs = []; 
       }
     },
     formatTime(timestamp) {
-      // 检查 timestamp 是否有效，因为 'query_failed' 可能没有 reputation_score
       if (timestamp) {
+        // 使用 moment 库进行本地化格式化
+        // 确保时间戳是可被 moment 解析的，例如 ISO 8601 格式
+        // 如果后端返回的时间戳是 UNIX 时间戳（秒或毫秒），需要相应调整
         return moment(timestamp).format('YYYY-MM-DD HH:mm:ss');
       }
       return 'N/A';
@@ -72,17 +73,15 @@ export default {
         'blacklisted': '已拉黑',
         'query_failed': '查询失败',
         'processing_failed': '处理失败',
-        'reversal': '解除拉黑' // 如果有反向操作
+        'reversal': '解除拉黑' 
       };
-      return actions[action] || action; // 如果没有匹配到，则直接显示action值
+      return actions[action] || action; 
     },
     getActionClass(action) {
-      // 根据不同的操作类型应用不同的样式
       switch (action) {
         case 'blacklisted':
           return 'action-blacklisted';
         case 'query_failed':
-          return 'action-failed';
         case 'processing_failed':
           return 'action-failed';
         case 'reversal':
@@ -107,6 +106,8 @@ export default {
   overflow: hidden;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
+  /* 使用父组件定义的CSS变量来统一高度 */
+  height: var(--fixed-card-height); /* 将max-height改为height以强制高度一致 */
 }
 
 .monitor-card:hover {
@@ -120,6 +121,7 @@ export default {
   justify-content: space-between;
   align-items: center;
   background: rgba(0, 0, 0, 0.1);
+  flex-shrink: 0; /* 防止 header 被压缩 */
 }
 
 .card-title {
@@ -149,17 +151,21 @@ export default {
 }
 
 .card-content {
-  flex: 1;
-  overflow-y: auto; /* 使日志列表可滚动 */
+  flex: 1; /* 填充剩余空间 */
+  /* overflow-y: auto; 这条在这里可以移除，因为滚动由 .log-scroll-area 控制 */
   padding: 1rem;
   color: rgba(255, 255, 255, 0.8);
+  display: flex; /* 让内部的 .log-list 能够使用 flex */
+  flex-direction: column; /* 确保内容是垂直布局 */
+  min-height: 0; /* 允许 flex item 缩小 */
 }
 
 /* 日志列表样式 */
 .log-list {
   display: flex;
   flex-direction: column;
-  height: 100%; /* 填充父容器高度 */
+  flex: 1; /* 填充父容器高度 */
+  min-height: 0; /* 允许 flex item 缩小 */
 }
 
 .log-item {
@@ -176,6 +182,7 @@ export default {
   position: sticky; /* 表头固定 */
   top: 0;
   z-index: 1;
+  flex-shrink: 0; /* 确保表头不被压缩 */
 }
 
 .log-item:last-child {
@@ -183,7 +190,7 @@ export default {
 }
 
 .log-col {
-  flex: 1; /* 默认平均分配宽度 */
+  flex: 1; 
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -192,51 +199,55 @@ export default {
 
 /* 特定列的宽度分配 */
 .log-col.ip {
-  flex: 1.5; /* IP 地址列宽一点 */
+  flex: 1.5; 
   min-width: 100px;
 }
 .log-col.action {
-  flex: 0.8; /* 操作列窄一点 */
+  flex: 0.8; 
   min-width: 60px;
 }
 .log-col.reason {
-  flex: 2; /* 原因列宽一点 */
+  flex: 2; 
   min-width: 120px;
 }
 .log-col.score {
-  flex: 0.6; /* 评分列窄一点 */
+  flex: 0.6; 
   min-width: 50px;
   text-align: center;
 }
 .log-col.time {
-  flex: 1.5; /* 时间列宽一点 */
+  flex: 1.5; 
   min-width: 120px;
   text-align: right;
 }
 
 /* 特定操作的颜色 */
 .action-blacklisted {
-  color: #e53e3e; /* 红色表示被拉黑 */
+  color: #e53e3e; 
   font-weight: 700;
 }
 .action-failed {
-  color: #f6ad55; /* 橙色表示失败 */
+  color: #f6ad55; 
 }
 .action-reversal {
-  color: #4299e1; /* 蓝色表示解除 */
+  color: #4299e1; 
 }
-
 
 .no-logs {
   padding: 2rem;
   text-align: center;
   color: rgba(255, 255, 255, 0.5);
   font-style: italic;
+  flex-grow: 1; /* 让无日志提示也能够撑开空间 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .log-scroll-area {
   flex: 1; /* 允许滚动区域填充可用空间 */
   overflow-y: auto; /* 关键：使内容可滚动 */
+  min-height: 0; /* 允许 flex item 缩小 */
 }
 
 /* 滚动条美化 (可选) */

@@ -112,8 +112,8 @@ export default {
       // 数据
       whiteList: [],
       blackList: [],
-      blockedIPs: [],
-      highFreqIPs: [],
+      blockedIPs: [], // 原始数据，可能包含重复IP
+      highFreqIPs: [], // 原始数据，可能包含重复IP
 
       // 表单
       newWhiteName: '',
@@ -152,11 +152,16 @@ export default {
 
   computed: {
     statsOverview() {
+      // 对 blockedIPs 进行去重统计
+      const uniqueBlockedIPs = [...new Set(this.blockedIPs.map(item => item.ip))];
+      // 对 highFreqIPs 进行去重统计
+      const uniqueHighFreqIPs = [...new Set(this.highFreqIPs.map(item => item.ip))];
+
       return [
         {
           key: 'whitelist',
           title: '白名单规则',
-          value: this.whiteList.length,
+          value: this.whiteList.length, // 白名单规则本身通常是唯一的，不需要额外去重
           icon: 'fa-shield',
           iconClass: 'bg-green-500',
           color: 'linear-gradient(135deg, #4CAF50, #45a049)',
@@ -166,7 +171,7 @@ export default {
         {
           key: 'blacklist',
           title: '黑名单IP',
-          value: this.blackList.length,
+          value: this.blackList.length, // 黑名单IP也应该是唯一的
           icon: 'fa-ban',
           iconClass: 'bg-red-500',
           color: 'linear-gradient(135deg, #f44336, #d32f2f)',
@@ -175,28 +180,28 @@ export default {
         },
         {
           key: 'blocked',
-          title: '规则封禁',
-          value: this.blockedIPs.length,
+          title: '规则封禁IP（去重）',
+          value: uniqueBlockedIPs.length, // 使用去重后的数量
           icon: 'fa-exclamation-triangle',
           iconClass: 'bg-orange-500',
           color: 'linear-gradient(135deg, #FF9800, #F57C00)',
           trendClass: 'text-green-500',
-          trendIcon: 'fa-arrow-down'
+          trendIcon: 'fa-arrow-down' // 趋势图标可能需要根据实际数据计算，这里保持不变
         },
         {
           key: 'highfreq',
-          title: '高频监控',
-          value: this.highFreqIPs.length,
+          title: '高频请求IP（去重）',
+          value: uniqueHighFreqIPs.length, // 使用去重后的数量
           icon: 'fa-line-chart',
           iconClass: 'bg-blue-500',
           color: 'linear-gradient(135deg, #2196F3, #1976D2)',
           trendClass: 'text-red-500',
-          trendIcon: 'fa-arrow-up'
+          trendIcon: 'fa-arrow-up' // 趋势图标可能需要根据实际数据计算，这里保持不变
         },
         {
           key: 'threatblock',
           title: '威胁情报自动封禁',
-          value: this.todayThreats,
+          value: this.todayThreats, // 假设这个值已经是去重统计后的，或者指的是事件数量
           icon: 'fa-bolt',
           iconClass: 'bg-purple-500',
           color: 'linear-gradient(135deg, #8A2BE2, #9932CC)',
@@ -218,17 +223,15 @@ export default {
 
   methods: {
     async initData() {
-      // 首次加载时，fetchBlockedIPs 和 fetchHighFreqIPs 会根据默认的 'today' 进行查询
       await this.refreshAllData();
     },
 
     setupAutoRefresh() {
-      // 每30秒自动刷新监控数据
       this.refreshInterval = setInterval(() => {
-        // 自动刷新时，保持当前选择的时间范围
         this.fetchBlockedIPs();
         this.fetchHighFreqIPs();
-      }, 30000);
+        this.fetchProtectionStats(); // 自动刷新也应该包含防护统计
+      }, 30000); // 每30秒刷新一次
     },
 
     async refreshAllData() {
@@ -237,8 +240,8 @@ export default {
         await Promise.all([
           this.fetchWhiteList(),
           this.fetchBlackList(),
-          this.fetchBlockedIPs(), // 调用时会根据 blockedTimeRange 计算时间
-          this.fetchHighFreqIPs(), // 调用时会根据 freqTimeRange 计算时间
+          this.fetchBlockedIPs(),
+          this.fetchHighFreqIPs(),
           this.fetchProtectionStats()
         ]);
         this.showSuccess('数据刷新成功');
@@ -252,49 +255,44 @@ export default {
 
     showError(msg) {
       this.errorMsg = msg;
-      setTimeout(() => { this.errorMsg = ''; }, 3000); // 3秒后自动消失
+      setTimeout(() => { this.errorMsg = ''; }, 3000);
     },
 
     showSuccess(msg) {
       this.successMsg = msg;
-      setTimeout(() => { this.successMsg = ''; }, 3000); // 3秒后自动消失
+      setTimeout(() => { this.successMsg = ''; }, 3000);
     },
 
-    /**
-     * 根据选择的时间范围类型（'today', '3d', '7d', '1m'）计算 from 和 to 时间。
-     * @param {string} rangeType 'today', '3d', '7d', '1m'
-     * @returns {{from: string, to: string}} 格式化后的时间字符串对象
-     */
     getDateTimeRange(rangeType) {
       const now = new Date();
       let fromDate;
-      let toDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), now.getMinutes(), now.getSeconds()); // 精确到秒的当前时间
+      let toDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), now.getMinutes(), now.getSeconds());
 
       switch (rangeType) {
         case 'today':
-          fromDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0); // 当天零点
+          fromDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
           break;
         case '3d':
           fromDate = new Date(now);
-          fromDate.setDate(now.getDate() - 3); // 3天前
-          fromDate.setHours(0, 0, 0, 0); // 从3天前零点开始
+          fromDate.setDate(now.getDate() - 3);
+          fromDate.setHours(0, 0, 0, 0);
           break;
         case '7d':
           fromDate = new Date(now);
-          fromDate.setDate(now.getDate() - 7); // 7天前
-          fromDate.setHours(0, 0, 0, 0); // 从7天前零点开始
+          fromDate.setDate(now.getDate() - 7);
+          fromDate.setHours(0, 0, 0, 0);
           break;
-        case '1m': // 1个月，粗略按30天计算
+        case '1m':
           fromDate = new Date(now);
-          fromDate.setMonth(now.getMonth() - 1); // 1个月前
-          fromDate.setHours(0, 0, 0, 0); // 从1个月前零点开始
+          fromDate.setMonth(now.getMonth() - 1);
+          fromDate.setHours(0, 0, 0, 0);
           break;
-        default: // 如果有其他分钟数选项，可以这样处理，但目前用户只指定了今天/天/月
+        default:
           const minutes = parseInt(rangeType);
           if (!isNaN(minutes)) {
-             fromDate = new Date(now.getTime() - minutes * 60 * 1000); // 从当前时间回溯指定分钟数
+             fromDate = new Date(now.getTime() - minutes * 60 * 1000);
           } else {
-             fromDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0); // 默认今天零点
+             fromDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
           }
           break;
       }
@@ -336,6 +334,9 @@ export default {
         if (res.data && res.data.message && res.data.message.length > 0) {
           const msg = res.data.message[0];
           const ipList = msg.ip_list || [];
+          // 注意：如果 blackList 数组中的每个对象代表一个黑名单规则，且一个规则下有多个 IP，
+          // 那么这里去重 IP 可能不准确，需要根据后端黑名单规则的实际结构来决定。
+          // 假设黑名单列表的 length 统计的是规则数量。
           this.blackList = ipList.map(ip => ({
             ip,
             rule_id: msg.rule_id,
@@ -399,409 +400,336 @@ export default {
     },
 
     async fetchProtectionStats() {
+      // 假设您的自动封禁统计数据来自 /api/protected_ip 接口
+      // WAFAutoProtection 组件已经改成了直接显示日志，所以这里可能不需要再获取总数
+      // 如果需要，可以单独设计一个接口或从 /api/protected_ip 的数据中进行本地统计
       try {
-        const res = await axios.get('/api/protection_stats');
+        const response = await axios.get('/api/protected_ip');
+        const records = response.data;
+        // 统计今天的自动封禁数量，这部分逻辑与 WAFAutoProtection 相同，
+        // 也可以考虑在后端提供一个专门的统计接口
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
 
-        if (res.data && res.data.data) {
-          const stats = res.data.data;
-          this.autoBlockedCount = stats.auto_blocked_count || 0;
-          this.todayThreats = stats.today_threats || 0;
+        let blockedCount = 0;
+        // 使用 Set 来统计去重后的IP数量，如果 todayThreats 表示的是去重IP数量
+        const uniqueThreatIPsToday = new Set(); 
 
-          // 更新防护状态
-          if (stats.protection_status) {
-            this.autoProtectionEnabled = stats.protection_status.auto_protection || true;
-            this.threatIntelligenceEnabled = stats.protection_status.threat_intelligence || true;
-            this.autoBlockEnabled = stats.protection_status.auto_block || true;
-            this.aiLearningEnabled = stats.protection_status.ai_learning || true;
+        records.forEach(record => {
+          const actionTime = new Date(record.action_time);
+          if (actionTime >= todayStart && record.action === 'blacklisted') {
+            blockedCount++;
+            uniqueThreatIPsToday.add(record.ip); // 收集去重IP
           }
-        }
-      } catch (err) {
-        console.error('获取防护统计数据失败:', err);
+        });
+        // 如果 todayThreats 应该代表去重后的IP数量，则修改如下
+        this.todayThreats = uniqueThreatIPsToday.size; 
+        this.autoBlockedCount = blockedCount; // autoBlockedCount 可以表示总的封禁事件数
+      } catch (error) {
+        console.error('获取威胁情报自动封禁统计失败:', error);
+        this.todayThreats = 0;
+        this.autoBlockedCount = 0;
       }
     },
 
-    async deleteWhite(ruleId) {
-      if (!confirm(`确认删除白名单规则 ID: ${ruleId} 吗？`)) return;
-
-      this.loading = true;
+    async deleteWhite(id) {
       try {
-        const res = await axios.post('/api/deletewhite', { rule_id: ruleId });
-        if (res.data && (res.data.code === 200 || res.data.msg === '删除成功')) {
-          this.showSuccess('删除成功');
-          await this.fetchWhiteList();
-        } else {
-          this.showError('删除失败');
-        }
+        await axios.post('/api/delwhite', { id: id });
+        this.showSuccess('白名单条目删除成功');
+        this.fetchWhiteList();
       } catch (err) {
-        this.showError('删除失败: ' + (err.response?.data?.message || err.message));
-      } finally {
-        this.loading = false;
+        console.error('删除白名单失败:', err);
+        this.showError('删除白名单失败');
       }
     },
 
     async deleteBlack(ip) {
-      if (!confirm(`确认从黑名单中移除 ${ip} 吗？`)) return;
-
-      this.loading = true;
       try {
-        const res = await axios.post('/api/deleteblack', { ip });
-        if (res.data && res.data.status === 'success') {
-          this.showSuccess(`IP ${ip} 已从黑名单移除`);
-          await this.fetchBlackList();
-        } else {
-          this.showError('移除失败');
-        }
+        // 假设后端删除黑名单需要IP
+        await axios.post('/api/delblack', { ip: ip });
+        this.showSuccess('黑名单条目删除成功');
+        this.fetchBlackList();
       } catch (err) {
-        this.showError('移除失败: ' + (err.response?.data?.message || err.message));
-      } finally {
-        this.loading = false;
+        console.error('删除黑名单失败:', err);
+        this.showError('删除黑名单失败');
       }
     },
 
     async addWhite() {
-      if (!this.newWhiteName.trim() || !this.newWhiteIP.trim()) {
-        this.showError('请输入完整白名单信息');
-        return;
-      }
-
-      // 简单的IP格式验证
-      const ipPattern = /^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\/([0-9]|[1-2][0-9]|3[0-2]))?$/;
-      if (!ipPattern.test(this.newWhiteIP.trim())) {
-        this.showError('请输入有效的IP地址或CIDR范围');
-        return;
-      }
-
-      this.loading = true;
-      const payload = [{
-        name: this.newWhiteName.trim(),
-        tags: ['waf'],
-        status: 1,
-        origin: 'custom',
-        remark: this.newWhiteRemark,
-        conditions: [{
-          key: 'IP',
-          opValue: 'contain',
-          subKey: '',
-          values: this.newWhiteIP.trim()
-        }]
-      }];
-
       try {
-        const res = await axios.post('/api/addwhite', payload);
-        if (res.data && res.data.status === 'success') {
-          this.showSuccess('白名单添加成功');
-          this.newWhiteName = '';
-          this.newWhiteIP = '';
-          this.newWhiteRemark = '';
-          await this.fetchWhiteList();
-        } else {
-          this.showError('添加失败');
-        }
+        const payload = {
+          name: this.newWhiteName,
+          ip: this.newWhiteIP,
+          remark: this.newWhiteRemark
+        };
+        await axios.post('/api/addwhite', payload);
+        this.showSuccess('白名单添加成功');
+        this.newWhiteName = '';
+        this.newWhiteIP = '';
+        this.newWhiteRemark = '';
+        this.fetchWhiteList();
       } catch (err) {
-        this.showError('添加失败: ' + (err.response?.data?.message || err.message));
-      } finally {
-        this.loading = false;
+        console.error('添加白名单失败:', err);
+        this.showError('添加白名单失败');
       }
     },
 
     async addBlack() {
-      if (!this.newBlackIP.trim()) {
-        this.showError('请输入黑名单IP');
-        return;
-      }
-
-      // 简单的IP格式验证
-      const ipPattern = /^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
-      if (!ipPattern.test(this.newBlackIP.trim())) {
-        this.showError('请输入有效的IP地址');
-        return;
-      }
-
-      this.loading = true;
       try {
-        const res = await axios.post('/api/modifyblackrule', {
-          black_ip: this.newBlackIP.trim(),
+        const payload = {
+          ip: this.newBlackIP,
           reason: this.newBlackReason,
           duration: this.newBlackDuration
-        });
-
-        if (res.data && res.data.status === 'success') {
-          this.showSuccess('黑名单添加成功');
-          this.newBlackIP = '';
-          await this.fetchBlackList();
-        } else {
-          this.showError('添加失败');
-        }
+        };
+        await axios.post('/api/addblack', payload);
+        this.showSuccess('黑名单添加成功');
+        this.newBlackIP = '';
+        this.newBlackReason = '恶意扫描';
+        this.newBlackDuration = '24h';
+        this.fetchBlackList();
       } catch (err) {
-        this.showError('添加黑名单失败: ' + (err.response?.data?.message || err.message));
-      } finally {
-        this.loading = false;
+        console.error('添加黑名单失败:', err);
+        this.showError('添加黑名单失败');
       }
     },
 
     async addToBlacklist(ip) {
-      if (!confirm(`确认将 ${ip} 加入黑名单吗？`)) return;
-
-      this.loading = true;
       try {
-        const res = await axios.post('/api/modifyblackrule', {
-          black_ip: ip,
-          reason: '规则封禁自动添加',
-          duration: '7d'
-        });
-
-        if (res.data && res.data.status === 'success') {
-          this.showSuccess(`IP ${ip} 已成功加入黑名单`);
-          await this.fetchBlackList();
-        } else {
-          this.showError('加入黑名单失败');
-        }
+        // 这通常是一个按钮点击操作，所以默认原因和时长
+        await axios.post('/api/addblack', { ip: ip, reason: '手动拉黑', duration: 'permanent' });
+        this.showSuccess(`IP ${ip} 已添加到黑名单`);
+        this.fetchBlackList(); // 刷新黑名单列表
       } catch (err) {
-        this.showError('加入黑名单失败: ' + (err.response?.data?.message || err.message));
-      } finally {
-        this.loading = false;
+        console.error('手动添加到黑名单失败:', err);
+        this.showError(`添加IP ${ip} 到黑名单失败`);
       }
     },
 
     async blockIP(ip) {
-      if (!confirm(`确认封禁IP ${ip} 吗？这将阻止该IP访问您的网站。`)) return;
-
-      this.loading = true;
       try {
-        const res = await axios.post('/api/block_ip', {
-          ip,
-          reason: '高频请求',
-          duration: '24h'
-        });
-
-        if (res.data && res.data.status === 'success') {
-          this.showSuccess(`IP ${ip} 已成功封禁`);
-          await Promise.all([
-            this.fetchBlockedIPs(),
-            this.fetchHighFreqIPs()
-          ]);
-        } else {
-          this.showError('封禁失败');
-        }
+        // 高频请求的IP进行封禁，可以设置默认原因和时长
+        await axios.post('/api/addblack', { ip: ip, reason: '高频请求', duration: '24h' });
+        this.showSuccess(`IP ${ip} 已被封禁 (高频请求)`);
+        this.fetchBlackList(); // 刷新黑名单列表
       } catch (err) {
-        this.showError('封禁失败: ' + (err.response?.data?.message || err.message));
-      } finally {
-        this.loading = false;
+        console.error('封禁高频IP失败:', err);
+        this.showError(`封禁IP ${ip} 失败`);
       }
     },
 
-    // 工具方法
     getThreatLevelFromScore(score) {
-      if (score === undefined || score === null) return 'unknown'; // 应对可能没有 threat_score 的情况
-      if (score >= 80) return 'high';
-      if (score >= 50) return 'medium';
+      if (score === null || score === undefined) return 'unknown';
+      if (score < -5) return 'high';
+      if (score < 0) return 'medium';
       return 'low';
     },
-  }
-}
+  },
+};
 </script>
 
-<style scoped>
-/* 保持不变 */
-/* 基础样式 */
+<style>
+/* 在父组件的根样式中定义CSS变量 */
 .waf-management {
+  --fixed-card-height: 380px; /* 您可以在这里调整卡片的统一高度 */
+  /* 其他全局或waf-management特定样式 */
+  font-family: 'Inter', sans-serif;
+  color: #fff;
+  background-color: #0d1a26; /* 深色背景 */
   min-height: 100vh;
-  background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
-  color: #ffffff;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  padding: 1rem;
+  padding: 1.5rem 2rem;
+  box-sizing: border-box;
 }
 
-/* 头部样式 */
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.5rem 2rem;
-  background: rgba(0, 0, 0, 0.2);
-  backdrop-filter: blur(20px);
-  border-radius: 12px;
-  margin-bottom: 1.5rem;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .header-left h1 {
-  margin: 0;
-  font-size: 2rem;
+  font-size: 2.2rem;
   font-weight: 700;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  margin-bottom: 0.5rem;
+  color: #a0f0ed;
 }
 
 .header-subtitle {
-  margin: 0.5rem 0 0 0;
+  font-size: 1rem;
   color: rgba(255, 255, 255, 0.7);
-  font-size: 0.9rem;
 }
 
 .refresh-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border: none;
-  border-radius: 12px;
+  background-color: #667eea;
   color: white;
-  font-weight: 600;
+  padding: 0.8rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+  display: flex;
+  align-items: center;
+  box-shadow: 0 4px 8px rgba(102, 126, 234, 0.2);
 }
 
-.refresh-btn:hover:not(:disabled) {
+.refresh-btn:hover {
+  background-color: #5a67d8;
   transform: translateY(-2px);
-  box_shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 6px 12px rgba(102, 126, 234, 0.3);
 }
 
 .refresh-btn:disabled {
-  opacity: 0.6;
+  background-color: #4a5568;
   cursor: not-allowed;
+  transform: translateY(0);
+  box-shadow: none;
+  opacity: 0.7;
 }
 
-/* 监控网格 */
 .monitoring-grid {
-  padding: 0 0 1.5rem 0;
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 1.25rem;
-  height: auto;
-  min-height: 400px;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); /* 适应性网格布局 */
+  gap: 1.5rem;
+  margin-bottom: 2rem;
 }
 
-/* 全局消息 */
+/* 消息提示样式 */
 .message {
   position: fixed;
-  top: 2rem;
-  right: 2rem;
-  padding: 1rem 1.5rem;
-  border-radius: 12px;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 20px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  z-index: 50;
-  box_shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-  opacity: 0;
-  transform: translateY(-20px);
-  transition: all 0.5s ease;
+  font-size: 0.95rem;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
 }
 
 .message.error {
-  background: rgba(229, 62, 62, 0.95);
+  background-color: #e53e3e; /* 红色 */
   color: white;
 }
 
 .message.success {
-  background: rgba(56, 161, 105, 0.95);
+  background-color: #38a169; /* 绿色 */
   color: white;
 }
 
-.message-enter-active,
-.message-leave-active {
-  transition: opacity 0.5s, transform 0.5s;
-}
-
-.message-enter-from,
-.message-leave-to {
-  opacity: 0;
-  transform: translateY(-20px);
-}
-
 .message-icon {
+  margin-right: 0.6rem;
   font-size: 1.2rem;
 }
 
 .close-btn {
-  background: transparent;
+  background: none;
   border: none;
   color: white;
-  cursor: pointer;
-  font-size: 1.2rem;
+  font-size: 1.5rem;
   margin-left: 1rem;
-  opacity: 0.7;
-  transition: opacity 0.3s ease;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 5px;
+  opacity: 0.8;
 }
 
 .close-btn:hover {
   opacity: 1;
 }
 
-/* 加载中遮罩 */
+/* 消息过渡动画 */
+.message-enter-active, .message-leave-active {
+  transition: all 0.5s ease;
+}
+.message-enter-from, .message-leave-to {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-30px);
+}
+
+/* 加载动画 */
 .loading-overlay {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(5px);
+  background: rgba(0, 0, 0, 0.7);
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 100;
+  z-index: 9999;
 }
 
 .loading-spinner {
-  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: white;
 }
 
 .spinner {
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-top: 4px solid #667eea;
+  border-radius: 50%;
   width: 40px;
   height: 40px;
-  border: 4px solid rgba(255, 255, 255, 0.1);
-  border-radius: 50%;
-  border-top-color: #667eea;
   animation: spin 1s linear infinite;
-  margin: 0 auto 1rem auto;
+  margin-bottom: 10px;
 }
 
 @keyframes spin {
-  to {
-    transform: rotate(360deg);
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.mr-2 { margin-right: 0.5rem; }
+.mr-1 { margin-right: 0.25rem; }
+
+/* 其他 WAFManagementPanel 相关的样式，如果它们不在这个文件里，则不需要重复 */
+/* 如果 WAFManagementPanel 的样式和 WAFMonitoringPanel, WAFAutoProtection 冲突，
+   请确保 WAFManagementPanel 有自己独立的样式作用域或使用更具体的选择器。
+   这里假定 WAFManagementPanel 是一个完全独立的组件，且其内部的卡片样式是独立的。
+*/
+
+@media (max-width: 768px) {
+  .waf-management {
+    padding: 1rem;
   }
-}
 
-/* 自定义滚动条 */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 10px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
-}
-
-/* 响应式设计 */
-@media (max-width: 1200px) {
-  .monitoring-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-@media (max-width: 800px) {
   .header {
     flex-direction: column;
-    gap: 1rem;
-    text-align: center;
+    align-items: flex-start;
+    gap: 0.8rem;
+  }
+
+  .header-left h1 {
+    font-size: 1.8rem;
+  }
+
+  .header-subtitle {
+    font-size: 0.9rem;
+  }
+
+  .refresh-btn {
+    width: 100%;
+    justify-content: center;
+    padding: 0.7rem 1rem;
   }
 
   .monitoring-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr; /* 小屏幕下堆叠显示 */
+  }
+
+  .message {
+    width: calc(100% - 2rem);
+    left: 1rem;
+    transform: translateX(0);
   }
 }
 </style>
