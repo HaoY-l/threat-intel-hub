@@ -162,6 +162,18 @@ def create_database_and_tables():
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;"""
         cursor.execute(create_daily_summary_table_sql)
 
+        create_protected_ip_table_sql = """
+        CREATE TABLE IF NOT EXISTS protected_ip (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            ip VARCHAR(45) NOT NULL COMMENT '被保护或处理的IP地址',
+            action VARCHAR(50) NOT NULL COMMENT '执行的操作类型 (e.g., blacklisted, query_failed, processing_failed)',
+            reason TEXT COMMENT '操作原因或错误信息',
+            reputation_score FLOAT COMMENT '查询到的威胁情报分数，如果查询失败可能为NULL',
+            action_time DATETIME NOT NULL COMMENT '执行此操作的时间',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '记录创建时间'
+        ) COMMENT='WAF IP保护操作记录表';"""
+        cursor.execute(create_protected_ip_table_sql)
+
         
     conn.close()
 

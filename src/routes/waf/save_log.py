@@ -36,7 +36,7 @@ def fetch_and_save_blocked_ips():
     # 转时间戳整数，方便数据库存储和查询
     to_time = int(to_dt.timestamp())
     from_time = int(from_dt.timestamp())
-    print(from_time, to_time)
+    # print(from_time, to_time)
 
     client = get_sls_client()
 
@@ -65,7 +65,7 @@ ORDER BY "攻击次数" DESC'''
             runtime
         )
         logs = response.body
-        print(logs)
+        # print(logs)
 
         conn = get_db_connection()
         with conn.cursor() as cursor:
@@ -173,49 +173,5 @@ ORDER BY request_count DESC'''
         logging.error(f"查询请求频率失败: {e}")
         return jsonify({"error": str(e)}), 500
 
-# @waf_logs_bp.route('/daily_summary', methods=['POST'])
-# def save_daily_summary():
-#     """
-#     统计每日汇总数据，参数 JSON: { "date": "YYYY-MM-DD" }
-#     统计封禁IP数，高频请求IP数
-#     """
-#     data = request.get_json() or {}
-#     date_str = data.get("date")
-#     if not date_str:
-#         return jsonify({"error": "需要传入日期参数 date"}), 400
-#     try:
-#         date_obj = datetime.datetime.strptime(date_str, "%Y-%m-%d").date()
-#     except Exception:
-#         return jsonify({"error": "日期格式错误，应为 YYYY-MM-DD"}), 400
-
-#     from_time, to_time = get_time_ranges_for_day(date_obj)
-
-#     conn = get_db_connection()
-#     with conn.cursor() as cursor:
-#         # 封禁IP数量统计
-#         sql_blocked_count = """
-#         SELECT COUNT(DISTINCT block_ip) AS cnt FROM blocked_ips WHERE from_timestamp >= %s AND to_timestamp <= %s
-#         """
-#         cursor.execute(sql_blocked_count, (from_time, to_time))
-#         blocked_ip_count = cursor.fetchone().get("cnt", 0)
-
-#         # 高频请求IP数量统计
-#         sql_high_freq_count = """
-#         SELECT COUNT(DISTINCT ip) AS cnt FROM ip_request_frequency WHERE from_timestamp >= %s AND to_timestamp <= %s
-#         """
-#         cursor.execute(sql_high_freq_count, (from_time, to_time))
-#         high_freq_ip_count = cursor.fetchone().get("cnt", 0)
-
-#         # 插入或更新daily_summary表
-#         sql_upsert = """
-#         INSERT INTO daily_summary (date, blocked_ip_count, high_frequency_ip_count)
-#         VALUES (%s, %s, %s)
-#         ON DUPLICATE KEY UPDATE
-#             blocked_ip_count = VALUES(blocked_ip_count),
-#             high_frequency_ip_count = VALUES(high_frequency_ip_count)
-#         """
-#         cursor.execute(sql_upsert, (date_obj, blocked_ip_count, high_freq_ip_count))
-
-#     return jsonify({"message": "每日汇总数据保存成功", "date": date_str, "blocked_ip_count": blocked_ip_count, "high_frequency_ip_count": high_freq_ip_count})
 
 

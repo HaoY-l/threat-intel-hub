@@ -357,7 +357,7 @@ json数组
 
 ---
 
-## POST /api/blocked_ips
+## GET /api/blocked_ips
 
 ### 描述
 查询封禁IP信息（15分钟内）接口
@@ -380,7 +380,7 @@ json数组
 ---
 
 
-## POST /api/ip_request_frequency
+## GET /api/ip_request_frequency
 
 ### 描述
 查询IP请求频率（5分钟内）接口
