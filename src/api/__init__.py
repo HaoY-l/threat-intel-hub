@@ -7,6 +7,7 @@ from .alicloud_waf_deletewhite import waf_deletewhite
 from .alicloud_waf_descblackrule import waf_descrule
 from .alicloud_waf_modifyblackrule import waf_modifyblackrule
 from .tools_wxgzh import wxgzh_bp
+from .alicloud_waf_attackauto import waf_logs_bp
 
 # 创建API蓝图
 api_bp = Blueprint('api', __name__, url_prefix='/api')
@@ -20,3 +21,4 @@ api_bp.register_blueprint(waf_deletewhite)
 api_bp.register_blueprint(waf_descrule)
 api_bp.register_blueprint(waf_modifyblackrule)
 api_bp.register_blueprint(wxgzh_bp)
+api_bp.register_blueprint(waf_logs_bp)

@@ -11,10 +11,14 @@ from src.api import api_bp
 from src.routes.cve.tenable import TenableCrawler 
 from src.routes.cve.alicloud import AliyunAVDCrawler 
 from src.routes.threat.virustotal import VirusTotalCollector
+from src.routes.waf.save_log import fetch_and_save_blocked_ips, fetch_and_save_ip_request_frequency
+# 导入 protected_ip_task 函数
+from src.routes.waf.protected_ip import protected_ip_task 
 import logging, os 
 from dotenv import load_dotenv
 from flask_cors import CORS
 import atexit
+import datetime # 确保 datetime 模块被导入
 
 # -----------------------------------------------
 load_dotenv()
@@ -38,30 +42,6 @@ CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 # 注册蓝图
 app.register_blueprint(api_bp)
-
-# 初始化数据库
-try:
-    create_database_and_tables()
-    logging.info("数据库初始化成功")
-except Exception as e:
-    logging.error(f"数据库初始化失败: {e}")
-
-def run_cve():
-    """CVE数据抓取任务"""
-    try:
-        # 抓取阿里云 AVD 漏洞数据
-        alicloud_crawler = AliyunAVDCrawler()
-        alicloud_results = alicloud_crawler.crawl()
-        logging.info(f"抓取到 {len(alicloud_results)} 条漏洞数据")
-
-        # 这里可以继续抓取其它爬虫
-        # tenable_crawler = TenableCrawler()
-        # tenable_results = tenable_crawler.crawl()
-        # for item in tenable_results:
-        #     print(f"{item['cve_id']} | {item['title']} | {item['published']}")
-        
-    except Exception as e:
-        logging.error(f"CVE爬取失败: {e}")
 
 # 错误处理
 @app.errorhandler(500)
@@ -131,13 +111,63 @@ def health_check():
         'timestamp': datetime.datetime.now().isoformat()
     })
 
+# 定义在应用上下文内运行的CVE抓取任务
+def run_cve_in_context():
+    """CVE数据抓取任务，确保在应用上下文内运行"""
+    with app.app_context():
+        try:
+            # 抓取阿里云 AVD 漏洞数据
+            alicloud_crawler = AliyunAVDCrawler()
+            alicloud_results = alicloud_crawler.crawl()
+            logging.info(f"抓取到 {len(alicloud_results)} 条漏洞数据")
+
+            # 这里可以继续抓取其它爬虫
+            # tenable_crawler = TenableCrawler()
+            # tenable_results = tenable_crawler.crawl()
+            # for item in tenable_results:
+            #     print(f"{item['cve_id']} | {item['title']} | {item['published']}")
+
+        except Exception as e:
+            logging.error(f"CVE爬取失败: {e}")
+
+# 定义在应用上下文内运行的封禁IP日志抓取任务
+def fetch_and_save_blocked_ips_in_context():
+    """抓取并保存封禁IP日志，确保在应用上下文内运行"""
+    with app.app_context():
+        fetch_and_save_blocked_ips()
+
+# 定义在应用上下文内运行的IP请求频率日志抓取任务
+def fetch_and_save_ip_request_frequency_in_context():
+    """抓取并保存IP请求频率日志，确保在应用上下文内运行"""
+    with app.app_context():
+        fetch_and_save_ip_request_frequency()
+
+# 定义在应用上下文内运行的IP保护任务
+def protected_ip_task_in_context():
+    """执行IP保护逻辑，确保在应用上下文内运行"""
+    with app.app_context():
+        protected_ip_task()
+
+
 if __name__ == '__main__':
     # 启动定时任务调度器
     scheduler = None
     try:
-        run_cve()  # 启动时立即执行一次
+        # 确保所有初始化和首次运行的函数都在应用上下文中执行
+        with app.app_context():
+            create_database_and_tables()
+            logging.info("数据库初始化成功")
+            run_cve_in_context()  # 启动时立即执行一次
+            fetch_and_save_blocked_ips_in_context()
+            fetch_and_save_ip_request_frequency_in_context()
+            protected_ip_task_in_context() # 首次运行 protected_ip_task
+
         scheduler = BackgroundScheduler()
-        scheduler.add_job(run_cve, 'interval', hours=3, id='cve_task')
+        # 调度器任务直接调用封装好的在上下文内运行的函数
+        scheduler.add_job(run_cve_in_context, 'interval', hours=3, id='cve_task')
+        scheduler.add_job(fetch_and_save_blocked_ips_in_context, 'interval', minutes=15, id='block_ip_job')
+        scheduler.add_job(fetch_and_save_ip_request_frequency_in_context, 'interval', minutes=1, id='freq_ip_job')
+        scheduler.add_job(protected_ip_task_in_context, 'interval', minutes=1, id='protected_ip_job') # 调度 protected_ip_task 每分钟运行
         scheduler.start()
         logging.info("定时任务调度器启动成功")
         

@@ -113,9 +113,6 @@ def query_threat():
         # 获取请求数据并处理不同的数据格式
         raw_data = request.get_json()
         
-        # 调试信息
-        logging.info(f"接收到的原始数据: {raw_data}")
-        logging.info(f"数据类型: {type(raw_data)}")
         
         # 处理不同的数据格式
         if raw_data is None:

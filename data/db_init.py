@@ -42,7 +42,7 @@ def create_database_and_tables():
 
         """
         cursor.execute(create_cve_table_sql)
-        logging.info("CVE data table created or already exists.")
+  
 
         # 创建IP威胁表
         create_ip_threat_table_sql = """
@@ -60,7 +60,7 @@ def create_database_and_tables():
         )ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='威胁IP情报表';
         """
         cursor.execute(create_ip_threat_table_sql)
-        logging.info("IP threat intel table created or already exists.")
+  
 
         # 创建URL威胁表
         create_url_threat_table_sql = """
@@ -100,7 +100,7 @@ def create_database_and_tables():
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='文件威胁情报表';
         """
         cursor.execute(create_file_hash_threat_table_sql)
-        logging.info("File threat intel table created or already exists.")
+
 
         # 创建操作历史表
         create_search_history_table_sql = """
@@ -125,7 +125,55 @@ def create_database_and_tables():
             INDEX idx_max_threat_level (max_threat_level)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='操作查询历史表';"""
         cursor.execute(create_search_history_table_sql)
-        logging.info("Search history table created or already exists.")
+
+        create_blocked_ips_table_sql = """
+        CREATE TABLE IF NOT EXISTS blocked_ips (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            block_ip VARCHAR(45) NOT NULL,
+            attack_count INT NOT NULL,
+            attack_type VARCHAR(50) DEFAULT NULL,
+            attack_ratio DECIMAL(5,2) DEFAULT NULL,
+            from_time DATETIME NOT NULL,
+            to_time DATETIME NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+        """
+        cursor.execute(create_blocked_ips_table_sql)
+
+        create_ip_request_frequency_table_sql = """
+        CREATE TABLE IF NOT EXISTS ip_request_frequency (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            ip VARCHAR(45) NOT NULL,
+            request_count INT NOT NULL,
+            from_time DATETIME NOT NULL,
+            to_time DATETIME NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;"""
+        cursor.execute(create_ip_request_frequency_table_sql)
+
+        create_daily_summary_table_sql = """
+        CREATE TABLE IF NOT EXISTS daily_summary (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            date DATE NOT NULL,
+            blocked_ip_count INT DEFAULT 0,
+            high_frequency_ip_count INT DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY (date)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;"""
+        cursor.execute(create_daily_summary_table_sql)
+
+        create_protected_ip_table_sql = """
+        CREATE TABLE IF NOT EXISTS protected_ip (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            ip VARCHAR(45) NOT NULL COMMENT '被保护或处理的IP地址',
+            action VARCHAR(50) NOT NULL COMMENT '执行的操作类型 (e.g., blacklisted, query_failed, processing_failed)',
+            reason TEXT COMMENT '操作原因或错误信息',
+            reputation_score FLOAT COMMENT '查询到的威胁情报分数，如果查询失败可能为NULL',
+            action_time DATETIME NOT NULL COMMENT '执行此操作的时间',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '记录创建时间'
+        ) COMMENT='WAF IP保护操作记录表';"""
+        cursor.execute(create_protected_ip_table_sql)
+
         
     conn.close()
 
