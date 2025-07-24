@@ -144,156 +144,59 @@ def get_ip_request_frequency():
         return jsonify({"error": str(e)}), 500
     
 
-# @waf_logs_bp.route('/protected_ip', methods=['POST'])
-# def protected_ip():
-#     """
-#     查询高频请求的IP和被封禁IP，查询相对时间1分钟内，时间参考数据表中的created_at字段。
-#     如果有IP，则调用接口localhost:8891/api/query(post),查询IP的威胁情报。查询对应的reputation_score字段，如果值小于-5，则调用添加黑名单接口拉黑（接口localhost:8891/api/modifyblackrule）
-#     对应的操作记录记录到数据库中。表名：protected_ip
-#     """
-#     try:
-#         now = datetime.datetime.now()
-#         # 查询最近1分钟内创建的记录
-#         time_threshold = now - datetime.timedelta(minutes=1)
+@waf_logs_bp.route('/protected_ip', methods=['GET'])
+def protected_ip():
+    """
+    查询 protected_ip 数据库表中今天的自动封禁记录。
+    返回一个 JSON 数组，包含今天的每条封禁记录及其详细信息。
+    """
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(pymysql.cursors.DictCursor) # 使用字典游标，方便获取字段名
 
-#         conn = get_db_connection()
-#         ip_to_process = set() # 使用集合避免重复处理IP
+        # 获取今天的开始和结束时间
+        now = datetime.datetime.now()
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        today_end = now.replace(hour=23, minute=59, second=59, microsecond=999999)
 
-#         with conn.cursor(pymysql.cursors.DictCursor) as cursor:
-#             # 查询最近1分钟内有更新的高频请求IP
-#             sql_freq = """
-#             SELECT ip FROM ip_request_frequency
-#             WHERE created_at >= %s
-#             """
-#             cursor.execute(sql_freq, (time_threshold,))
-#             for row in cursor.fetchall():
-#                 ip_to_process.add(row['ip'])
+        # 查询今天的 protected_ip 记录
+        # 注意：这里查询的是所有记录，前端会负责筛选和计数
+        sql = """
+        SELECT
+            id,
+            ip,
+            action,
+            reason,
+            reputation_score,
+            action_time
+        FROM
+            protected_ip
+        WHERE
+            action_time >= %s AND action_time <= %s
+        ORDER BY
+            action_time ASC;
+        """
+        cursor.execute(sql, (today_start, today_end))
+        records = cursor.fetchall()
 
-#             # 查询最近1分钟内有更新的被封禁IP
-#             sql_blocked = """
-#             SELECT block_ip AS ip FROM blocked_ips
-#             WHERE created_at >= %s
-#             """
-#             cursor.execute(sql_blocked, (time_threshold,))
-#             for row in cursor.fetchall():
-#                 ip_to_process.add(row['ip'])
+        # 格式化 action_time 为 ISO 8601 字符串，方便前端解析
+        formatted_records = []
+        for record in records:
+            # 确保 action_time 是 datetime 对象再进行格式化
+            if isinstance(record.get('action_time'), datetime.datetime):
+                record['action_time'] = record['action_time'].isoformat() # 转换为 ISO 8601 格式
+            formatted_records.append(record)
 
-#         if not ip_to_process:
-#             return jsonify({"message": "No new IPs to process in the last minute."}), 200
+        return jsonify(formatted_records), 200
 
-#         blacklisted_ips_count = 0
-#         for ip in ip_to_process:
-#             logging.info(f"正在处理IP: {ip}")
-#             reputation_score = None
-#             WAF_API_BASE_URL = "http://localhost:8891/api"
-#             try:
-#                 # 1. 查询IP的威胁情报
-#                 query_url = f"{WAF_API_BASE_URL}/query"
-#                 query_payload = {'ip': ip}
-#                 logging.info(f"调用威胁情报查询接口: {query_url} with payload: {query_payload}")
-#                 response = requests.post(query_url, json=query_payload, timeout=5)
-#                 response.raise_for_status() # 对4xx/5xx状态码抛出HTTPError
-
-#                 threat_data = response.json()
-#                 reputation_score = threat_data.get('reputation_score')
-#                 logging.info(f"IP {ip} 的威胁情报 reputation_score: {reputation_score}")
-
-#                 # 2. 判断并拉黑
-#                 if reputation_score is not None and reputation_score < -5:
-#                     logging.info(f"IP {ip} 威胁分数 {reputation_score} 低于 -5，准备加入黑名单。")
-#                     blacklist_url = f"{WAF_API_BASE_URL}/modifyblackrule"
-#                     # 假设 modifyblackrule 接口需要 IP 和一个规则名称或原因
-#                     # 请根据实际 WAF 接口要求调整 payload
-#                     blacklist_payload = {
-#                         'ip': ip,
-#                         'action': 'add', # 假设 'add' 是添加操作
-#                         'reason': 'High threat score from intelligence feed'
-#                     }
-#                     logging.info(f"调用黑名单接口: {blacklist_url} with payload: {blacklist_payload}")
-#                     blacklist_response = requests.post(blacklist_url, json=blacklist_payload, timeout=5)
-#                     blacklist_response.raise_for_status()
-
-#                     blacklist_result = blacklist_response.json()
-#                     logging.info(f"IP {ip} 已成功加入黑名单。WAF响应: {blacklist_result}")
-#                     blacklisted_ips_count += 1
-
-#                     # 3. 记录操作到数据库
-#                     with conn.cursor() as cursor:
-#                         insert_sql = """
-#                         INSERT INTO protected_ip (ip, action, reason, reputation_score, action_time)
-#                         VALUES (%s, %s, %s, %s, %s)
-#                         """
-#                         cursor.execute(insert_sql, (
-#                             ip,
-#                             'blacklisted',
-#                             'Threat score below -5',
-#                             reputation_score,
-#                             now
-#                         ))
-#                         conn.commit()
-#                         logging.info(f"IP {ip} 的拉黑操作已记录到 protected_ip 表。")
-#                 else:
-#                     logging.info(f"IP {ip} 威胁分数 {reputation_score} 未达到拉黑条件或无分数。")
-
-#             except requests.exceptions.Timeout:
-#                 logging.error(f"调用WAF接口超时 IP: {ip}")
-#                 # 记录失败操作
-#                 with conn.cursor() as cursor:
-#                     insert_sql = """
-#                     INSERT INTO protected_ip (ip, action, reason, reputation_score, action_time)
-#                     VALUES (%s, %s, %s, %s, %s)
-#                     """
-#                     cursor.execute(insert_sql, (
-#                         ip,
-#                         'query_failed',
-#                         'WAF API Timeout during query',
-#                         reputation_score, # 可能是None
-#                         now
-#                     ))
-#                     conn.commit()
-#             except requests.exceptions.RequestException as req_e:
-#                 logging.error(f"调用WAF接口失败 IP: {ip}, 错误: {req_e}")
-#                 # 记录失败操作
-#                 with conn.cursor() as cursor:
-#                     insert_sql = """
-#                     INSERT INTO protected_ip (ip, action, reason, reputation_score, action_time)
-#                     VALUES (%s, %s, %s, %s, %s)
-#                     """
-#                     cursor.execute(insert_sql, (
-#                         ip,
-#                         'query_failed',
-#                         f'WAF API Request Error: {req_e}',
-#                         reputation_score, # 可能是None
-#                         now
-#                     ))
-#                     conn.commit()
-#             except Exception as e:
-#                 logging.error(f"处理IP {ip} 时发生未知错误: {e}")
-#                 # 记录失败操作
-#                 with conn.cursor() as cursor:
-#                     insert_sql = """
-#                     INSERT INTO protected_ip (ip, action, reason, reputation_score, action_time)
-#                     VALUES (%s, %s, %s, %s, %s)
-#                     """
-#                     cursor.execute(insert_sql, (
-#                         ip,
-#                         'processing_failed',
-#                         f'Unknown error: {e}',
-#                         reputation_score, # 可能是None
-#                         now
-#                     ))
-#                     conn.commit()
-
-#         logging.info(f"总计处理了 {len(ip_to_process)} 个IP，其中 {blacklisted_ips_count} 个IP被拉黑。")
-#         return jsonify({
-#             "message": "IP processing complete.",
-#             "total_ips_checked": len(ip_to_process),
-#             "ips_blacklisted": blacklisted_ips_count
-#         }), 200
-
-#     except pymysql.Error as db_e:
-#         logging.error(f"数据库操作失败: {db_e}")
-#         return jsonify({"error": f"Database error: {db_e}"}), 500
-#     except Exception as e:
-#         logging.error(f"protected_ip 路由发生未预料的错误: {e}")
-#         return jsonify({"error": str(e)}), 500
+    except pymysql.Error as e:
+        print(f"数据库查询错误: {e}")
+        return jsonify({"error": "数据库查询失败", "details": str(e)}), 500
+    except Exception as e:
+        print(f"服务器内部错误: {e}")
+        return jsonify({"error": "服务器内部错误", "details": str(e)}), 500
+    finally:
+        if conn and conn.open:
+            conn.close()
+    
