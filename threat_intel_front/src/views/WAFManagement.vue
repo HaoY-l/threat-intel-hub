@@ -112,8 +112,13 @@ export default {
       // 数据
       whiteList: [],
       blackList: [],
-      blockedIPs: [], // 原始数据，可能包含重复IP
-      highFreqIPs: [], // 原始数据，可能包含重复IP
+      blockedIPs: [], // 原始数据，可能包含重复IP（用于监控面板，按时间范围过滤）
+      highFreqIPs: [], // 原始数据，可能包含重复IP（用于监控面板，按时间范围过滤）
+
+      // 新增：用于总数统计的去重IP列表
+      totalUniqueBlockedIPs: [], // 存储所有时间规则封禁的去重IP
+      totalUniqueHighFreqIPs: [], // 存储所有时间高频请求的去重IP
+      totalThreatBlockedIPs: [], // 存储所有时间威胁情报自动封禁的去重IP
 
       // 表单
       newWhiteName: '',
@@ -139,8 +144,8 @@ export default {
       blackPageSize: 5,
 
       // 统计数据
-      autoBlockedCount: 0,
-      todayThreats: 0,
+      autoBlockedCount: 0, // 可以保持，用于显示当天的事件数
+      todayThreats: 0, // 可以保持，用于显示当天的威胁IP数
 
       // 防护状态
       autoProtectionEnabled: true,
@@ -152,10 +157,8 @@ export default {
 
   computed: {
     statsOverview() {
-      // 对 blockedIPs 进行去重统计
-      const uniqueBlockedIPs = [...new Set(this.blockedIPs.map(item => item.ip))];
-      // 对 highFreqIPs 进行去重统计
-      const uniqueHighFreqIPs = [...new Set(this.highFreqIPs.map(item => item.ip))];
+      // 这里的 blockedIPs 和 highFreqIPs 仍然用于监控面板的时间范围统计
+      // 对于总数统计，我们使用新的 totalUniqueBlockedIPs, totalUniqueHighFreqIPs 和 totalThreatBlockedIPs
 
       return [
         {
@@ -180,28 +183,28 @@ export default {
         },
         {
           key: 'blocked',
-          title: '规则封禁IP（去重）',
-          value: uniqueBlockedIPs.length, // 使用去重后的数量
+          title: '规则封禁IP（去重总数）', // 标题改为“去重总数”
+          value: this.totalUniqueBlockedIPs.length, // 使用新的总去重IP数据
           icon: 'fa-exclamation-triangle',
           iconClass: 'bg-orange-500',
           color: 'linear-gradient(135deg, #FF9800, #F57C00)',
           trendClass: 'text-green-500',
-          trendIcon: 'fa-arrow-down' // 趋势图标可能需要根据实际数据计算，这里保持不变
+          trendIcon: 'fa-arrow-down'
         },
         {
           key: 'highfreq',
-          title: '高频请求IP（去重）',
-          value: uniqueHighFreqIPs.length, // 使用去重后的数量
+          title: '高频请求IP（去重总数）', // 标题改为“去重总数”
+          value: this.totalUniqueHighFreqIPs.length, // 使用新的总去重IP数据
           icon: 'fa-line-chart',
           iconClass: 'bg-blue-500',
           color: 'linear-gradient(135deg, #2196F3, #1976D2)',
           trendClass: 'text-red-500',
-          trendIcon: 'fa-arrow-up' // 趋势图标可能需要根据实际数据计算，这里保持不变
+          trendIcon: 'fa-arrow-up'
         },
         {
           key: 'threatblock',
-          title: '威胁情报自动封禁',
-          value: this.todayThreats, // 假设这个值已经是去重统计后的，或者指的是事件数量
+          title: '威胁情报自动封禁（去重总数）', // 标题改为“去重总数”
+          value: this.totalThreatBlockedIPs.length, // 使用新的总去重IP数据
           icon: 'fa-bolt',
           iconClass: 'bg-purple-500',
           color: 'linear-gradient(135deg, #8A2BE2, #9932CC)',
@@ -228,9 +231,15 @@ export default {
 
     setupAutoRefresh() {
       this.refreshInterval = setInterval(() => {
+        // 刷新监控面板数据（基于当前选定的时间范围）
         this.fetchBlockedIPs();
         this.fetchHighFreqIPs();
-        this.fetchProtectionStats(); // 自动刷新也应该包含防护统计
+        this.fetchProtectionStats();
+
+        // 刷新总数统计数据（获取所有历史数据）
+        this.fetchBlockedIPs('all');
+        this.fetchHighFreqIPs('all');
+        this.fetchProtectionStats('all');
       }, 30000); // 每30秒刷新一次
     },
 
@@ -240,9 +249,14 @@ export default {
         await Promise.all([
           this.fetchWhiteList(),
           this.fetchBlackList(),
+          // 获取监控面板数据 (today/当前时间范围)
           this.fetchBlockedIPs(),
           this.fetchHighFreqIPs(),
-          this.fetchProtectionStats()
+          this.fetchProtectionStats(),
+          // 获取总数统计数据 (all time)
+          this.fetchBlockedIPs('all'),
+          this.fetchHighFreqIPs('all'),
+          this.fetchProtectionStats('all')
         ]);
         this.showSuccess('数据刷新成功');
       } catch (error) {
@@ -266,35 +280,40 @@ export default {
     getDateTimeRange(rangeType) {
       const now = new Date();
       let fromDate;
+      // toDate 设置为当前精确时间
       let toDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), now.getMinutes(), now.getSeconds());
 
-      switch (rangeType) {
-        case 'today':
-          fromDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
-          break;
-        case '3d':
-          fromDate = new Date(now);
-          fromDate.setDate(now.getDate() - 3);
-          fromDate.setHours(0, 0, 0, 0);
-          break;
-        case '7d':
-          fromDate = new Date(now);
-          fromDate.setDate(now.getDate() - 7);
-          fromDate.setHours(0, 0, 0, 0);
-          break;
-        case '1m':
-          fromDate = new Date(now);
-          fromDate.setMonth(now.getMonth() - 1);
-          fromDate.setHours(0, 0, 0, 0);
-          break;
-        default:
-          const minutes = parseInt(rangeType);
-          if (!isNaN(minutes)) {
-             fromDate = new Date(now.getTime() - minutes * 60 * 1000);
-          } else {
-             fromDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
-          }
-          break;
+      if (rangeType === 'all') { // 新增 'all' 类型，表示从 Unix Epoch 开始
+          fromDate = new Date(0); // 1970-01-01 00:00:00 UTC
+      } else {
+        switch (rangeType) {
+          case 'today':
+            fromDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+            break;
+          case '3d':
+            fromDate = new Date(now);
+            fromDate.setDate(now.getDate() - 3);
+            fromDate.setHours(0, 0, 0, 0);
+            break;
+          case '7d':
+            fromDate = new Date(now);
+            fromDate.setDate(now.getDate() - 7);
+            fromDate.setHours(0, 0, 0, 0);
+            break;
+          case '1m':
+            fromDate = new Date(now);
+            fromDate.setMonth(now.getMonth() - 1);
+            fromDate.setHours(0, 0, 0, 0);
+            break;
+          default:
+            const minutes = parseInt(rangeType);
+            if (!isNaN(minutes)) {
+               fromDate = new Date(now.getTime() - minutes * 60 * 1000);
+            } else {
+               fromDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+            }
+            break;
+        }
       }
 
       const format = (date) => {
@@ -354,9 +373,11 @@ export default {
       }
     },
 
-    async fetchBlockedIPs() {
+    // 增加了 fetchType 参数，默认为 'timeRange'
+    async fetchBlockedIPs(fetchType = 'timeRange') {
       try {
-        const { from, to } = this.getDateTimeRange(this.blockedTimeRange);
+        const timeRange = fetchType === 'all' ? 'all' : this.blockedTimeRange;
+        const { from, to } = this.getDateTimeRange(timeRange);
         const res = await axios.get('/api/blocked_ips', {
           params: {
             from: from,
@@ -365,22 +386,38 @@ export default {
         });
 
         if (res.data && res.data.data) {
-          this.blockedIPs = res.data.data.map(item => ({
+          const processedData = res.data.data.map(item => ({
             ...item,
             threat_level: this.getThreatLevelFromScore(item.threat_score)
           }));
+
+          if (fetchType === 'all') {
+            // 获取所有时间的去重IP，用于总览统计
+            this.totalUniqueBlockedIPs = [...new Set(processedData.map(item => item.ip))];
+          } else {
+            // 否则，用于监控面板，保留原始数据（可能包含重复）
+            this.blockedIPs = processedData;
+          }
         } else {
-          this.blockedIPs = [];
+          if (fetchType === 'all') {
+            this.totalUniqueBlockedIPs = [];
+          } else {
+            this.blockedIPs = [];
+          }
         }
       } catch (err) {
         console.error('获取封禁IP失败:', err);
-        this.showError('获取封禁IP失败');
+        if (fetchType === 'timeRange') { // 只在监控面板数据获取失败时显示错误
+            this.showError('获取封禁IP失败');
+        }
       }
     },
 
-    async fetchHighFreqIPs() {
+    // 增加了 fetchType 参数，默认为 'timeRange'
+    async fetchHighFreqIPs(fetchType = 'timeRange') {
       try {
-        const { from, to } = this.getDateTimeRange(this.freqTimeRange);
+        const timeRange = fetchType === 'all' ? 'all' : this.freqTimeRange;
+        const { from, to } = this.getDateTimeRange(timeRange);
         const res = await axios.get('/api/ip_request_frequency', {
           params: {
             from: from,
@@ -389,46 +426,78 @@ export default {
         });
 
         if (res.data && res.data.data) {
-          this.highFreqIPs = res.data.data;
+          if (fetchType === 'all') {
+            // 获取所有时间的去重IP，用于总览统计
+            this.totalUniqueHighFreqIPs = [...new Set(res.data.data.map(item => item.ip))];
+          } else {
+            // 否则，用于监控面板
+            this.highFreqIPs = res.data.data;
+          }
         } else {
-          this.highFreqIPs = [];
+          if (fetchType === 'all') {
+            this.totalUniqueHighFreqIPs = [];
+          } else {
+            this.highFreqIPs = [];
+          }
         }
       } catch (err) {
         console.error('获取高频IP失败:', err);
-        this.showError('获取高频IP失败');
+        if (fetchType === 'timeRange') { // 只在监控面板数据获取失败时显示错误
+            this.showError('获取高频IP失败');
+        }
       }
     },
 
-    async fetchProtectionStats() {
-      // 假设您的自动封禁统计数据来自 /api/protected_ip 接口
-      // WAFAutoProtection 组件已经改成了直接显示日志，所以这里可能不需要再获取总数
-      // 如果需要，可以单独设计一个接口或从 /api/protected_ip 的数据中进行本地统计
+    // 增加了 fetchType 参数，默认为 'timeRange'
+    async fetchProtectionStats(fetchType = 'timeRange') {
       try {
-        const response = await axios.get('/api/protected_ip');
-        const records = response.data;
-        // 统计今天的自动封禁数量，这部分逻辑与 WAFAutoProtection 相同，
-        // 也可以考虑在后端提供一个专门的统计接口
-        const todayStart = new Date();
-        todayStart.setHours(0, 0, 0, 0);
-
-        let blockedCount = 0;
-        // 使用 Set 来统计去重后的IP数量，如果 todayThreats 表示的是去重IP数量
-        const uniqueThreatIPsToday = new Set(); 
-
-        records.forEach(record => {
-          const actionTime = new Date(record.action_time);
-          if (actionTime >= todayStart && record.action === 'blacklisted') {
-            blockedCount++;
-            uniqueThreatIPsToday.add(record.ip); // 收集去重IP
+        // 威胁情报统计，如果是 'all' 则获取所有，否则获取今天（这里默认是今天，而不是组件的freqTimeRange/blockedTimeRange）
+        const timeRange = fetchType === 'all' ? 'all' : 'today'; 
+        const { from, to } = this.getDateTimeRange(timeRange);
+        const response = await axios.get('/api/protected_ip', {
+          params: {
+            from: from,
+            to: to
           }
         });
-        // 如果 todayThreats 应该代表去重后的IP数量，则修改如下
-        this.todayThreats = uniqueThreatIPsToday.size; 
-        this.autoBlockedCount = blockedCount; // autoBlockedCount 可以表示总的封禁事件数
+        const records = response.data;
+
+        if (fetchType === 'all') {
+          // 获取所有时间的威胁情报自动封禁去重IP
+          const uniqueThreatIPs = new Set();
+          records.forEach(record => {
+            // 假设 action === 'blacklisted' 表示被封禁的威胁
+            if (record.action === 'blacklisted') {
+              uniqueThreatIPs.add(record.ip);
+            }
+          });
+          this.totalThreatBlockedIPs = Array.from(uniqueThreatIPs);
+        } else {
+          // 统计今天的自动封禁数量和去重IP数量 (保持原有逻辑用于 todayThreats 和 autoBlockedCount)
+          const todayStart = new Date();
+          todayStart.setHours(0, 0, 0, 0);
+
+          let blockedCount = 0;
+          const uniqueThreatIPsToday = new Set();
+
+          records.forEach(record => {
+            const actionTime = new Date(record.action_time);
+            if (actionTime >= todayStart && record.action === 'blacklisted') {
+              blockedCount++;
+              uniqueThreatIPsToday.add(record.ip);
+            }
+          });
+          this.todayThreats = uniqueThreatIPsToday.size;
+          this.autoBlockedCount = blockedCount;
+        }
       } catch (error) {
         console.error('获取威胁情报自动封禁统计失败:', error);
-        this.todayThreats = 0;
-        this.autoBlockedCount = 0;
+        if (fetchType === 'timeRange') {
+          this.todayThreats = 0;
+          this.autoBlockedCount = 0;
+        } else {
+          this.totalThreatBlockedIPs = [];
+        }
       }
     },
 
@@ -449,6 +518,8 @@ export default {
         await axios.post('/api/delblack', { ip: ip });
         this.showSuccess('黑名单条目删除成功');
         this.fetchBlackList();
+        this.fetchBlockedIPs('all'); // 黑名单有变动，可能影响总的规则封禁IP统计
+        this.fetchProtectionStats('all'); // 黑名单有变动，可能影响总的威胁情报封禁IP统计
       } catch (err) {
         console.error('删除黑名单失败:', err);
         this.showError('删除黑名单失败');
@@ -487,6 +558,8 @@ export default {
         this.newBlackReason = '恶意扫描';
         this.newBlackDuration = '24h';
         this.fetchBlackList();
+        this.fetchBlockedIPs('all'); // 黑名单有变动，可能影响总的规则封禁IP统计
+        this.fetchProtectionStats('all'); // 黑名单有变动，可能影响总的威胁情报封禁IP统计
       } catch (err) {
         console.error('添加黑名单失败:', err);
         this.showError('添加黑名单失败');
@@ -499,6 +572,8 @@ export default {
         await axios.post('/api/addblack', { ip: ip, reason: '手动拉黑', duration: 'permanent' });
         this.showSuccess(`IP ${ip} 已添加到黑名单`);
         this.fetchBlackList(); // 刷新黑名单列表
+        this.fetchBlockedIPs('all'); // 刷新总统计
+        this.fetchProtectionStats('all'); // 刷新总统计
       } catch (err) {
         console.error('手动添加到黑名单失败:', err);
         this.showError(`添加IP ${ip} 到黑名单失败`);
@@ -511,6 +586,8 @@ export default {
         await axios.post('/api/addblack', { ip: ip, reason: '高频请求', duration: '24h' });
         this.showSuccess(`IP ${ip} 已被封禁 (高频请求)`);
         this.fetchBlackList(); // 刷新黑名单列表
+        this.fetchBlockedIPs('all'); // 刷新总统计
+        this.fetchProtectionStats('all'); // 刷新总统计
       } catch (err) {
         console.error('封禁高频IP失败:', err);
         this.showError(`封禁IP ${ip} 失败`);
