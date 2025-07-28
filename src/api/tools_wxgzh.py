@@ -257,6 +257,17 @@ def render_cve_list_to_html(cve_list: list, tech_news: dict = None) -> str:
         <p style="margin: 0; color: #6c757d; font-size: 12px;">💡 显示最新 {len(limited_news_data)} 条技术资讯 | 数据更新时间：{update_time}</p>
     </section>
 </section>''')
+    # ✅ 新增说明区域（放在最后蓝色关注卡片前）
+    html_parts.append('''
+    <section style="border: 1px dashed #4a90e2; padding: 14px 18px; border-radius: 8px; background-color: #f0f8ff; margin-top: 30px; margin-bottom: 20px;">
+    <p style="margin: 0; font-size: 14px; color: #1565c0; line-height: 1.7;">
+        📢 微信公众号每天统计最新资讯或其他内容自动发送（免人工全自动），可联系作者✍️。<br/>
+        🚀 最新项目 <strong>【威胁情报聚合处理平台】</strong> 👉 
+        <a href="https://github.com/HaoY-l/threat-intel-hub" style="color: #007acc; word-break: break-all;" target="_blank">
+        https://github.com/HaoY-l/threat-intel-hub
+        </a>
+    </p>
+    </section>''')
 
     # 底部关注区域
     html_parts.append('''
