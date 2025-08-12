@@ -4,20 +4,22 @@
     <div class="card-container">
       <WeChatPublisherCard />
       <IpQueryCard />
+      <DomainWhoisCard />
     </div>
   </div>
 </template>
 
 <script>
-// 导入工具卡片组件，路径已根据你的要求调整
 import WeChatPublisherCard from '@/components/tools/WeChatPublisherCard.vue'
 import IpQueryCard from '@/components/tools/IpQueryCard.vue'
+import DomainWhoisCard from '@/components/tools/DomainWhoisCard.vue'
 
 export default {
-  name: 'Tools', // 保持组件名为Tools
+  name: 'Tools',
   components: {
     WeChatPublisherCard,
-    IpQueryCard
+    IpQueryCard,
+    DomainWhoisCard // 注册新组件
   }
 }
 </script>
@@ -39,7 +41,7 @@ h1 {
 .card-container {
   display: flex;
   flex-wrap: wrap;
-  gap: 2rem; /* 卡片之间的间距 */
+  gap: 2rem;
   justify-content: center;
 }
 </style>
