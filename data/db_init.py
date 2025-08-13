@@ -174,6 +174,33 @@ def create_database_and_tables():
         ) COMMENT='WAF IP保护操作记录表';"""
         cursor.execute(create_protected_ip_table_sql)
 
+        # 创建新闻表 
+        create_news_data_table_sql = """
+        CREATE TABLE IF NOT EXISTS news_data (
+            id BIGINT AUTO_INCREMENT PRIMARY KEY,
+            title VARCHAR(500) NOT NULL DEFAULT '' COMMENT '新闻标题',
+            summary TEXT COMMENT '新闻摘要',
+            content TEXT COMMENT '新闻内容',
+            source VARCHAR(100) NOT NULL DEFAULT '' COMMENT '新闻来源，例如 it之家、csdn',
+            category VARCHAR(100) DEFAULT '' COMMENT '新闻分类',
+            author VARCHAR(100) DEFAULT '' COMMENT '作者',
+            url VARCHAR(500) DEFAULT '' COMMENT '原始链接，用于跳转',
+            mobile_url VARCHAR(500) DEFAULT '' COMMENT '移动端链接',
+            cover VARCHAR(500) DEFAULT '' COMMENT '封面图片',
+            hot INT DEFAULT 0 COMMENT '热度值',
+            timestamp BIGINT DEFAULT 0 COMMENT '新闻时间戳',
+            published_at DATETIME DEFAULT NULL COMMENT '发布时间',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+            INDEX idx_source (source),
+            INDEX idx_category (category),
+            INDEX idx_timestamp (timestamp),
+            INDEX idx_published_at (published_at),
+            INDEX idx_hot (hot)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='新闻数据表';
+        """
+        cursor.execute(create_news_data_table_sql)
+
         
     conn.close()
 

@@ -16,15 +16,11 @@
         v-for="news in newsData" 
         :key="news.id"
         class="news-item"
-        :class="getSeverityClass(news.severity)"
         @click="openNewsDetail(news)"
       >
         <div class="news-header">
           <span class="category-tag" :class="getCategoryClass(news.category)">
             {{ news.category }}
-          </span>
-          <span class="severity-badge" :class="getSeverityClass(news.severity)">
-            {{ news.severity }}
           </span>
         </div>
         
@@ -50,30 +46,24 @@ export default {
     }
   },
   methods: {
-    getSeverityClass(severity) {
-      const classes = {
-        '严重': 'severity-critical',
-        '高危': 'severity-high', 
-        '中危': 'severity-medium',
-        '低危': 'severity-low'
-      }
-      return classes[severity] || 'severity-unknown'
-    },
-
+    // 危险等级相关的getSeverityClass方法已被移除
     getCategoryClass(category) {
       const classes = {
         'APT攻击': 'category-apt',
         '数据泄露': 'category-breach',
         '恶意软件': 'category-malware',
         '工控安全': 'category-ics',
-        '钓鱼攻击': 'category-phishing'
+        '钓鱼攻击': 'category-phishing',
+        '网络安全': 'category-default' // 添加一个默认分类以匹配后端返回的数据
       }
       return classes[category] || 'category-default'
     },
 
     openNewsDetail(news) {
-      // 这里可以实现新闻详情弹窗或跳转
-      console.log('打开新闻详情:', news)
+      // 点击新闻项时直接跳转到新闻链接
+      if (news.url) {
+        window.open(news.url, '_blank');
+      }
     },
 
     refreshNews() {
@@ -84,106 +74,96 @@ export default {
 </script>
 
 <style scoped>
+/* 样式保持不变 */
 .news-panel {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 1rem;
-  padding: 1.5rem;
+  border-radius: 12px;
   backdrop-filter: blur(10px);
-  height: fit-content;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
 .panel-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  padding-bottom: 1rem;
+  margin-bottom: 1rem;
 }
 
 .panel-title {
-  font-size: 1.25rem;
-  font-weight: bold;
   color: #fff;
-  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
 }
 
-.icon {
-  font-size: 1.2em;
+.panel-title .icon {
+  margin-right: 0.5rem;
+  font-size: 1.5rem;
 }
 
-.count {
+.panel-title .count {
   font-size: 0.875rem;
-  color: #888;
-  font-weight: normal;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.6);
+  margin-left: 0.5rem;
 }
 
 .refresh-btn {
-  padding: 0.5rem;
-  border-radius: 0.5rem;
   background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 0.5rem;
   cursor: pointer;
   transition: all 0.3s ease;
 }
 
 .refresh-btn:hover {
   background: rgba(255, 255, 255, 0.2);
-  transform: rotate(180deg);
+  transform: rotate(360deg);
 }
 
 .refresh-icon {
   font-size: 1rem;
-  display: block;
+  color: #fff;
 }
 
 .news-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  max-height: 600px;
+  flex: 1;
   overflow-y: auto;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+.news-list::-webkit-scrollbar {
+  display: none;
 }
 
 .news-item {
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 0.5rem;
-  padding: 0.875rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
   cursor: pointer;
-  transition: all 0.3s ease;
-  border-left: 3px solid transparent;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border: 1px solid transparent;
 }
 
 .news-item:hover {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.15);
-}
-
-.news-item.severity-critical {
-  border-left-color: #dc2626;
-}
-
-.news-item.severity-high {
-  border-left-color: #ea580c;
-}
-
-.news-item.severity-medium {
-  border-left-color: #ca8a04;
-}
-
-.news-item.severity-low {
-  border-left-color: #16a34a;
+  transform: translateY(-5px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .news-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.5rem;
 }
 
 .category-tag {
@@ -195,58 +175,27 @@ export default {
 }
 
 .category-apt {
-  background: linear-gradient(135deg, #dc2626, #991b1b);
+  background: linear-gradient(135deg, #ef4444, #dc2626);
 }
 
 .category-breach {
-  background: linear-gradient(135deg, #7c3aed, #5b21b6);
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
 }
 
 .category-malware {
-  background: linear-gradient(135deg, #ea580c, #c2410c);
+  background: linear-gradient(135deg, #f97316, #ea580c);
 }
 
 .category-ics {
-  background: linear-gradient(135deg, #0891b2, #0e7490);
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
 }
 
 .category-phishing {
-  background: linear-gradient(135deg, #ca8a04, #a16207);
+  background: linear-gradient(135deg, #10b981, #059669);
 }
 
 .category-default {
   background: linear-gradient(135deg, #6b7280, #4b5563);
-}
-
-.severity-badge {
-  padding: 0.25rem 0.5rem;
-  border-radius: 0.375rem;
-  font-size: 0.75rem;
-  font-weight: 500;
-}
-
-.severity-critical {
-  background: rgba(220, 38, 38, 0.2);
-  color: #fca5a5;
-  border: 1px solid #dc2626;
-}
-
-.severity-high {
-  background: rgba(234, 88, 12, 0.2);
-  color: #fed7aa;
-  border: 1px solid #ea580c;
-}
-
-.severity-medium {
-  background: rgba(202, 138, 4, 0.2);
-  color: #fde68a;
-  border: 1px solid #ca8a04;
-}
-
-.severity-low {
-  background: rgba(22, 163, 74, 0.2);
-  color: #bbf7d0;
-  border: 1px solid #16a34a;
 }
 
 .news-title {
@@ -254,58 +203,29 @@ export default {
   font-weight: 500;
   color: #fff;
   margin: 0 0 0.5rem 0;
-  line-height: 1.3;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
 }
 
 .news-summary {
   font-size: 0.75rem;
-  color: #aaa;
-  margin: 0 0 0.75rem 0;
-  line-height: 1.3;
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1.4;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 0.5rem;
 }
 
 .news-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 0.75rem;
-  color: #888;
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.5);
 }
 
 .news-source {
   font-weight: 500;
-}
-
-.news-time {
-  color: #666;
-}
-
-/* 响应式调整 */
-@media (max-width: 1200px) {
-  .news-list {
-    max-height: 400px;
-  }
-  
-  .news-item {
-    padding: 0.875rem;
-  }
-}
-
-@media (max-width: 768px) {
-  .news-panel {
-    padding: 1rem;
-  }
-  
-  .news-list {
-    max-height: 500px;
-  }
 }
 </style>

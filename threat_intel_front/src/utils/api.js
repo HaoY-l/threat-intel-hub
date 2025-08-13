@@ -24,7 +24,7 @@ api.interceptors.request.use(
 // 响应拦截器
 api.interceptors.response.use(
   response => {
-    return response.data
+    return response.data  // 这里已经返回了data
   },
   error => {
     console.error('API Error:', error)
@@ -36,7 +36,7 @@ api.interceptors.response.use(
 export const getAllCVE = async () => {
   try {
     const res = await api.get('/cve')  // 对应 Flask 的 GET /api/cve
-    return res
+    return res  // 这里正确，因为拦截器已经返回了data
   } catch (error) {
     throw error
   }
@@ -50,5 +50,22 @@ export const queryThreatIntel = async (queryObj) => {
     return res
   } catch (error) {
     throw error
+  }
+}
+
+/**
+ * 获取新闻数据
+ * @returns {Promise<Array>} 返回新闻数据数组的 Promise
+ */
+export async function getNewsData() {
+  try {
+    const response = await api.get('/news');
+    // 修复：由于响应拦截器已经返回了response.data，这里直接返回response即可
+    // 不要再访问response.data，因为response本身就是数据
+    console.log('getNewsData response:', response);
+    return response;  // 修复：直接返回response，而不是response.data
+  } catch (error) {
+    console.error('Error fetching news data:', error);
+    throw error;
   }
 }

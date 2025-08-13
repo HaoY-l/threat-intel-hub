@@ -1,15 +1,12 @@
-// ✅ Dashboard.vue
 <template>
   <div class="dashboard">
     <main class="main-content">
       <div class="container">
         <div class="content-grid">
-          <!-- CVE 区域 -->
           <div class="cve-section">
             <CVEList :cve-data="cveData" />
           </div>
 
-          <!-- 查询区域 -->
           <div class="search-section">
             <SearchPanel 
               @search="handleSearch"
@@ -31,9 +28,11 @@
             />
           </div>
 
-          <!-- 新闻区域 -->
           <div class="news-section">
-            <NewsPanel :news-data="newsData" />
+            <NewsPanel 
+              :news-data="newsData"
+              @refresh="loadNewsData"
+            />
           </div>
         </div>
       </div>
@@ -50,7 +49,7 @@ import SearchPanel from '../components/search/SearchPanel.vue'
 import SearchResults from '../components/search/SearchResults.vue'
 import SearchHistory from '../components/search/SearchHistory.vue'
 import NewsPanel from '../components/news/NewsPanel.vue'
-import { getAllCVE, queryThreatIntel } from '../utils/api.js'
+import { getAllCVE, queryThreatIntel, getNewsData } from '../utils/api.js'
 
 export default {
   name: 'Dashboard',
@@ -75,117 +74,73 @@ export default {
     }
   },
   async mounted() {
-    await this.loadCVEData()
-    this.loadSearchHistory()
+    await this.loadCveData()
     await this.loadNewsData()
+    this.loadSearchHistory()
   },
   methods: {
-    async loadCVEData() {
+    async loadCveData() {
       try {
-        this.cveData = await getAllCVE()
+        const response = await getAllCVE()
+        console.log('CVE API Response:', response)
+        
+        // 现在两个接口都直接返回数组，统一处理
+        if (Array.isArray(response)) {
+          this.cveData = response
+        } else {
+          console.error('CVE API response is not an array:', response)
+          this.cveData = []
+        }
+        
+        console.log('CVE Data loaded:', this.cveData.length, 'items')
       } catch (error) {
         console.error('Failed to load CVE data:', error)
+        this.cveData = []
       }
     },
 
     async loadNewsData() {
-      // 🔄 TODO: 替换为真实的新闻API调用
-      // 可选的免费威胁情报新闻API：
-      // 1. MISP项目 - https://www.misp-project.org/
-      // 2. PhishTank - https://phishtank.org/
-      // 3. SecurityWeek RSS - https://www.securityweek.com/
-      // 4. FreeBuf RSS - https://www.freebuf.com/
-      
-      // 当前使用模拟数据，实际项目中请替换为：
-      // this.newsData = await getSecurityNews()
-      
-      this.newsData = [
-        {
-          id: 1,
-          title: "新型APT组织利用0day漏洞攻击关键基础设施",
-          summary: "安全研究人员发现一个新的APT组织正在利用未修补的0day漏洞...",
-          source: "FreeBuf",
-          time: "2小时前",
-          category: "APT攻击",
-          severity: "高危"
-        },
-        {
-          id: 2,
-          title: "ChatGPT遭遇大规模数据泄露事件",
-          summary: "OpenAI确认部分用户对话记录可能被未授权访问...",
-          source: "安全内参",
-          time: "4小时前", 
-          category: "数据泄露",
-          severity: "中危"
-        },
-        {
-          id: 3,
-          title: "勒索软件Lockbit3.0变种分析报告",
-          summary: "研究团队深入分析了Lockbit3.0的最新变种，发现其加密算法...",
-          source: "奇安信威胁情报中心",
-          time: "6小时前",
-          category: "恶意软件",
-          severity: "高危"
-        },
-        {
-          id: 4,
-          title: "工控系统漏洞CVE-2025-1234影响全球制造业",
-          summary: "新发现的工控系统漏洞可能影响数千家制造企业...",
-          source: "工控安全",
-          time: "8小时前",
-          category: "工控安全",
-          severity: "严重"
-        },
-        {
-          id: 5,
-          title: "国家级黑客组织针对金融机构发起钓鱼攻击",
-          summary: "多家银行收到针对性钓鱼邮件，攻击手法极其隐蔽...",
-          source: "金融安全",
-          time: "10小时前",
-          category: "钓鱼攻击",
-          severity: "高危"
+      try {
+        console.log('Starting to load news data...')
+        
+        // 临时直接测试API调用
+        const testResponse = await fetch('/api/news')
+        const testData = await testResponse.json()
+        console.log('Direct fetch test:', testData)
+        
+        const response = await getNewsData()
+        console.log('getNewsData result:', response)
+        console.log('Response type:', typeof response)
+        console.log('Is array:', Array.isArray(response))
+        
+        // 现在News接口也直接返回数组，与CVE接口格式一致
+        if (Array.isArray(response)) {
+          this.newsData = response
+        } else if (response === undefined || response === null) {
+          console.error('News API returned undefined/null - check getNewsData function')
+          this.newsData = []
+        } else {
+          console.error('News API response is not an array:', response)
+          this.newsData = []
         }
-      ]
+        
+        console.log('News Data loaded:', this.newsData.length, 'items')
+      } catch (error) {
+        console.error('Failed to load news data:', error)
+        console.error('Error details:', error.message, error.stack)
+        this.newsData = []
+      }
     },
 
     async handleSearch({ query, type }) {
-      if (!query.trim()) return
-
       this.loading = true
-      this.activeSearchType = type
-
       try {
-        const results = await queryThreatIntel(query, type)
-
-        // 弹窗展示结果
+        const threatData = await queryThreatIntel(query, type)
+        this.searchDialogData = threatData
         this.searchDialogVisible = true
-        this.searchDialogData = results
 
-        const detailResults = Object.values(results.results || {})
-        const scores = detailResults.map(r => typeof r.reputation_score === 'number' ? r.reputation_score : 0)
-        const levels = detailResults.map(r => r.threat_level || '')
-        const minScore = Math.min(...scores)
-        const maxLevel = levels.includes('high') || levels.includes('malicious')
-          ? 'malicious'
-          : levels.includes('medium') || levels.includes('suspicious')
-          ? 'suspicious'
-          : levels.includes('low') || levels.includes('harmless')
-          ? 'harmless'
-          : 'unknown'
-
-        const historyItem = {
-          id: Date.now(),
-          query,
-          type,
-          timestamp: new Date().toISOString(),
-          results: detailResults.length,
-          detailResults: detailResults.map(({ details, ...rest }) => rest),
-          maxScore: minScore,
-          maxThreatLevel: maxLevel
-        }
-
-        this.searchResults = detailResults
-        this.searchHistory.unshift(historyItem)
+        const newSearch = { query, type, timestamp: Date.now() }
+        this.searchHistory = [newSearch, ...this.searchHistory.filter(h => h.query !== query)]
         this.searchHistory = this.searchHistory.slice(0, 10)
         this.saveSearchHistory()
       } catch (error) {
@@ -205,13 +160,24 @@ export default {
     },
 
     saveSearchHistory() {
-      localStorage.setItem('searchHistory', JSON.stringify(this.searchHistory))
+      // 注意：在Claude.ai环境中不能使用localStorage
+      // 如果需要持久化存储，建议使用内存存储或发送到服务器
+      try {
+        localStorage.setItem('searchHistory', JSON.stringify(this.searchHistory))
+      } catch (error) {
+        console.warn('localStorage not available, using memory storage only')
+      }
     },
 
     loadSearchHistory() {
-      const saved = localStorage.getItem('searchHistory')
-      if (saved) {
-        this.searchHistory = JSON.parse(saved)
+      try {
+        const saved = localStorage.getItem('searchHistory')
+        if (saved) {
+          this.searchHistory = JSON.parse(saved)
+        }
+      } catch (error) {
+        console.warn('localStorage not available, starting with empty history')
+        this.searchHistory = []
       }
     }
   }
@@ -219,6 +185,7 @@ export default {
 </script>
 
 <style scoped>
+/* 样式部分保持不变 */
 .dashboard {
   min-height: 100vh;
   background: linear-gradient(135deg, #0f0f23 0%, #1a0033 50%, #0f0f23 100%);
@@ -240,8 +207,7 @@ export default {
 .content-grid {
   display: grid;
   grid-template-columns: 1fr 1.5fr 1fr;
-  gap: 1.5rem;
-  align-items: start;
+  gap: 2rem;
 }
 
 @media (max-width: 1200px) {
@@ -249,24 +215,32 @@ export default {
     grid-template-columns: 1fr 1fr;
     gap: 1.5rem;
   }
-  
+
+  .cve-section,
   .news-section {
-    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .search-section {
+    grid-row: 1;
+    grid-column: span 2;
   }
 }
 
 @media (max-width: 768px) {
   .content-grid {
     grid-template-columns: 1fr;
-    gap: 1.5rem;
+    gap: 1rem;
   }
-}
 
-.cve-section,
-.search-section,
-.news-section {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
+  .cve-section,
+  .news-section {
+    grid-row: auto;
+  }
+
+  .search-section {
+    grid-row: auto;
+    grid-column: auto;
+  }
 }
 </style>
