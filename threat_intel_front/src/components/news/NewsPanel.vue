@@ -133,10 +133,9 @@ export default {
 }
 
 .news-list {
-  flex: 1;
+  max-height: 400px; /* 固定滚动区域的高度 */
   overflow-y: auto;
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: thin;
 }
 
 .news-list::-webkit-scrollbar {
