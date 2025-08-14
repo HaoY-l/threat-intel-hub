@@ -208,7 +208,8 @@ export default {
   padding: 1rem;
   cursor: pointer;
   transition: all 0.3s ease;
-  min-height: 120px; /* 保持高度统一 */
+  min-height: 120px;
+  min-width: 280px; /* 新增：设定最小宽度，防止被挤压过小 */
   display: flex;
   flex-direction: column;
   justify-content: space-between;
