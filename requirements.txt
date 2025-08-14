@@ -10,3 +10,4 @@ lxml
 alibabacloud_waf_openapi20211001
 alibabacloud_sls20201230
 python-whois
+feedparser
