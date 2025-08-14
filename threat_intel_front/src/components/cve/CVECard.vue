@@ -56,6 +56,11 @@ export default {
   padding: 1rem;
   cursor: pointer;
   transition: all 0.3s ease;
+  min-height: 120px; /* 固定最小高度，与新闻卡片一致 */
+  min-width: 280px;  /* 固定最小宽度，防止被挤压过小 */
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between; /* 确保内容均匀分布 */
 }
 
 .cve-card:hover {
@@ -123,7 +128,7 @@ export default {
   margin: 0 0 0.5rem 0;
   line-height: 1.4;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 1; /* 限制为1行，与新闻卡片一致 */
   -webkit-box-orient: vertical;
   overflow: hidden;
 }

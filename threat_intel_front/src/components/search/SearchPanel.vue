@@ -182,6 +182,9 @@ export default {
   border: 1px solid rgba(139, 92, 246, 0.3);
   border-radius: 1rem;
   padding: 1.5rem;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden; /* 防止面板内容溢出 */
 }
 
 .panel-header h2 {
@@ -237,11 +240,14 @@ export default {
 .search-input-group {
   display: flex;
   gap: 0.75rem;
+  width: 100%;
+  min-width: 0; /* 关键：允许flex容器缩小 */
 }
 
 .input-wrapper {
   flex: 1;
   position: relative;
+  min-width: 0; /* 关键：允许flex项目缩小 */
 }
 
 .search-input {
@@ -253,7 +259,15 @@ export default {
   padding-right: 2.5rem;
   color: white;
   font-size: 1rem;
-  transition: all 0.2s ease;
+  box-sizing: border-box;
+
+  /* 关键：处理长文本溢出 */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  /* 防止输入框撑大 flex 容器 */
+  min-width: 0;
 }
 
 .search-input::placeholder {
@@ -293,6 +307,7 @@ export default {
   align-items: center;
   gap: 0.5rem;
   white-space: nowrap;
+  flex-shrink: 0; /* 防止按钮被压缩 */
 }
 
 .search-btn:hover:not(:disabled) {
@@ -317,16 +332,7 @@ export default {
   background: rgba(239, 68, 68, 0.1);
   border: 1px solid rgba(239, 68, 68, 0.3);
   border-radius: 0.375rem;
-}
-
-@media (max-width: 640px) {
-  .search-input-group {
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-  .search-btn {
-    justify-content: center;
-  }
+  word-break: break-word; /* 确保错误信息也能正确换行 */
 }
 
 .file-upload {
@@ -337,13 +343,25 @@ export default {
   gap: 0.5rem;
   align-items: center;
 }
+
 .file-upload input {
   display: none;
 }
+
 .file-upload label {
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+@media (max-width: 640px) {
+  .search-input-group {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .search-btn {
+    justify-content: center;
+  }
 }
 </style>
