@@ -5,6 +5,7 @@
         <h1 class="logo" style="margin: 0 !important; text-align: left !important; font-size: 1.5rem !important; position: absolute !important; left: 1.5rem !important; font-weight: bold !important; top: 50% !important; transform: translateY(-50%) !important; background: linear-gradient(135deg, #00d4ff, #ff6b9d, #c471ed) !important; -webkit-background-clip: text !important; -webkit-text-fill-color: transparent !important; background-clip: text !important; text-shadow: 0 0 20px rgba(0, 212, 255, 0.5) !important;">
           🛡️ 威胁情报仪表板 🔍
         </h1>
+        <AiRobot />
       </div>
       <div class="right-section" style="display: flex !important; align-items: center !important; margin-left: auto !important; position: absolute !important; right: 1.5rem !important; top: 50% !important; transform: translateY(-50%) !important;">
         <nav class="nav">
@@ -41,8 +42,15 @@
 </template>
 
 <script>
+// 1. 导入 AiRobot 组件
+import AiRobot from './AiRobot.vue';
+
 export default {
   name: 'Header',
+  // 2. 注册 AiRobot 组件
+  components: {
+    AiRobot
+  },
   props: {
     active: {
       type: String,
@@ -58,6 +66,7 @@ export default {
 </script>
 
 <style scoped>
+/* 原有样式保持不变 */
 .header {
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);
