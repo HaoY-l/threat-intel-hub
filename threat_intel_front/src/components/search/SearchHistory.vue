@@ -4,7 +4,7 @@
       <i class="fas fa-clock"></i>
       查询历史
     </h3>
-    
+
     <div class="history-list">
       <div 
         v-for="item in history" 
@@ -12,7 +12,6 @@
         class="history-item"
         :class="{ 'expanded': item.expanded }"
       >
-        <!-- 历史记录简要信息 -->
         <div class="history-content" @click="toggleHistoryDetails(item)">
           <div class="history-info">
             <i :class="getTypeIcon(item.type)"></i>
@@ -51,36 +50,28 @@
             </button>
           </div>
         </div>
-        
-        <!-- 详细结果展示 -->
-        <div v-if="item.expanded && item.detailResults" class="history-details">
-          <div class="details-header">
-            <span class="details-title">
-              <i class="fas fa-list"></i>
-              详细查询结果
+
+        <div v-if="item.expanded && item.detailResults" class="history-details-container">
+          <div class="details-stats-bar">
+            <span class="stat-item">
+              <i class="fas fa-database"></i>
+              {{ getUniqueSourcesCount(item.detailResults) }} 个数据源
             </span>
-            <div class="details-stats">
-              <span class="stat-item">
-                <i class="fas fa-database"></i>
-                {{ getUniqueSourcesCount(item.detailResults) }} 个数据源
-              </span>
-              <span class="stat-item">
-                <i class="fas fa-shield-alt"></i>
-                平均分: {{ getAverageScore(item.detailResults) }}
-              </span>
-            </div>
+            <span class="stat-item">
+              <i class="fas fa-shield-alt"></i>
+              平均分: {{ getAverageScore(item.detailResults) }}
+            </span>
           </div>
-          
+
           <div class="results-container">
             <div 
               v-for="(result, index) in item.detailResults" 
               :key="index"
               class="result-item"
             >
-              <!-- 结果头部信息 -->
               <div class="result-header">
                 <div class="result-info">
-                  <i :class="getTypeIcon(item.type)"></i>
+                  <i :class="getTypeIcon(item.type)" class="type-icon"></i>
                   <code 
                     class="result-id" 
                     :title="getDisplayId(result, item.type)"
@@ -91,81 +82,58 @@
                     class="threat-badge" 
                     :class="getThreatLevelClass(result.threat_level)"
                   >
-                    <i :class="getThreatIcon(result.threat_level)"></i>
                     {{ getThreatLevelText(result.threat_level) }}
                   </span>
                 </div>
                 <div class="score-section">
-                  <div class="score-label">风险评分</div>
-                  <div 
-                    class="score-value" 
-                    :class="getScoreClass(result.reputation_score)"
-                  >
+                  <span class="score-value" :class="getScoreClass(result.reputation_score)">
                     {{ result.reputation_score || 0 }}
-                  </div>
+                  </span>
                 </div>
               </div>
-              
-              <!-- 结果详细信息 -->
+
               <div class="result-details">
-                <div class="detail-grid">
-                  <div class="detail-item">
-                    <i class="fas fa-database"></i>
-                    <span class="label">数据源:</span>
-                    <span class="value">{{ result.source || '未知' }}</span>
-                  </div>
-                  <div class="detail-item">
-                    <i class="fas fa-clock"></i>
-                    <span class="label">更新时间:</span>
-                    <span class="value">{{ formatDate(result.last_update) }}</span>
-                  </div>
-                  <div v-if="item.type === 'url'" class="detail-item">
-                    <i class="fas fa-link"></i>
-                    <span class="label">目标URL:</span>
-                    <span class="value url-value" :title="result.target_url">{{ result.target_url || result.id }}</span>
-                  </div>
-                  <div v-if="item.type === 'file'" class="detail-item">
-                    <i class="fas fa-fingerprint"></i>
-                    <span class="label">文件哈希:</span>
-                    <span class="value hash-value" :title="result.id">{{ result.id }}</span>
-                  </div>
+                <div class="detail-row">
+                  <span class="label">数据源:</span>
+                  <span class="value">{{ result.source || '未知' }}</span>
                 </div>
-                
-                <!-- 原始数据展开 -->
-                <div class="details-toggle">
-                  <button 
-                    @click="toggleRawDetails(item.id, index)"
-                    class="toggle-btn"
-                    :class="{ active: isRawDetailsExpanded(item.id, index) }"
-                  >
-                    <i class="fas fa-chevron-down"></i>
-                    <span>{{ isRawDetailsExpanded(item.id, index) ? '收起' : '展开' }}原始数据</span>
-                  </button>
+                <div class="detail-row">
+                  <span class="label">更新时间:</span>
+                  <span class="value">{{ formatDate(result.last_update) }}</span>
                 </div>
-                
-                <div 
-                  v-if="isRawDetailsExpanded(item.id, index) && result.details" 
-                  class="raw-details"
-                >
-                  <div class="details-label">
-                    <i class="fas fa-code"></i>
-                    原始数据:
-                  </div>
-                  <div class="details-content-wrapper">
-                    <pre class="details-content">{{ formatDetails(result.details) }}</pre>
-                    <button 
-                      @click="copyDetails(result.details)"
-                      class="copy-btn"
-                      title="复制详细信息"
-                    >
-                      <i class="fas fa-copy"></i>
-                    </button>
-                  </div>
+                <div v-if="item.type === 'url'" class="detail-row">
+                  <span class="label">目标URL:</span>
+                  <span class="value url-value">{{ result.target_url || result.id }}</span>
+                </div>
+                <div v-if="item.type === 'file'" class="detail-row">
+                  <span class="label">文件哈希:</span>
+                  <span class="value hash-value">{{ result.id }}</span>
                 </div>
               </div>
+
+              <div v-if="result.details" class="raw-data-toggle">
+                <button 
+                  class="toggle-btn"
+                  @click="toggleRawDetails(item.id, index)"
+                  :class="{ 'active': isRawDetailsExpanded(item.id, index) }"
+                >
+                  <i class="fas fa-code"></i>
+                  <span>{{ isRawDetailsExpanded(item.id, index) ? '收起' : '展开' }}原始数据</span>
+                  <i class="fas fa-chevron-down toggle-icon" :class="{ 'rotated': isRawDetailsExpanded(item.id, index) }"></i>
+                </button>
+              </div>
+
+              <div v-if="isRawDetailsExpanded(item.id, index) && result.details" class="raw-details-wrapper">
+                <pre class="raw-details">{{ formatDetails(result.details) }}</pre>
+                <button @click="copyDetails(result.details)" class="copy-btn" title="复制详细信息">
+                  <i class="fas fa-copy"></i>
+                </button>
+              </div>
+
             </div>
           </div>
         </div>
+
       </div>
     </div>
   </div>
@@ -174,236 +142,235 @@
 <script>
 export default {
   name: 'SearchHistory',
-  props: {
-    history: {
-      type: Array,
-      default: () => []
-    }
-  },
-  emits: ['search-again'],
-  data() {
-    return {
-      expandedRawDetails: new Set()
-    }
-  },
+  props: { history: { type: Array, default: () => [] } },
+  emits: ['search-again', 'copy-success'],
+  data() { return { expandedRawDetails: new Set() } },
   methods: {
-    getTypeIcon(type) {
-      const iconMap = {
-        'ip': 'fas fa-server',
-        'url': 'fas fa-globe',
-        'file': 'fas fa-file'
-      }
-      return iconMap[type] || 'fas fa-search'
-    },
-    getThreatLevelClass(level) {
-      const levelMap = {
-        'malicious': 'threat-malicious',
-        'suspicious': 'threat-suspicious',
-        'harmless': 'threat-harmless',
-        'clean': 'threat-harmless'
-      }
-      return levelMap[level] || 'threat-unknown'
-    },
-    getThreatIcon(level) {
-      const iconMap = {
-        'malicious': 'fas fa-skull-crossbones',
-        'suspicious': 'fas fa-exclamation-triangle',
-        'harmless': 'fas fa-shield-alt',
-        'clean': 'fas fa-shield-alt'
-      }
-      return iconMap[level] || 'fas fa-question-circle'
-    },
-    getThreatLevelText(level) {
-      const labelMap = {
-        'malicious': '恶意',
-        'suspicious': '可疑',
-        'harmless': '无害',
-        'clean': '清洁'
-      }
-      return labelMap[level] || '未知'
-    },
-    getScoreClass(score) {
-      const numScore = parseInt(score) || 0
-      if (numScore < 0) return 'score-high'
-      if (numScore === 0) return 'score-medium'
-      return 'score-low'
-    },
-    getDisplayId(result, type) {
-      if (type === 'url') {
-        return result.target_url || result.id
-      }
-      return result.id
-    },
-    formatTime(timestamp) {
-      return new Date(timestamp).toLocaleString('zh-CN')
-    },
-    formatDate(dateString) {
-      if (!dateString) return '未知'
-      try {
-        return new Date(dateString).toLocaleString('zh-CN')
-      } catch {
-        return '格式错误'
-      }
-    },
-    formatDetails(details) {
-      if (!details) return ''
-      try {
-        return JSON.stringify(details, null, 2)
-      } catch {
-        return String(details)
-      }
-    },
-    toggleHistoryDetails(item) {
-      if (!('expanded' in item)) item.expanded = false
-      item.expanded = !item.expanded
-    },
-    toggleRawDetails(historyId, resultIndex) {
-      const key = `${historyId}_${resultIndex}`
-      if (this.expandedRawDetails.has(key)) {
-        this.expandedRawDetails.delete(key)
-      } else {
-        this.expandedRawDetails.add(key)
-      }
-    },
-    isRawDetailsExpanded(historyId, resultIndex) {
-      return this.expandedRawDetails.has(`${historyId}_${resultIndex}`)
-    },
-    handleSearchAgain(item) {
-      this.$emit('search-again', {
-        query: item.query,
-        type: item.type
-      })
-    },
-    getUniqueSourcesCount(results) {
-      const sources = new Set(results.map(r => r.source))
-      return sources.size
-    },
-    getAverageScore(results) {
-      if (!results || results.length === 0) return 0
-      const total = results.reduce((sum, r) => sum + (r.reputation_score || 0), 0)
-      return Math.round(total / results.length)
-    },
-    async copyDetails(details) {
-      try {
-        await navigator.clipboard.writeText(JSON.stringify(details, null, 2))
-        this.$emit('copy-success')
-      } catch (err) {
-        console.error('复制失败:', err)
-      }
-    }
+    getTypeIcon(type){ const map={ip:'fas fa-server',url:'fas fa-globe',file:'fas fa-file'}; return map[type]||'fas fa-search'; },
+    getThreatLevelClass(level){ const map={malicious:'threat-malicious',suspicious:'threat-suspicious',harmless:'threat-harmless',clean:'threat-harmless'}; return map[level]||'threat-unknown'; },
+    getThreatIcon(level){ const map={malicious:'fas fa-skull-crossbones',suspicious:'fas fa-exclamation-triangle',harmless:'fas fa-shield-alt',clean:'fas fa-shield-alt'}; return map[level]||'fas fa-question-circle'; },
+    getThreatLevelText(level){ const map={malicious:'恶意',suspicious:'可疑',harmless:'无害',clean:'清洁'}; return map[level]||'未知'; },
+    getScoreClass(score){ const s=parseInt(score)||0; if(s>70) return'score-high';if(s>30)return'score-medium';return'score-low'; },
+    getDisplayId(result,type){return type==='url'?result.target_url||result.id:result.id;},
+    formatTime(ts){return new Date(ts).toLocaleString('zh-CN');},
+    formatDate(d){if(!d)return'未知';try{return new Date(d).toLocaleString('zh-CN');}catch{return'格式错误';}},
+    formatDetails(details){if(!details)return'';try{return JSON.stringify(details,null,2);}catch{return String(details);}},
+    toggleHistoryDetails(item){if(!('expanded'in item)) item.expanded=false; item.expanded=!item.expanded;},
+    toggleRawDetails(hid,index){const key=`${hid}_${index}`;this.expandedRawDetails.has(key)?this.expandedRawDetails.delete(key):this.expandedRawDetails.add(key);},
+    isRawDetailsExpanded(hid,index){return this.expandedRawDetails.has(`${hid}_${index}`);},
+    handleSearchAgain(item){this.$emit('search-again',{query:item.query,type:item.type});},
+    getUniqueSourcesCount(results){return new Set(results.map(r=>r.source)).size;},
+    getAverageScore(results){if(!results||!results.length)return 0; return Math.round(results.reduce((sum,r)=>sum+(r.reputation_score||0),0)/results.length);},
+    async copyDetails(details){try{await navigator.clipboard.writeText(JSON.stringify(details,null,2));this.$emit('copy-success')}catch(e){console.error('复制失败:',e)}}
   }
 }
 </script>
 
 <style scoped>
-.search-history {
-  background: rgba(0, 0, 0, 0.2);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(139, 92, 246, 0.3);
-  border-radius: 1rem;
-  padding: 1.5rem;
+/* 外部历史卡片保持不变 */
+.search-history { background: rgba(30,41,59,0.95); border-radius:1rem; padding:1rem; color:#f3f4f6; max-height:100vh; overflow:hidden; }
+.history-header { display:flex; align-items:center; gap:0.5rem; font-size:1rem; font-weight:500; margin-bottom:1rem; }
+.history-header i { color:#8b5cf6; }
+.history-list { display:flex; flex-direction:column; gap:0.5rem; max-height:calc(100vh - 6rem); overflow-y:auto; padding-right:0.25rem; }
+.history-item { background: rgba(0,0,0,0.6); border-radius:0.5rem; transition:all 0.2s ease; padding:0.5rem; }
+.history-item:hover { background: rgba(0,0,0,0.75); }
+.history-item.expanded { background: rgba(30,41,59,0.95); }
+.history-content { display:flex; align-items:center; justify-content:space-between; cursor:pointer; }
+.history-info { display:flex; align-items:center; gap:0.5rem; flex:1; }
+.history-info i { color:#8b5cf6; width:1rem; }
+.history-query, .hash-value, .url-value { font-family:'Courier New',monospace; font-size:0.7rem; color:#ffffff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:200px; }
+.result-count { color:#a855f7; font-size:0.7rem; }
+.threat-level,.max-score{font-size:0.7rem;font-weight:500;padding:0.15rem 0.3rem;border-radius:0.25rem;white-space:nowrap;}
+.threat-malicious{color:#fff;background:rgba(239,68,68,0.85);}
+.threat-suspicious{color:#fff;background:rgba(249,115,22,0.85);}
+.threat-harmless{color:#fff;background:rgba(34,197,94,0.85);}
+.threat-unknown{color:#fff;background:rgba(107,114,128,0.85);}
+.score-high{color:#fff;background:rgba(239,68,68,0.85);}
+.score-medium{color:#fff;background:rgba(249,115,22,0.85);}
+.score-low{color:#fff;background:rgba(34,197,94,0.85);}
+.history-actions { display:flex; align-items:center; gap:0.5rem; }
+.history-time { color:#d1d5db; font-size:0.65rem; }
+.action-btn { background: rgba(71,85,105,0.3); border:1px solid rgba(139,92,246,0.3); border-radius:0.25rem; padding:0.25rem 0.4rem; color:#a855f7; cursor:pointer; font-size:0.65rem; transition:all 0.2s ease;}
+.action-btn:hover { background: rgba(139,92,246,0.3); border-color: rgba(139,92,246,0.7);}
+.expand-btn i.rotated{transform:rotate(180deg);}
+
+/* --- 新的详情卡片样式 --- */
+
+/* 详情容器 */
+.history-details-container {
+  padding: 0.75rem 0.5rem 0 0.5rem; /* 调整内边距 */
+  border-top: 1px solid rgba(147, 197, 253, 0.1); /* 柔和的边框 */
+  margin-top: 0.5rem;
 }
 
-.history-header {
+/* 统计条 */
+.details-stats-bar {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.8rem;
+  color: #94a3b8; /* 柔和的文字颜色 */
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(147, 197, 253, 0.1);
+}
+
+.stat-item {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 1.125rem;
-  font-weight: 500;
-  color: white;
-  margin: 0 0 1rem 0;
 }
 
-.history-header i {
-  color: #8b5cf6;
-}
-
-.history-list {
+/* 结果列表 */
+.results-container {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  max-height: 24rem;
-  overflow-y: auto;
+  gap: 0.75rem;
 }
 
-.history-item {
-  background: rgba(30, 41, 59, 0.3);
-  border: 1px solid rgba(71, 85, 105, 0.3);
+/* 结果项卡片 */
+.result-item {
+  background: #1e293b; /* 更深的背景色 */
   border-radius: 0.5rem;
+  padding: 1rem;
+  border: 1px solid #3c4a60; /* 柔和的边框 */
   transition: all 0.2s ease;
 }
 
-.history-item:hover {
-  border-color: rgba(139, 92, 246, 0.5);
-  background: rgba(30, 41, 59, 0.5);
-}
-
-.history-item.expanded {
-  border-color: rgba(139, 92, 246, 0.4);
-  background: rgba(30, 41, 59, 0.6);
-}
-
-.history-content {
+/* 结果头部 */
+.result-header {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  padding: 0.75rem;
-  cursor: pointer;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(147, 197, 253, 0.1);
 }
 
-.history-info {
+.result-info {
   display: flex;
   align-items: center;
   gap: 0.75rem;
   flex: 1;
 }
-
-.history-info i {
-  color: #8b5cf6;
-  width: 1rem;
+.result-info .type-icon {
+  color: #93c5fd;
+  font-size: 1rem;
+  width: auto;
 }
 
-/* 关键：长文本截断显示 */
-.history-query,
-.hash-value {
-  font-family: 'Courier New', monospace;
-  font-size: 0.7rem;
-  color: #a855f7;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.result-id {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+  font-size: 0.85rem;
+  color: #93c5fd;
+  word-break: break-all;
+}
+
+.threat-badge {
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  color: #fff;
   white-space: nowrap;
-  display: block;
-  max-width: 100%;
+}
+.threat-malicious { background: #ef4444; }
+.threat-suspicious { background: #f97316; }
+.threat-harmless { background: #22c55e; }
+.threat-unknown { background: #64748b; }
+
+.score-section {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.score-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+  line-height: 1;
 }
 
-.result-count {
-  color: #a855f7;
-  font-size: 0.75rem;
+/* 详细信息行 */
+.result-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+}
+.detail-row {
+  display: flex;
+  gap: 0.5rem;
+}
+.detail-row .label {
+  color: #94a3b8;
+  font-weight: 500;
+  min-width: 5rem;
+}
+.detail-row .value {
+  flex: 1;
+  color: #fff;
+  word-break: break-all;
 }
 
-.threat-level, .max-score {
+/* 原始数据部分 */
+.raw-data-toggle {
+  margin-top: 0.75rem;
+  text-align: center;
+}
+.toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: transparent;
+  border: 1px solid #475569;
+  border-radius: 9999px;
+  padding: 0.4rem 1rem;
+  color: #93c5fd;
   font-size: 0.75rem;
   font-weight: 500;
-  padding: 0.125rem 0.375rem;
-  border-radius: 0.25rem;
-  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.toggle-btn:hover { background: #3c4a60; }
+.toggle-btn.active { background: #3c4a60; border-color: #93c5fd; }
+.toggle-icon { transition: transform 0.2s ease; }
+.toggle-btn.active .toggle-icon { transform: rotate(180deg); }
+
+.raw-details-wrapper {
+  position: relative;
+  margin-top: 0.75rem;
+  background: #151d27;
+  border-radius: 0.5rem;
+  border: 1px solid #3c4a60;
+  overflow: hidden;
 }
 
-.threat-malicious { color:#ef4444; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3);}
-.threat-suspicious { color:#f97316; background:rgba(249,115,22,0.1); border:1px solid rgba(249,115,22,0.3);}
-.threat-harmless { color:#22c55e; background:rgba(34,197,94,0.1); border:1px solid rgba(34,197,94,0.3);}
-.threat-unknown { color:#6b7280; background:rgba(107,114,128,0.1); border:1px solid rgba(107,114,128,0.3);}
+.raw-details {
+  padding: 1rem;
+  font-size: 0.75rem;
+  color: #e2e8f0;
+  white-space: pre-wrap;
+  word-break: break-all;
+  overflow: auto;
+  max-height: 200px;
+  line-height: 1.5;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+}
 
-.score-high { color:#ef4444; background:rgba(239,68,68,0.1);}
-.score-medium { color:#f97316; background:rgba(249,115,22,0.1);}
-.score-low { color:#22c55e; background:rgba(34,197,94,0.1);}
-
-/* 以下省略，保留原本样式，确保布局正常 */
-.history-actions { display:flex; align-items:center; gap:0.5rem;}
-.history-time { color:#9ca3af; font-size:0.75rem; }
-.action-btn { background: rgba(71,85,105,0.3); border:1px solid rgba(139,92,246,0.3); border-radius:0.25rem; padding:0.25rem 0.5rem; color:#a855f7; cursor:pointer; font-size:0.75rem; transition:all 0.2s ease;}
-.action-btn:hover { background: rgba(139,92,246,0.2); border-color: rgba(139,92,246,0.5);}
-.expand-btn i.rotated { transform: rotate(180deg); }
-
-/* 结果详细信息样式保持不变，略 */
+.copy-btn {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background: rgba(147, 197, 253, 0.2);
+  border: none;
+  border-radius: 0.25rem;
+  padding: 0.5rem;
+  color: #93c5fd;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: all 0.2s ease;
+}
+.copy-btn:hover {
+  background: rgba(147, 197, 253, 0.4);
+}
 </style>
