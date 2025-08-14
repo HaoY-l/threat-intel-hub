@@ -5,7 +5,7 @@
         <h1 class="logo" style="margin: 0 !important; text-align: left !important; font-size: 1.5rem !important; position: absolute !important; left: 1.5rem !important; font-weight: bold !important; top: 50% !important; transform: translateY(-50%) !important; background: linear-gradient(135deg, #00d4ff, #ff6b9d, #c471ed) !important; -webkit-background-clip: text !important; -webkit-text-fill-color: transparent !important; background-clip: text !important; text-shadow: 0 0 20px rgba(0, 212, 255, 0.5) !important;">
           🛡️ 威胁情报仪表板 🔍
         </h1>
-        <AiRobot />
+        <AiRobot @show-ai-dialog="isChatDialogVisible = true" />
       </div>
       <div class="right-section" style="display: flex !important; align-items: center !important; margin-left: auto !important; position: absolute !important; right: 1.5rem !important; top: 50% !important; transform: translateY(-50%) !important;">
         <nav class="nav">
@@ -38,24 +38,32 @@
         </nav>
       </div>
     </div>
+    <AiChatDialog v-if="isChatDialogVisible" @close-ai-dialog="isChatDialogVisible = false" />
   </header>
 </template>
 
 <script>
-// 1. 导入 AiRobot 组件
-import AiRobot from './AiRobot.vue';
+// 1. 导入 AiRobot 和 AiChatDialog 组件
+import AiRobot from '../../aichat/AiRobot.vue';
+import AiChatDialog from '../../aichat/AiChatDialog.vue';
 
 export default {
   name: 'Header',
   // 2. 注册 AiRobot 组件
   components: {
-    AiRobot
+    AiRobot,
+    AiChatDialog
   },
   props: {
     active: {
       type: String,
       required: true
     }
+  },
+  data() {
+    return {
+      isChatDialogVisible: false
+    };
   },
   methods: {
     setActiveTab(tab) {
@@ -66,7 +74,7 @@ export default {
 </script>
 
 <style scoped>
-/* 原有样式保持不变 */
+/* 你的原有样式保持不变 */
 .header {
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);
@@ -78,7 +86,6 @@ export default {
   position: relative;
   min-height: 80px;
 }
-
 .container {
   max-width: 1400px;
   margin: 0 auto;
@@ -87,20 +94,17 @@ export default {
   justify-content: space-between;
   align-items: center;
 }
-
 .left-section {
   display: flex;
   align-items: center;
   flex: 0 0 auto;
 }
-
 .right-section {
   display: flex;
   align-items: center;
   flex: 0 0 auto;
   margin-left: auto;
 }
-
 .logo {
   font-size: 1.5rem;
   font-weight: bold;
@@ -108,7 +112,6 @@ export default {
   margin: 0;
   text-align: left;
 }
-
 .nav ul {
   list-style: none;
   display: flex;
@@ -116,7 +119,6 @@ export default {
   margin: 0;
   padding: 0;
 }
-
 .nav-link {
   color: #fff;
   text-decoration: none;
@@ -127,18 +129,14 @@ export default {
   border: 1px solid transparent;
   white-space: nowrap;
 }
-
 .nav-link:hover {
   background: rgba(255, 255, 255, 0.1);
   border-color: rgba(255, 255, 255, 0.3);
 }
-
 .nav-link.active {
   background: rgba(255, 255, 255, 0.2);
   border-color: rgba(255, 255, 255, 0.4);
 }
-
-/* 媒体查询：响应式调整 */
 @media (max-width: 768px) {
   .container {
     flex-direction: column;
@@ -146,44 +144,36 @@ export default {
     gap: 1rem;
     padding: 0.8rem 1rem;
   }
-
   .left-section {
     justify-content: center;
     width: 100%;
   }
-
   .right-section {
     justify-content: center;
     width: 100%;
     margin-left: 0;
   }
-
   .logo {
     text-align: center;
     font-size: 1.3rem;
   }
-
   .nav ul {
     flex-wrap: wrap;
     justify-content: center;
     gap: 1rem;
   }
-
   .nav-link {
     padding: 0.4rem 0.8rem;
     font-size: 0.9rem;
   }
 }
-
 @media (max-width: 480px) {
   .logo {
     font-size: 1.2rem;
   }
-
   .nav ul {
     gap: 0.8rem;
   }
-
   .nav-link {
     padding: 0.3rem 0.6rem;
     font-size: 0.85rem;
