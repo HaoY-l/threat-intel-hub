@@ -291,13 +291,15 @@ export default {
   padding: 0 1.5rem;
 }
 
+
 .content-grid {
-  /* 确保始终为三列布局 */
+  /* 确保始终为三列布局，完全适应屏幕 */
   display: grid;
   grid-template-columns: 0.7fr 1.0fr 0.7fr;
-  gap: 1rem;
+  gap: 0.5rem;
   min-height: 600px;
   width: 100%;
+  box-sizing: border-box;
 }
 
 /* 确保各个区域有合适的高度 */
