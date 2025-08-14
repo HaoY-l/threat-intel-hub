@@ -14,24 +14,26 @@
       >
         <div class="history-content" @click="toggleHistoryDetails(item)">
           <div class="history-info">
-            <i :class="getTypeIcon(item.type)"></i>
             <code class="history-query" :title="item.query">{{ item.query }}</code>
             <span class="result-count">{{ item.results || 0 }} 结果</span>
+            
             <span 
               v-if="item.maxThreatLevel"
-              class="threat-level"
+              class="threat-level-badge"
               :class="getThreatLevelClass(item.maxThreatLevel)"
             >
               {{ getThreatLevelText(item.maxThreatLevel) }}
             </span>
+            
             <span 
               v-if="item.maxScore !== undefined"
-              class="max-score"
+              class="risk-score-badge"
               :class="getScoreClass(item.maxScore)"
             >
               风险: {{ item.maxScore }}
             </span>
           </div>
+          
           <div class="history-actions">
             <span class="history-time">{{ formatTime(item.timestamp) }}</span>
             <button 
@@ -150,9 +152,9 @@ export default {
     getThreatLevelClass(level){ const map={malicious:'threat-malicious',suspicious:'threat-suspicious',harmless:'threat-harmless',clean:'threat-harmless'}; return map[level]||'threat-unknown'; },
     getThreatIcon(level){ const map={malicious:'fas fa-skull-crossbones',suspicious:'fas fa-exclamation-triangle',harmless:'fas fa-shield-alt',clean:'fas fa-shield-alt'}; return map[level]||'fas fa-question-circle'; },
     getThreatLevelText(level){ const map={malicious:'恶意',suspicious:'可疑',harmless:'无害',clean:'清洁'}; return map[level]||'未知'; },
-    getScoreClass(score){ const s=parseInt(score)||0; if(s>70) return'score-high';if(s>30)return'score-medium';return'score-low'; },
+    getScoreClass(score){ const s=parseInt(score)||0; if(s>0) return'score-high'; if(s<0)return'score-low'; return'score-neutral'; },
     getDisplayId(result,type){return type==='url'?result.target_url||result.id:result.id;},
-    formatTime(ts){return new Date(ts).toLocaleString('zh-CN');},
+    formatTime(ts){ const date=new Date(ts); const year=date.getFullYear(),month=String(date.getMonth()+1).padStart(2,'0'),day=String(date.getDate()).padStart(2,'0'),hours=String(date.getHours()).padStart(2,'0'),minutes=String(date.getMinutes()).padStart(2,'0'),seconds=String(date.getSeconds()).padStart(2,'0'); return`${year}/${month}/${day} ${hours}:${minutes}:${seconds}`; },
     formatDate(d){if(!d)return'未知';try{return new Date(d).toLocaleString('zh-CN');}catch{return'格式错误';}},
     formatDetails(details){if(!details)return'';try{return JSON.stringify(details,null,2);}catch{return String(details);}},
     toggleHistoryDetails(item){if(!('expanded'in item)) item.expanded=false; item.expanded=!item.expanded;},
@@ -167,77 +169,203 @@ export default {
 </script>
 
 <style scoped>
-/* 外部历史卡片保持不变 */
-.search-history { background: rgba(30,41,59,0.95); border-radius:1rem; padding:1rem; color:#f3f4f6; max-height:100vh; overflow:hidden; }
-.history-header { display:flex; align-items:center; gap:0.5rem; font-size:1rem; font-weight:500; margin-bottom:1rem; }
-.history-header i { color:#8b5cf6; }
-.history-list { display:flex; flex-direction:column; gap:0.5rem; max-height:calc(100vh - 6rem); overflow-y:auto; padding-right:0.25rem; }
-.history-item { background: rgba(0,0,0,0.6); border-radius:0.5rem; transition:all 0.2s ease; padding:0.5rem; }
-.history-item:hover { background: rgba(0,0,0,0.75); }
-.history-item.expanded { background: rgba(30,41,59,0.95); }
-.history-content { display:flex; align-items:center; justify-content:space-between; cursor:pointer; }
-.history-info { display:flex; align-items:center; gap:0.5rem; flex:1; }
-.history-info i { color:#8b5cf6; width:1rem; }
-.history-query, .hash-value, .url-value { font-family:'Courier New',monospace; font-size:0.7rem; color:#ffffff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:200px; }
-.result-count { color:#a855f7; font-size:0.7rem; }
-.threat-level,.max-score{font-size:0.7rem;font-weight:500;padding:0.15rem 0.3rem;border-radius:0.25rem;white-space:nowrap;}
-.threat-malicious{color:#fff;background:rgba(239,68,68,0.85);}
-.threat-suspicious{color:#fff;background:rgba(249,115,22,0.85);}
-.threat-harmless{color:#fff;background:rgba(34,197,94,0.85);}
-.threat-unknown{color:#fff;background:rgba(107,114,128,0.85);}
-.score-high{color:#fff;background:rgba(239,68,68,0.85);}
-.score-medium{color:#fff;background:rgba(249,115,22,0.85);}
-.score-low{color:#fff;background:rgba(34,197,94,0.85);}
-.history-actions { display:flex; align-items:center; gap:0.5rem; }
-.history-time { color:#d1d5db; font-size:0.65rem; }
-.action-btn { background: rgba(71,85,105,0.3); border:1px solid rgba(139,92,246,0.3); border-radius:0.25rem; padding:0.25rem 0.4rem; color:#a855f7; cursor:pointer; font-size:0.65rem; transition:all 0.2s ease;}
-.action-btn:hover { background: rgba(139,92,246,0.3); border-color: rgba(139,92,246,0.7);}
-.expand-btn i.rotated{transform:rotate(180deg);}
-
-/* --- 新的详情卡片样式 --- */
-
-/* 详情容器 */
-.history-details-container {
-  padding: 0.75rem 0.5rem 0 0.5rem; /* 调整内边距 */
-  border-top: 1px solid rgba(147, 197, 253, 0.1); /* 柔和的边框 */
-  margin-top: 0.5rem;
+/* 整个组件的容器 */
+.search-history {
+  background: #100f1c; /* 暗色背景 */
+  color: #f3f4f6; /* 亮色文字 */
+  border-radius: 0.5rem;
+  padding: 1rem;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  max-width: 600px;
 }
 
-/* 统计条 */
+/* 头部样式 */
+.history-header {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #ffffff;
+  margin-bottom: 1rem;
+  padding-left: 0.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.history-header i {
+  color: #8b5cf6;
+}
+
+/* 历史记录列表容器 */
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* 单个历史记录项 */
+.history-item {
+  background: rgba(30, 32, 53, 0.5);
+  border: 1px solid rgba(139, 92, 246, 0.1);
+  border-radius: 0.5rem;
+  padding: 0.6rem 0.8rem;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+.history-item:hover {
+  background: rgba(30, 32, 53, 0.7);
+}
+
+/* 展开时的样式 */
+.history-item.expanded {
+  background: #1e293b;
+  border-color: #3c4a60;
+}
+
+/* 历史记录内容 */
+.history-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* 左侧信息区域 */
+.history-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+/* 查询内容（IP/域名等） */
+.history-query {
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+  font-weight: bold;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 250px;
+}
+
+/* 结果数 */
+.result-count {
+  color: #a78bfa;
+  font-size: 0.75rem;
+  margin-right: 0.5rem;
+  white-space: nowrap;
+}
+
+/* 威胁等级徽章 */
+.threat-level-badge {
+  font-size: 0.7rem;
+  font-weight: 500;
+  padding: 0.15rem 0.6rem;
+  border-radius: 9999px;
+  color: #fff;
+  white-space: nowrap;
+}
+.threat-level-badge.threat-malicious {
+  background: #ef4444; /* 红色 */
+}
+.threat-level-badge.threat-suspicious {
+  background: #f97316; /* 橙色 */
+}
+.threat-level-badge.threat-harmless,
+.threat-level-badge.threat-clean {
+  background: #22c55e; /* 绿色 */
+}
+.threat-level-badge.threat-unknown {
+  background: #6b7280; /* 灰色 */
+}
+
+/* 风险分数徽章 */
+.risk-score-badge {
+  background: #232231;
+  border: 1px solid #14131d;
+  font-size: 0.7rem;
+  font-weight: bold;
+  padding: 0.15rem 0.6rem;
+  border-radius: 9999px;
+  white-space: nowrap;
+}
+.risk-score-badge.score-high {
+  color: #ef4444; /* 高风险 - 红色 */
+}
+.risk-score-badge.score-low {
+  color: #22c55e; /* 低风险 - 绿色 */
+}
+.risk-score-badge.score-neutral {
+  color: #f97316; /* 中性 - 橙色 */
+}
+
+/* 右侧操作区域 */
+.history-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* 时间戳 */
+.history-time {
+  color: #888;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+/* 按钮样式 */
+.action-btn {
+  background: rgba(71, 85, 105, 0.3);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  border-radius: 0.25rem;
+  padding: 0.25rem 0.4rem;
+  color: #a855f7;
+  cursor: pointer;
+  font-size: 0.65rem;
+  transition: all 0.2s ease;
+}
+.action-btn:hover {
+  background: rgba(139, 92, 246, 0.3);
+  border-color: rgba(139, 92, 246, 0.7);
+}
+
+/* 展开按钮的箭头动画 */
+.expand-btn i.rotated {
+  transform: rotate(180deg);
+}
+
+/* --- 详细信息部分样式（保持不变） --- */
+.history-details-container {
+  padding: 0.75rem 0.5rem 0 0.5rem;
+  border-top: 1px solid rgba(147, 197, 253, 0.1);
+  margin-top: 0.5rem;
+}
 .details-stats-bar {
   display: flex;
   align-items: center;
   gap: 1.5rem;
   margin-bottom: 0.75rem;
   font-size: 0.8rem;
-  color: #94a3b8; /* 柔和的文字颜色 */
+  color: #94a3b8;
   padding-bottom: 0.5rem;
   border-bottom: 1px solid rgba(147, 197, 253, 0.1);
 }
-
 .stat-item {
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
-
-/* 结果列表 */
 .results-container {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
 }
-
-/* 结果项卡片 */
 .result-item {
-  background: #1e293b; /* 更深的背景色 */
+  background: #1e293b;
   border-radius: 0.5rem;
   padding: 1rem;
-  border: 1px solid #3c4a60; /* 柔和的边框 */
+  border: 1px solid #3c4a60;
   transition: all 0.2s ease;
 }
-
-/* 结果头部 */
 .result-header {
   display: flex;
   justify-content: space-between;
@@ -246,7 +374,6 @@ export default {
   padding-bottom: 0.75rem;
   border-bottom: 1px solid rgba(147, 197, 253, 0.1);
 }
-
 .result-info {
   display: flex;
   align-items: center;
@@ -258,14 +385,12 @@ export default {
   font-size: 1rem;
   width: auto;
 }
-
 .result-id {
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
   font-size: 0.85rem;
   color: #93c5fd;
   word-break: break-all;
 }
-
 .threat-badge {
   font-size: 0.8rem;
   font-weight: 500;
@@ -274,11 +399,10 @@ export default {
   color: #fff;
   white-space: nowrap;
 }
-.threat-malicious { background: #ef4444; }
-.threat-suspicious { background: #f97316; }
-.threat-harmless { background: #22c55e; }
-.threat-unknown { background: #64748b; }
-
+.threat-badge.threat-malicious { background: #ef4444; }
+.threat-badge.threat-suspicious { background: #f97316; }
+.threat-badge.threat-harmless { background: #22c55e; }
+.threat-badge.threat-unknown { background: #64748b; }
 .score-section {
   display: flex;
   align-items: center;
@@ -289,8 +413,6 @@ export default {
   font-weight: 700;
   line-height: 1;
 }
-
-/* 详细信息行 */
 .result-details {
   display: flex;
   flex-direction: column;
@@ -311,8 +433,6 @@ export default {
   color: #fff;
   word-break: break-all;
 }
-
-/* 原始数据部分 */
 .raw-data-toggle {
   margin-top: 0.75rem;
   text-align: center;
@@ -335,7 +455,6 @@ export default {
 .toggle-btn.active { background: #3c4a60; border-color: #93c5fd; }
 .toggle-icon { transition: transform 0.2s ease; }
 .toggle-btn.active .toggle-icon { transform: rotate(180deg); }
-
 .raw-details-wrapper {
   position: relative;
   margin-top: 0.75rem;
@@ -344,7 +463,6 @@ export default {
   border: 1px solid #3c4a60;
   overflow: hidden;
 }
-
 .raw-details {
   padding: 1rem;
   font-size: 0.75rem;
@@ -356,7 +474,6 @@ export default {
   line-height: 1.5;
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
 }
-
 .copy-btn {
   position: absolute;
   top: 0.5rem;
