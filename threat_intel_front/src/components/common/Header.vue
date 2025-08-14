@@ -1,35 +1,41 @@
 <template>
   <header class="header">
-    <div class="container">
-      <h1 class="logo">威胁情报仪表板</h1>
-      <nav class="nav">
-        <ul>
-          <li>
-            <a
-              href="#"
-              class="nav-link"
-              :class="{ active: active === 'threat' }"
-              @click.prevent="setActiveTab('threat')"
-            >威胁情报🚨</a>
-          </li>
-          <li>
-            <a
-              href="#"
-              class="nav-link"
-              :class="{ active: active === 'waf' }"
-              @click.prevent="setActiveTab('waf')"
-            >WAF协同🚀</a>
-          </li>
-          <li>
-            <a
-              href="#"
-              class="nav-link"
-              :class="{ active: active === 'tools' }"
-              @click.prevent="setActiveTab('tools')"
-            >工具箱🧰</a>
-          </li>
-        </ul>
-      </nav>
+    <div class="container" style="width: 100% !important; max-width: none !important; margin: 0 !important; padding: 0 1.5rem !important; display: flex !important; justify-content: flex-start !important; align-items: center !important;">
+      <div class="left-section" style="display: flex !important; align-items: center !important;">
+        <h1 class="logo" style="margin: 0 !important; text-align: left !important; font-size: 1.5rem !important; position: absolute !important; left: 1.5rem !important; font-weight: bold !important; top: 50% !important; transform: translateY(-50%) !important; background: linear-gradient(135deg, #00d4ff, #ff6b9d, #c471ed) !important; -webkit-background-clip: text !important; -webkit-text-fill-color: transparent !important; background-clip: text !important; text-shadow: 0 0 20px rgba(0, 212, 255, 0.5) !important;">
+          🛡️ 威胁情报仪表板 🔍
+        </h1>
+      </div>
+      <div class="right-section" style="display: flex !important; align-items: center !important; margin-left: auto !important; position: absolute !important; right: 1.5rem !important; top: 50% !important; transform: translateY(-50%) !important;">
+        <nav class="nav">
+          <ul style="display: flex !important; gap: 2rem !important; margin: 0 !important; padding: 0 !important; list-style: none !important;">
+            <li>
+              <a
+                href="#"
+                class="nav-link"
+                :class="{ active: active === 'threat' }"
+                @click.prevent="setActiveTab('threat')"
+              >威胁情报🚨</a>
+            </li>
+            <li>
+              <a
+                href="#"
+                class="nav-link"
+                :class="{ active: active === 'waf' }"
+                @click.prevent="setActiveTab('waf')"
+              >WAF协同🚀</a>
+            </li>
+            <li>
+              <a
+                href="#"
+                class="nav-link"
+                :class="{ active: active === 'tools' }"
+                @click.prevent="setActiveTab('tools')"
+              >工具箱🧰</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
     </div>
   </header>
 </template>
@@ -60,6 +66,8 @@ export default {
   position: sticky;
   top: 0;
   z-index: 100;
+  position: relative;
+  min-height: 80px;
 }
 
 .container {
@@ -67,8 +75,21 @@ export default {
   margin: 0 auto;
   padding: 0 1.5rem;
   display: flex;
-  justify-content: space-between; /* 将子元素（Logo 和 Nav）推向两端 */
+  justify-content: space-between;
   align-items: center;
+}
+
+.left-section {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.right-section {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  margin-left: auto;
 }
 
 .logo {
@@ -76,17 +97,13 @@ export default {
   font-weight: bold;
   color: #fff;
   margin: 0;
-}
-
-.nav {
-  /* 这些注释是可选的，因为它们描述的是默认行为或通过其他属性实现的布局 */
-  /* 如果确实需要保留这些提示，请使用单行注释风格，或在外部编辑器中以非CSS方式注释 */
+  text-align: left;
 }
 
 .nav ul {
   list-style: none;
-  display: flex; /* 确保 li 元素水平排列 */
-  gap: 2rem; /* 控制菜单项之间的间距 */
+  display: flex;
+  gap: 2rem;
   margin: 0;
   padding: 0;
 }
@@ -99,7 +116,7 @@ export default {
   border-radius: 0.5rem;
   transition: all 0.3s ease;
   border: 1px solid transparent;
-  white-space: nowrap; /* 防止菜单项在小屏幕下换行 */
+  white-space: nowrap;
 }
 
 .nav-link:hover {
@@ -115,26 +132,32 @@ export default {
 /* 媒体查询：响应式调整 */
 @media (max-width: 768px) {
   .container {
-    flex-direction: column; /* 小屏幕下堆叠显示 */
-    align-items: flex-start; /* 左对齐 */
+    flex-direction: column;
+    align-items: stretch;
     gap: 1rem;
     padding: 0.8rem 1rem;
   }
 
+  .left-section {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .right-section {
+    justify-content: center;
+    width: 100%;
+    margin-left: 0;
+  }
+
   .logo {
-    width: 100%; /* Logo占据整行 */
-    text-align: center; /* Logo居中 */
+    text-align: center;
     font-size: 1.3rem;
   }
 
-  .nav {
-    width: 100%; /* 导航占据整行 */
-  }
-
   .nav ul {
-    flex-wrap: wrap; /* 菜单项允许换行 */
-    justify-content: center; /* 菜单项居中 */
-    gap: 1rem; /* 减小间距 */
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1rem;
   }
 
   .nav-link {
