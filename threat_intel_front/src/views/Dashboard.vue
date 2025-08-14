@@ -292,10 +292,11 @@ export default {
 }
 
 .content-grid {
+  /* 确保始终为三列布局 */
   display: grid;
-  grid-template-columns: 1fr 1.5fr 1fr;
+  grid-template-columns: 1fr 1.2fr 1fr;
   gap: 2rem;
-  min-height: 600px; /* 确保有足够的高度 */
+  min-height: 600px;
 }
 
 /* 确保各个区域有合适的高度 */
@@ -308,41 +309,7 @@ export default {
   min-height: 400px;
 }
 
-@media (max-width: 1200px) {
-  .content-grid {
-    grid-template-columns: 1fr 1fr;
-    gap: 1.5rem;
-  }
-
-  .cve-section,
-  .news-section {
-    grid-row: 2;
-  }
-
-  .search-section {
-    grid-row: 1;
-    grid-column: span 2;
-  }
-}
-
-@media (max-width: 768px) {
-  .content-grid {
-    grid-template-columns: 1fr;
-    gap: 1rem;
-  }
-
-  .cve-section,
-  .news-section {
-    grid-row: auto;
-    min-height: 500px;
-  }
-
-  .search-section {
-    grid-row: auto;
-    grid-column: auto;
-    min-height: 300px;
-  }
-}
+/* 移除所有媒体查询，以禁用响应式布局 */
 
 /* 添加一些过渡动画 */
 .cve-section,
