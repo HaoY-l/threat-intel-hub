@@ -8,6 +8,7 @@ from bs4 import BeautifulSoup
 import re
 import json
 import time
+import feedparser   # 新增 RSS 解析库
 
 news_bp = Blueprint('news', __name__)
 
@@ -153,78 +154,40 @@ def fetch_csdn_news():
     return parsed_list
 
 def fetch_freebuf_news():
-    """抓取Freebuf新闻"""
-    api_urls = [
-        "https://www.freebuf.com/api/articles/recommend",
-        "https://www.freebuf.com/api/articles/latest",
-        "https://www.freebuf.com/ajax/articles",
-        "https://m.freebuf.com/api/articles",
-        "https://www.freebuf.com/api/index"
-    ]
-    headers = {
-        "Referer": "https://www.freebuf.com/",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-    }
-    
-    data_list = []
-    for url in api_urls:
-        try:
-            response = requests.get(url, headers=headers, timeout=10)
-            response.raise_for_status()
-            result = response.json()
-            data = result.get("data", {}).get("list", []) or result.get("data", [])
-            if data:
-                data_list = data
-                break
-        except Exception as e:
-            logging.warning(f"请求 Freebuf API 失败: {url}, error: {e}")
-            continue
-
-    if not data_list:
-        logging.error("未能从 Freebuf 任何 API 接口获取到数据。")
+    """
+    从 FreeBuf RSS 抓取安全资讯，避免被 Cloudflare 拦截
+    """
+    feed_url = "https://www.freebuf.com/feed"
+    try:
+        feed = feedparser.parse(feed_url)
+    except Exception as e:
+        logging.error(f"FreeBuf RSS 请求失败: {e}")
         return []
-    
+
     parsed_list = []
-    for item in data_list:
+    for entry in feed.entries[:15]:
         try:
-            article_id = item.get("id")
-            title = item.get("title")
-            desc = item.get("summary", "") or item.get("desc", "")
-            url = item.get("url") or f"https://www.freebuf.com/articles/{article_id}"
-            
-            cover = item.get("cover")
-            if cover and cover.startswith('//'):
-                cover = 'https:' + cover
-            elif cover and cover.startswith('/'):
-                cover = "https://www.freebuf.com" + cover
-            
-            time_fields = ["create_time", "publish_time", "time", "created_at", "date"]
-            timestamp = ""
-            for field in time_fields:
-                if field in item and item[field]:
-                    timestamp = get_time(item[field])
-                    break
-            
-            parsed_item = {
-                "id": article_id,
-                "title": title,
-                "desc": desc,
-                "cover": cover,
-                "author": item.get("author", item.get("username", item.get("writer", "FreeBuf"))),
+            if hasattr(entry, "published_parsed") and entry.published_parsed:
+                timestamp = int(datetime(*entry.published_parsed[:6]).timestamp())
+            else:
+                timestamp = int(datetime.now().timestamp())
+
+            parsed_list.append({
+                "id": entry.get("id", entry.link),
+                "title": entry.title,
+                "desc": entry.get("summary", ""),
+                "cover": None,
+                "author": entry.get("author", "FreeBuf"),
                 "timestamp": timestamp,
-                "hot": int(item.get("view_count", item.get("views", item.get("hot", item.get("read_count", 0))))),
-                "url": url,
-                "mobile_url": url.replace('www.freebuf.com', 'm.freebuf.com') if url else "",
+                "hot": 0,
+                "url": entry.link,
+                "mobile_url": entry.link,
                 "source": "FreeBuf",
-                "category": item.get("category", "网络安全")
-            }
-            parsed_list.append(parsed_item)
-                
+                "category": "网络安全"
+            })
         except Exception as e:
-            logging.warning(f"解析单篇文章失败: {e}")
-            continue
-    
-    return parsed_list[:15]
+            logging.warning(f"[FreeBuf RSS] 解析出错: {e}")
+    return parsed_list
 
 @news_bp.route('/news', methods=['GET'])
 def query_news():
@@ -234,12 +197,10 @@ def query_news():
     try:
         logging.info("接收到 GET /news 请求，开始执行数据抓取和同步。")
         
-        # 1. 抓取数据
         all_news_data = []
         all_news_data.extend(fetch_csdn_news())
         all_news_data.extend(fetch_freebuf_news())
         
-        # 2. 清理旧数据并插入新数据
         clear_news_data()
         success = insert_news_data(all_news_data)
         
@@ -249,13 +210,11 @@ def query_news():
             
         logging.info(f"成功抓取并插入 {len(all_news_data)} 条新闻数据")
 
-        # 3. 获取查询参数
         limit = request.args.get('limit', 30, type=int)
         source_filter = request.args.get('source', '')
         category_filter = request.args.get('category', '')
         keyword = request.args.get('keyword', '')
 
-        # 4. 查询数据库
         conn = get_db_connection()
         cursor = conn.cursor()
 
@@ -266,15 +225,12 @@ def query_news():
         if source_filter:
             conditions.append("source = %s")
             params.append(source_filter)
-
         if category_filter:
             conditions.append("category = %s")
             params.append(category_filter)
-
         if keyword:
             conditions.append("title LIKE %s")
             params.append(f"%{keyword}%")
-
         if conditions:
             query += " WHERE " + " AND ".join(conditions)
 
@@ -283,14 +239,12 @@ def query_news():
 
         cursor.execute(query, params)
         results = cursor.fetchall()
-
         cursor.close()
         conn.close()
 
-        # 5. 格式化数据并直接返回数组（与CVE格式一致）
         formatted_news = []
         for row in results:
-            news_item = {
+            formatted_news.append({
                 "id": row['id'],
                 "title": row['title'] or "无标题",
                 "summary": row['summary'] or "暂无描述信息...",
@@ -307,19 +261,14 @@ def query_news():
                 "time": format_timestamp(row['timestamp']),
                 "created_at": row['created_at'].isoformat() if row['created_at'] else None,
                 "updated_at": row['updated_at'].isoformat() if row['updated_at'] else None
-            }
-            formatted_news.append(news_item)
-
-        # 直接返回数组，与CVE接口格式保持一致
+            })
         return jsonify(formatted_news)
-
-    except Exception as err:
+    except Exception:
         logging.exception("News 查询接口出错")
         return jsonify([]), 500
 
 @news_bp.route('/news/sync', methods=['POST'])
 def sync_news_data():
-    """同步新闻数据接口 (已废弃)"""
     return jsonify({
         "success": False,
         "message": "此接口已废弃，请使用 GET /news 接口来获取最新数据。"
@@ -327,7 +276,6 @@ def sync_news_data():
 
 @news_bp.route('/news/stats', methods=['GET'])
 def get_news_stats():
-    """获取新闻统计信息"""
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -347,7 +295,6 @@ def get_news_stats():
         cursor.close()
         conn.close()
 
-        # 统计信息可以保持对象格式，因为这是专门的统计接口
         return jsonify({
             "success": True,
             "stats": {
@@ -357,7 +304,6 @@ def get_news_stats():
                 "by_category": by_category,
             }
         })
-
     except Exception as err:
         logging.exception("获取新闻统计信息出错")
         return jsonify({
