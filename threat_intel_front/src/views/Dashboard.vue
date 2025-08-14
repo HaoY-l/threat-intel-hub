@@ -294,7 +294,7 @@ export default {
 .content-grid {
   /* 确保始终为三列布局 */
   display: grid;
-  grid-template-columns: 0.7fr 1.2fr 0.7fr;
+  grid-template-columns: 0.7fr 1.0fr 0.7fr;
   gap: 2rem;
   min-height: 600px;
 }
