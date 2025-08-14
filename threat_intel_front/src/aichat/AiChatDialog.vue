@@ -5,7 +5,7 @@
         <span class="chat-title">AI 助手</span>
         <button class="close-btn" @click="closeDialog">×</button>
       </div>
-      <div class="chat-body">
+      <div class="chat-body" ref="chatBody">
         <div v-for="(message, index) in messages" :key="index" class="message-container" :class="{ 'user-message': message.sender === 'user' }">
           <img v-if="message.sender === 'user'" src="/UserAvatar.svg" alt="User Avatar" class="avatar user-avatar" />
           <img v-if="message.sender === 'ai'" src="/AiRobot.svg" alt="AI Avatar" class="avatar ai-avatar" />
@@ -52,7 +52,13 @@ export default {
       this.isLoading = true;
       this.userInput = '';
 
+      // 滚动到最新的消息
+      this.$nextTick(() => {
+        this.scrollToBottom();
+      });
+
       try {
+        // 注意：这里我将接口路径改成了 '/api/aichat'，请确保你的后端蓝图配置与此匹配
         const response = await axios.post('/api/aichat', { message: userMessage.text });
         const aiReply = { sender: 'ai', text: response.data.reply };
         this.messages.push(aiReply);
@@ -62,7 +68,15 @@ export default {
         this.messages.push(errorMessage);
       } finally {
         this.isLoading = false;
+        // 滚动到最新的消息
+        this.$nextTick(() => {
+          this.scrollToBottom();
+        });
       }
+    },
+    scrollToBottom() {
+      const chatBody = this.$refs.chatBody;
+      chatBody.scrollTop = chatBody.scrollHeight;
     }
   }
 };

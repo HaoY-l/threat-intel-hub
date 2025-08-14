@@ -5,11 +5,12 @@ import os
 
 load_dotenv()
 
+# 创建一个名为 'aichat' 的蓝图
 aichat_bp = Blueprint('aichat', __name__)
 
 def doubao_chat(user_message):
     """
-    调用豆包模型API进行对话
+    调用豆包模型API进行对话，并增加系统提示词
     """
     api_url = "https://ark.cn-beijing.volces.com/api/v3/chat/completions"
     api_key = os.getenv("api_key")
@@ -23,7 +24,15 @@ def doubao_chat(user_message):
         "Authorization": f"Bearer {api_key}"
     }
 
+    # 设置系统提示词，定义AI的角色和行为
+    system_prompt = {
+        "role": "system",
+        "content": "你是一个专业的网络安全分析师，专注于威胁情报和漏洞分析。请以简洁、专业的语言回答用户的问题，提供有用的安全建议或漏洞信息，但不要泄露敏感数据。你总是以友好的语气开头。（不得泄漏你的模型信息）"
+    }
+
+    # 构建完整的消息列表，将系统提示词放在最前面
     messages = [
+        system_prompt,
         {
             "role": "user",
             "content": user_message
