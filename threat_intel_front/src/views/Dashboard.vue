@@ -295,8 +295,9 @@ export default {
   /* 确保始终为三列布局 */
   display: grid;
   grid-template-columns: 0.7fr 1.0fr 0.7fr;
-  gap: 2rem;
+  gap: 1rem;
   min-height: 600px;
+  width: 100%;
 }
 
 /* 确保各个区域有合适的高度 */
