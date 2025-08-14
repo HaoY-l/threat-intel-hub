@@ -31,6 +31,7 @@
           <div class="news-section">
             <NewsPanel 
               :news-data="newsData"
+              :is-loading="newsLoading"
               @refresh="loadNewsData"
             />
           </div>
@@ -70,65 +71,127 @@ export default {
       activeSearchType: 'ip',
       searchDialogVisible: false,
       searchDialogData: null,
-      loading: false
+      loading: false,
+      newsLoading: false,
+      cveLoading: false
     }
   },
   async mounted() {
-    await this.loadCveData()
-    await this.loadNewsData()
+    // 并行加载数据以提高速度
+    console.log('Dashboard mounted, starting data loading...')
+    
+    // 先加载搜索历史（同步操作）
     this.loadSearchHistory()
+    
+    // 并行加载CVE和新闻数据
+    const loadPromises = [
+      this.loadCveData(),
+      this.loadNewsData()
+    ]
+    
+    try {
+      await Promise.allSettled(loadPromises)
+      console.log('All data loading completed')
+    } catch (error) {
+      console.error('Error during data loading:', error)
+    }
   },
   methods: {
     async loadCveData() {
+      if (this.cveLoading) return
+      
+      this.cveLoading = true
       try {
+        console.log('Loading CVE data...')
+        const startTime = performance.now()
+        
         const response = await getAllCVE()
+        
+        const endTime = performance.now()
+        console.log(`CVE API call took ${endTime - startTime} milliseconds`)
         console.log('CVE API Response:', response)
         
-        // 现在两个接口都直接返回数组，统一处理
         if (Array.isArray(response)) {
           this.cveData = response
+          console.log(`CVE Data loaded successfully: ${this.cveData.length} items`)
         } else {
           console.error('CVE API response is not an array:', response)
           this.cveData = []
         }
-        
-        console.log('CVE Data loaded:', this.cveData.length, 'items')
       } catch (error) {
         console.error('Failed to load CVE data:', error)
         this.cveData = []
+        
+        // 显示用户友好的错误信息
+        this.$toast?.error?.('CVE数据加载失败，请稍后重试')
+      } finally {
+        this.cveLoading = false
       }
     },
 
     async loadNewsData() {
+      if (this.newsLoading) return
+      
+      this.newsLoading = true
       try {
-        console.log('Starting to load news data...')
+        console.log('Loading news data...')
+        const startTime = performance.now()
         
-        // 临时直接测试API调用
-        const testResponse = await fetch('/api/news')
-        const testData = await testResponse.json()
-        console.log('Direct fetch test:', testData)
+        // 添加重试逻辑
+        let response = null
+        let retryCount = 0
+        const maxRetries = 3
         
-        const response = await getNewsData()
-        console.log('getNewsData result:', response)
+        while (retryCount < maxRetries && !response) {
+          try {
+            if (retryCount > 0) {
+              console.log(`News API retry attempt ${retryCount}`)
+              await new Promise(resolve => setTimeout(resolve, 1000 * retryCount))
+            }
+            
+            response = await getNewsData()
+            break
+          } catch (error) {
+            retryCount++
+            console.warn(`News API attempt ${retryCount} failed:`, error.message)
+            
+            if (retryCount === maxRetries) {
+              throw error
+            }
+          }
+        }
+        
+        const endTime = performance.now()
+        console.log(`News API call took ${endTime - startTime} milliseconds`)
+        console.log('News API Response:', response)
         console.log('Response type:', typeof response)
         console.log('Is array:', Array.isArray(response))
         
-        // 现在News接口也直接返回数组，与CVE接口格式一致
         if (Array.isArray(response)) {
           this.newsData = response
+          console.log(`News Data loaded successfully: ${this.newsData.length} items`)
         } else if (response === undefined || response === null) {
-          console.error('News API returned undefined/null - check getNewsData function')
+          console.error('News API returned undefined/null')
           this.newsData = []
+          throw new Error('News API returned no data')
         } else {
           console.error('News API response is not an array:', response)
           this.newsData = []
         }
         
-        console.log('News Data loaded:', this.newsData.length, 'items')
       } catch (error) {
         console.error('Failed to load news data:', error)
-        console.error('Error details:', error.message, error.stack)
+        console.error('Error details:', {
+          message: error.message,
+          stack: error.stack,
+          name: error.name
+        })
         this.newsData = []
+        
+        // 显示用户友好的错误信息
+        this.$toast?.error?.('新闻数据加载失败，请稍后重试')
+      } finally {
+        this.newsLoading = false
       }
     },
 
@@ -146,6 +209,7 @@ export default {
       } catch (error) {
         console.error('Search failed:', error)
         this.searchResults = []
+        this.$toast?.error?.('搜索失败，请重试')
       } finally {
         this.loading = false
       }
@@ -160,8 +224,6 @@ export default {
     },
 
     saveSearchHistory() {
-      // 注意：在Claude.ai环境中不能使用localStorage
-      // 如果需要持久化存储，建议使用内存存储或发送到服务器
       try {
         localStorage.setItem('searchHistory', JSON.stringify(this.searchHistory))
       } catch (error) {
@@ -174,18 +236,43 @@ export default {
         const saved = localStorage.getItem('searchHistory')
         if (saved) {
           this.searchHistory = JSON.parse(saved)
+          console.log('Search history loaded:', this.searchHistory.length, 'items')
         }
       } catch (error) {
         console.warn('localStorage not available, starting with empty history')
         this.searchHistory = []
       }
+    },
+
+    // 手动刷新所有数据
+    async refreshAllData() {
+      console.log('Manual refresh triggered')
+      await Promise.allSettled([
+        this.loadCveData(),
+        this.loadNewsData()
+      ])
+    }
+  },
+
+  // 监听数据变化
+  watch: {
+    newsData: {
+      handler(newVal) {
+        console.log('NewsData watcher triggered:', newVal?.length || 0, 'items')
+      },
+      immediate: true
+    },
+    cveData: {
+      handler(newVal) {
+        console.log('CVEData watcher triggered:', newVal?.length || 0, 'items')
+      },
+      immediate: true
     }
   }
 }
 </script>
 
 <style scoped>
-/* 样式部分保持不变 */
 .dashboard {
   min-height: 100vh;
   background: linear-gradient(135deg, #0f0f23 0%, #1a0033 50%, #0f0f23 100%);
@@ -208,6 +295,17 @@ export default {
   display: grid;
   grid-template-columns: 1fr 1.5fr 1fr;
   gap: 2rem;
+  min-height: 600px; /* 确保有足够的高度 */
+}
+
+/* 确保各个区域有合适的高度 */
+.cve-section,
+.news-section {
+  min-height: 600px;
+}
+
+.search-section {
+  min-height: 400px;
 }
 
 @media (max-width: 1200px) {
@@ -236,11 +334,20 @@ export default {
   .cve-section,
   .news-section {
     grid-row: auto;
+    min-height: 500px;
   }
 
   .search-section {
     grid-row: auto;
     grid-column: auto;
+    min-height: 300px;
   }
+}
+
+/* 添加一些过渡动画 */
+.cve-section,
+.news-section,
+.search-section {
+  transition: all 0.3s ease;
 }
 </style>
