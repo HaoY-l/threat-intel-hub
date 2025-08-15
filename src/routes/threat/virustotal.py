@@ -28,7 +28,12 @@ class VirusTotalCollector(ThreatIntelCollector):
         import base64
         encoded_url = base64.urlsafe_b64encode(url_str.encode()).decode().strip("=")
         url = f"{self.base_url}/urls/{encoded_url}"
-        return self._get(url)
+        
+        # 在返回结果中额外保存原始URL
+        result = self._get(url)
+        if result and not result.get('error'):
+            result['original_url'] = url_str
+        return result
 
     def query_file(self, file_hash: str) -> dict:
         url = f"{self.base_url}/files/{file_hash}"
@@ -91,11 +96,22 @@ class VirusTotalCollector(ThreatIntelCollector):
         self.connect_to_db()
 
         data_obj = data.get('data', {})
-        target_id = data_obj.get('id')
-        target_url = data_obj.get('attributes', {}).get('url', '')
+        
+        # --- 修改开始 ---
+        # 对于 URL 类型，id和target_url都存入用户输入的原始 URL
+        original_url = data.get('original_url')
+        if original_url:
+            target_id = original_url
+            target_url = original_url
+        else:
+            # 非 URL 类型或没有原始 URL 数据时，使用原逻辑
+            target_id = data_obj.get('id')
+            target_url = data_obj.get('attributes', {}).get('url', '')
+
         if not target_id:
-            logging.error(f"平台{self.name()}数据对象中缺少 'id' 字段")
+            logging.error(f"平台{self.name()}数据对象中缺少 'id' 字段或原始URL")
             return False
+        # --- 修改结束 ---
 
         type_ = data_obj.get('type', 'default')
         source = self.name()
@@ -149,8 +165,7 @@ class VirusTotalCollector(ThreatIntelCollector):
                     
                 last_update_ts = attributes.get('last_analysis_date') or attributes.get('last_modification_date')
                 last_update = datetime.fromtimestamp(last_update_ts) if last_update_ts else None
-                target_url = attributes.get('url') or attributes.get('last_final_url') or ''
-
+                
                 cursor.execute("SELECT id FROM url_threat_intel WHERE id=%s AND source=%s", (target_id, source))
                 row = cursor.fetchone()
 
