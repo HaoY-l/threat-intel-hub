@@ -65,6 +65,62 @@ class OtxCollector(ThreatIntelCollector):
             logging.error(f"平台{self.name()}Error querying {url}: {e}")
             return {"error": str(e)}
 
+    def calculate_reputation_score(self, attributes: dict, data_type: str) -> int:
+        """
+        重新计算OTX的reputation分值（简化版）
+        
+        Returns:
+            int: reputation分值
+            - 负数: 有风险
+            - 0或正数: 无风险/低风险
+        """
+        score = 0
+        
+        # 1. 脉冲信息分析（核心指标）
+        pulse_info = attributes.get('pulse_info', {})
+        pulse_count = pulse_info.get('count', 0)
+        pulses = pulse_info.get('pulses', [])
+        
+        # 脉冲数量越多说明被更多威胁情报引用
+        score -= pulse_count * 10  # 每个脉冲 -10分
+        
+        # 2. 相关威胁信息
+        related = pulse_info.get('related', {})
+        
+        # 恶意软件家族
+        malware_families = related.get('alienvault', {}).get('malware_families', []) + \
+                          related.get('other', {}).get('malware_families', [])
+        score -= len(malware_families) * 15  # 每个恶意软件家族 -15分
+        
+        # 对手/攻击者
+        adversaries = related.get('alienvault', {}).get('adversary', []) + \
+                     related.get('other', {}).get('adversary', [])
+        score -= len(adversaries) * 12  # 每个攻击者 -12分
+        
+        # 3. 验证信息
+        validation = attributes.get('validation', [])
+        for val in validation:
+            if val.get('name') == 'whitelist':
+                score += 20  # 白名单 +20分
+            elif val.get('name') == 'blacklist':
+                score -= 25  # 黑名单 -25分
+        
+        # 4. 误报标记
+        false_positive = attributes.get('false_positive', [])
+        if false_positive:
+            score += len(false_positive) * 10  # 每个误报标记 +10分
+        
+        # 5. 脉冲详细分析
+        for pulse in pulses:
+            # 检查脉冲标签中的威胁关键词
+            tags = pulse.get('tags', [])
+            threat_tags = ['malware', 'trojan', 'backdoor', 'botnet', 'apt', 'exploit']
+            for tag in tags:
+                if tag.lower() in threat_tags:
+                    score -= 8  # 每个威胁标签 -8分
+        
+        return score
+
     def connect_to_db(self):
         """连接到 MySQL 数据库"""
         if self.conn is None:
@@ -92,17 +148,17 @@ class OtxCollector(ThreatIntelCollector):
         # 统一将完整 JSON 字符串存 details
         details_json = json.dumps(data, ensure_ascii=False)
 
+        # 重新计算reputation分值
+        reputation_score = self.calculate_reputation_score(attributes, type_)
+
         with self.conn.cursor() as cursor:
 
             if type_ in ['ipv4', 'ip_address', 'ip']:
-                reputation_score = attributes.get('reputation', 0)
-
-                if reputation_score > 0:
+                # 根据重新计算的reputation分值设置威胁等级
+                if reputation_score >= 0:
                     threat_level = 'low'
-                elif reputation_score == 0:
-                    threat_level = 'medium'
                 else:
-                    reputation_score = 'high'
+                    threat_level = 'high'
 
                 # OTX返回的时间字段不固定，尝试用 modified 或 None
                 last_update_ts = attributes.get('modified')
@@ -130,7 +186,7 @@ class OtxCollector(ThreatIntelCollector):
                         """,
                         (target_id, 'ip', source, reputation_score, threat_level, last_update, details_json)
                     )
-                    logging.info(f"平台{self.name()}的IP数据 {target_id} 已插入")
+                    logging.info(f"平台{self.name()}的IP数据 {target_id} 已插入，重新计算的reputation: {reputation_score}")
                 else:
                     cursor.execute(
                         """
@@ -140,10 +196,14 @@ class OtxCollector(ThreatIntelCollector):
                         """,
                         (reputation_score, threat_level, last_update, details_json, target_id, source)
                     )
-                    logging.info(f"平台{self.name()}的IP数据 {target_id} 已更新")
+                    logging.info(f"平台{self.name()}的IP数据 {target_id} 已更新，重新计算的reputation: {reputation_score}")
 
             elif type_ == 'url':
-                reputation_score = attributes.get('reputation', 0)
+                # 根据重新计算的reputation分值设置威胁等级
+                if reputation_score >= 0:
+                    threat_level = 'low'
+                else:
+                    threat_level = 'high'
 
                 # URL 可能在 base_indicator.indicator 或 attributes.url
                 target_url = attributes.get('url') or data_obj.get('base_indicator', {}).get('indicator') or ''
@@ -172,7 +232,7 @@ class OtxCollector(ThreatIntelCollector):
                         """,
                         (target_id, 'url', source, target_url, reputation_score, last_update, details_json)
                     )
-                    logging.info(f"平台{self.name()}的URL数据 {target_url} 已插入")
+                    logging.info(f"平台{self.name()}的URL数据 {target_url} 已插入，重新计算的reputation: {reputation_score}")
                 else:
                     cursor.execute(
                         """
@@ -182,19 +242,14 @@ class OtxCollector(ThreatIntelCollector):
                         """,
                         (target_url, reputation_score, last_update, details_json, target_id, source)
                     )
-                    logging.info(f"平台{self.name()}的URL数据 {target_url} 已更新")
+                    logging.info(f"平台{self.name()}的URL数据 {target_url} 已更新，重新计算的reputation: {reputation_score}")
 
             elif type_ == 'file' or type_ in ['sha256']:
-                reputation_score = attributes.get('reputation', 0)
-                analysis_stats = attributes.get('last_analysis_stats', {})
-                malicious_count = analysis_stats.get('malicious', 0)
-
-                if malicious_count < 0:
-                    threat_level = 'high'
-                elif malicious_count == 0:
-                    threat_level = 'medium'
-                else:
+                # 根据重新计算的reputation分值设置威胁等级
+                if reputation_score >= 0:
                     threat_level = 'low'
+                else:
+                    threat_level = 'high'
 
                 last_update_ts = attributes.get('last_analysis_date')
                 last_update = None
@@ -220,7 +275,7 @@ class OtxCollector(ThreatIntelCollector):
                         """,
                         (target_id, 'file', source, reputation_score, threat_level, last_update, details_json)
                     )
-                    logging.info(f"平台{self.name()}的文件数据 {target_id} 已插入")
+                    logging.info(f"平台{self.name()}的文件数据 {target_id} 已插入，重新计算的reputation: {reputation_score}")
                 else:
                     cursor.execute(
                         """
@@ -230,7 +285,7 @@ class OtxCollector(ThreatIntelCollector):
                         """,
                         (reputation_score, threat_level, last_update, details_json, target_id, source)
                     )
-                    logging.info(f"平台{self.name()}的文件数据 {target_id} 已更新")
+                    logging.info(f"平台{self.name()}的文件数据 {target_id} 已更新，重新计算的reputation: {reputation_score}")
 
             else:
                 logging.error(f"平台{self.name()}的不支持的类型: {type_}")
