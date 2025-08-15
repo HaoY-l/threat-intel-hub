@@ -36,6 +36,9 @@
         :aiLearningEnabled="aiLearningEnabled"
         :autoBlockedCount="autoBlockedCount"
         :todayThreats="todayThreats"
+        :threatTimeRange="threatTimeRange"
+        @update:threatTimeRange="threatTimeRange = $event"
+        @fetchProtectionStats="fetchProtectionStats"
       />
     </div>
 
@@ -119,6 +122,12 @@ export default {
       totalUniqueBlockedIPs: [], // 存储所有时间规则封禁的去重IP
       totalUniqueHighFreqIPs: [], // 存储所有时间高频请求的去重IP
       totalThreatBlockedIPs: [], // 存储所有时间威胁情报自动封禁的去重IP
+
+      // 新增威胁情报时间范围
+      threatTimeRange: 'today', // 新增威胁情报时间范围筛选
+      // 时间范围，默认设置为 'today'
+      blockedTimeRange: 'today',
+      freqTimeRange: 'today',
 
       // 表单
       newWhiteName: '',
@@ -451,8 +460,14 @@ export default {
     // 增加了 fetchType 参数，默认为 'timeRange'
     async fetchProtectionStats(fetchType = 'timeRange') {
       try {
-        // 威胁情报统计，如果是 'all' 则获取所有，否则获取今天（这里默认是今天，而不是组件的freqTimeRange/blockedTimeRange）
-        const timeRange = fetchType === 'all' ? 'all' : 'today'; 
+        // 根据 fetchType 决定使用哪个时间范围
+        let timeRange;
+        if (fetchType === 'all') {
+          timeRange = 'all';
+        } else {
+          timeRange = this.threatTimeRange; // 使用威胁情报专用的时间范围
+        }
+        
         const { from, to } = this.getDateTimeRange(timeRange);
         const response = await axios.get('/api/protected_ip', {
           params: {
@@ -466,28 +481,33 @@ export default {
           // 获取所有时间的威胁情报自动封禁去重IP
           const uniqueThreatIPs = new Set();
           records.forEach(record => {
-            // 假设 action === 'blacklisted' 表示被封禁的威胁
-            if (record.action === 'blacklisted') {
+            // 检查多种可能的封禁状态字段
+            if (record.action === 'blacklisted' || 
+                record.action === 'blocked' || 
+                record.status === 'blocked' ||
+                record.is_blocked === true ||
+                record.blocked === true) {
               uniqueThreatIPs.add(record.ip);
             }
           });
           this.totalThreatBlockedIPs = Array.from(uniqueThreatIPs);
         } else {
-          // 统计今天的自动封禁数量和去重IP数量 (保持原有逻辑用于 todayThreats 和 autoBlockedCount)
-          const todayStart = new Date();
-          todayStart.setHours(0, 0, 0, 0);
-
+          // 统计当前时间范围的自动封禁数量和去重IP数量
           let blockedCount = 0;
-          const uniqueThreatIPsToday = new Set();
+          const uniqueThreatIPsInRange = new Set();
 
           records.forEach(record => {
-            const actionTime = new Date(record.action_time);
-            if (actionTime >= todayStart && record.action === 'blacklisted') {
+            // 检查多种可能的封禁状态字段
+            if (record.action === 'blacklisted' || 
+                record.action === 'blocked' || 
+                record.status === 'blocked' ||
+                record.is_blocked === true ||
+                record.blocked === true) {
               blockedCount++;
-              uniqueThreatIPsToday.add(record.ip);
+              uniqueThreatIPsInRange.add(record.ip);
             }
           });
-          this.todayThreats = uniqueThreatIPsToday.size;
+          this.todayThreats = uniqueThreatIPsInRange.size;
           this.autoBlockedCount = blockedCount;
         }
       } catch (error) {

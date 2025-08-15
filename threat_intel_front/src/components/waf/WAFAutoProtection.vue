@@ -4,8 +4,18 @@
       <div class="card-title">
         <i class="card-icon fa fa-bolt"></i>
         <span>自动封禁日志</span>
+        <span class="time-range">{{ getDisplayTimeRange(threatTimeRange) }}</span>
       </div>
       <div class="card-actions">
+        <select :value="threatTimeRange" @change="$emit('update:threatTimeRange', $event.target.value); fetchProtectedIpLogs()" class="time-selector">
+          <option value="today">今天</option>
+          <option value="3d">3天</option>
+          <option value="7d">7天</option>
+          <option value="1m">1个月</option>
+        </select>
+        <button @click="fetchProtectedIpLogs" class="mini-refresh">
+          <i class="fa fa-refresh"></i>
+        </button>
         <div class="status-indicator" :class="{ active: logs.length > 0 }"></div>
       </div>
     </div>
@@ -24,9 +34,13 @@
         <div v-else class="log-scroll-area">
           <div v-for="log in logs" :key="log.id" class="log-item">
             <div class="log-col ip" :title="log.ip">{{ log.ip }}</div>
-            <div class="log-col action" :class="getActionClass(log.action)" :title="getActionText(log.action)">{{ getActionText(log.action) }}</div>
+            <div class="log-col action" :class="getActionClass(log.action)" :title="getActionText(log.action)">
+              {{ getActionText(log.action) }}
+            </div>
             <div class="log-col reason" :title="log.reason || '无'">{{ log.reason || '无' }}</div>
-            <div class="log-col score" :title="log.reputation_score !== null ? log.reputation_score.toString() : 'N/A'">{{ log.reputation_score !== null ? log.reputation_score : 'N/A' }}</div>
+            <div class="log-col score" :title="log.reputation_score !== null ? log.reputation_score.toString() : 'N/A'">
+              {{ log.reputation_score !== null ? log.reputation_score : 'N/A' }}
+            </div>
             <div class="log-col time" :title="formatTime(log.action_time)">{{ formatTime(log.action_time) }}</div>
           </div>
         </div>
@@ -37,13 +51,19 @@
 
 <script>
 import axios from 'axios'
-import moment from 'moment' 
+import moment from 'moment'
 
 export default {
-  name: 'WAFAutoProtectionLogs', 
+  name: 'WAFAutoProtectionLogs',
+  props: {
+    threatTimeRange: {
+      type: String,
+      default: 'today'
+    }
+  },
   data() {
     return {
-      logs: [] 
+      logs: []
     }
   },
   mounted() {
@@ -52,18 +72,17 @@ export default {
   methods: {
     async fetchProtectedIpLogs() {
       try {
-        const response = await axios.get('/api/protected_ip'); 
-        this.logs = response.data; 
+        const response = await axios.get('/api/protected_ip', {
+          params: { range: this.threatTimeRange }
+        });
+        this.logs = response.data;
       } catch (error) {
         console.error('获取自动封禁日志失败:', error);
-        this.logs = []; 
+        this.logs = [];
       }
     },
     formatTime(timestamp) {
       if (timestamp) {
-        // 使用 moment 库进行本地化格式化
-        // 确保时间戳是可被 moment 解析的，例如 ISO 8601 格式
-        // 如果后端返回的时间戳是 UNIX 时间戳（秒或毫秒），需要相应调整
         return moment(timestamp).format('YYYY-MM-DD HH:mm:ss');
       }
       return 'N/A';
@@ -73,21 +92,26 @@ export default {
         'blacklisted': '已拉黑',
         'query_failed': '查询失败',
         'processing_failed': '处理失败',
-        'reversal': '解除拉黑' 
+        'reversal': '解除拉黑'
       };
-      return actions[action] || action; 
+      return actions[action] || action;
     },
     getActionClass(action) {
       switch (action) {
-        case 'blacklisted':
-          return 'action-blacklisted';
+        case 'blacklisted': return 'action-blacklisted';
         case 'query_failed':
-        case 'processing_failed':
-          return 'action-failed';
-        case 'reversal':
-          return 'action-reversal';
-        default:
-          return '';
+        case 'processing_failed': return 'action-failed';
+        case 'reversal': return 'action-reversal';
+        default: return '';
+      }
+    },
+    getDisplayTimeRange(rangeType) {
+      switch (rangeType) {
+        case 'today': return '(今天)';
+        case '3d': return '(3天内)';
+        case '7d': return '(7天内)';
+        case '1m': return '(1个月内)';
+        default: return '';
       }
     }
   }
@@ -95,7 +119,7 @@ export default {
 </script>
 
 <style scoped>
-/* 核心容器样式保持不变 */
+/* 样式保持原有，增加时间选择器和刷新按钮样式 */
 .monitor-card {
   background: rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(10px);
@@ -106,163 +130,198 @@ export default {
   overflow: hidden;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
-  /* 使用父组件定义的CSS变量来统一高度 */
-  height: var(--fixed-card-height); /* 将max-height改为height以强制高度一致 */
+  height: var(--fixed-card-height);
 }
-
 .monitor-card:hover {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
 }
 
 .card-header {
-  padding: 1.25rem;
+  padding: 0.7rem 0.9rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
   justify-content: space-between;
   align-items: center;
   background: rgba(0, 0, 0, 0.1);
-  flex-shrink: 0; /* 防止 header 被压缩 */
+  flex-shrink: 0;
 }
 
 .card-title {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.4rem;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
+  font-size: 1rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #E0E0E0;
 }
 
 .card-icon {
+  color: #d896ff;
   font-size: 1.2rem;
-  color: #f7b924; /* 警告或注意的颜色 */
+}
+
+.time-range {
+  font-size: 0.85rem;
+  color: #B0B0B0;
+  margin-left: 0.25rem;
+}
+
+.card-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.time-selector {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #E0E0E0;
+  font-size: 0.8rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  outline: none;
+}
+.time-selector:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.mini-refresh {
+  background: none;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: color 0.2s ease;
+}
+.mini-refresh:hover {
+  color: #E0E0E0;
+}
+.mini-refresh i {
+  animation: spin 2s linear infinite;
 }
 
 .status-indicator {
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
-  background: #e53e3e; /* 默认红色，表示无日志或未启用 */
-  transition: all 0.3s ease;
+  background-color: #f44336;
+  transition: background-color 0.3s ease;
 }
-
 .status-indicator.active {
-  background: #38a169; /* 有日志时变为绿色 */
-  box-shadow: 0 0 8px rgba(56, 161, 105, 0.5);
+  background-color: #4CAF50;
 }
 
 .card-content {
-  flex: 1; /* 填充剩余空间 */
-  /* overflow-y: auto; 这条在这里可以移除，因为滚动由 .log-scroll-area 控制 */
-  padding: 1rem;
-  color: rgba(255, 255, 255, 0.8);
-  display: flex; /* 让内部的 .log-list 能够使用 flex */
-  flex-direction: column; /* 确保内容是垂直布局 */
-  min-height: 0; /* 允许 flex item 缩小 */
+  flex-grow: 1;
+  overflow: hidden;
+  padding: 0.5rem 0.9rem 0.9rem 0.9rem;
+  display: flex;
+  flex-direction: column;
 }
 
 /* 日志列表样式 */
 .log-list {
   display: flex;
   flex-direction: column;
-  flex: 1; /* 填充父容器高度 */
-  min-height: 0; /* 允许 flex item 缩小 */
-}
-
-.log-item {
-  display: flex;
-  padding: 0.75rem 0.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  font-size: 0.85rem;
-}
-
-.log-item.header {
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.7);
-  background: rgba(0, 0, 0, 0.1);
-  position: sticky; /* 表头固定 */
-  top: 0;
-  z-index: 1;
-  flex-shrink: 0; /* 确保表头不被压缩 */
-}
-
-.log-item:last-child {
-  border-bottom: none;
-}
-
-.log-col {
-  flex: 1; 
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  padding: 0 0.25rem;
-}
-
-/* 特定列的宽度分配 */
-.log-col.ip {
-  flex: 1.5; 
-  min-width: 100px;
-}
-.log-col.action {
-  flex: 0.8; 
-  min-width: 60px;
-}
-.log-col.reason {
-  flex: 2; 
-  min-width: 120px;
-}
-.log-col.score {
-  flex: 0.6; 
-  min-width: 50px;
-  text-align: center;
-}
-.log-col.time {
-  flex: 1.5; 
-  min-width: 120px;
-  text-align: right;
-}
-
-/* 特定操作的颜色 */
-.action-blacklisted {
-  color: #e53e3e; 
-  font-weight: 700;
-}
-.action-failed {
-  color: #f6ad55; 
-}
-.action-reversal {
-  color: #4299e1; 
-}
-
-.no-logs {
-  padding: 2rem;
-  text-align: center;
-  color: rgba(255, 255, 255, 0.5);
-  font-style: italic;
-  flex-grow: 1; /* 让无日志提示也能够撑开空间 */
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  height: 100%;
 }
 
 .log-scroll-area {
-  flex: 1; /* 允许滚动区域填充可用空间 */
-  overflow-y: auto; /* 关键：使内容可滚动 */
-  min-height: 0; /* 允许 flex item 缩小 */
+  flex-grow: 1;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) rgba(255, 255, 255, 0.1);
 }
-
-/* 滚动条美化 (可选) */
 .log-scroll-area::-webkit-scrollbar {
   width: 8px;
 }
 .log-scroll-area::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 4px;
 }
 .log-scroll-area::-webkit-scrollbar-thumb {
-  background-color: rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
-}
-.log-scroll-area::-webkit-scrollbar-thumb:hover {
   background-color: rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.log-item {
+  display: grid;
+  grid-template-columns: 1.5fr 0.8fr 1.5fr 0.5fr 1.5fr;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 0.85rem;
+  color: #E0E0E0;
+  transition: background-color 0.2s ease;
+}
+
+.log-item:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.log-item.header {
+  font-weight: bold;
+  color: #B0B0B0;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+  position: sticky;
+  top: 0;
+  background: rgba(0, 0, 0, 0.2);
+  z-index: 10;
+}
+
+.log-col {
+  padding-right: 0.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.log-col.ip {
+  color: #72B1FF;
+}
+
+.log-col.action {
+  font-weight: 500;
+}
+.action-blacklisted {
+  color: #ff7272;
+}
+.action-reversal {
+  color: #8aff8a;
+}
+.action-failed {
+  color: #FFB347;
+}
+
+.log-col.score {
+  color: #FFC107;
+}
+
+.log-col.time {
+  color: #B0B0B0;
+  font-size: 0.8rem;
+}
+
+.no-logs {
+  flex-grow: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #aaa;
+  font-size: 0.9rem;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>
