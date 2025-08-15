@@ -17,20 +17,12 @@
             <code class="history-query" :title="item.query">{{ item.query }}</code>
             <span class="result-count">{{ item.results || 0 }} 结果</span>
             
+            <!-- 统一的风险等级和分数徽章 -->
             <span 
-              v-if="item.maxThreatLevel"
-              class="threat-level-badge"
-              :class="getThreatLevelClass(item.maxThreatLevel)"
+              class="risk-badge"
+              :class="getRiskClass(getAverageScoreForItem(item))"
             >
-              {{ getThreatLevelText(item.maxThreatLevel) }}
-            </span>
-            
-            <span 
-              v-if="item.maxScore !== undefined"
-              class="risk-score-badge"
-              :class="getScoreClass(item.maxScore)"
-            >
-              风险: {{ item.maxScore }}
+              {{ getRiskText(getAverageScoreForItem(item)) }}: {{ getAverageScoreForItem(item) }}
             </span>
           </div>
           
@@ -152,7 +144,42 @@ export default {
     getThreatLevelClass(level){ const map={malicious:'threat-malicious',suspicious:'threat-suspicious',harmless:'threat-harmless',clean:'threat-harmless'}; return map[level]||'threat-unknown'; },
     getThreatIcon(level){ const map={malicious:'fas fa-skull-crossbones',suspicious:'fas fa-exclamation-triangle',harmless:'fas fa-shield-alt',clean:'fas fa-shield-alt'}; return map[level]||'fas fa-question-circle'; },
     getThreatLevelText(level){ const map={malicious:'恶意',suspicious:'可疑',harmless:'无害',clean:'清洁'}; return map[level]||'未知'; },
-    getScoreClass(score){ const s=parseInt(score)||0; if(s>0) return'score-high'; if(s<0)return'score-low'; return'score-neutral'; },
+    getScoreClass(score){ 
+      const s = parseFloat(score) || 0; 
+      if (s > 0) return 'score-positive';  // 绿色 - 正常
+      if (s === 0) return 'score-zero';    // 橙色 - 未知
+      return 'score-negative';             // 红色 - 危险
+    },
+    getRiskClass(score) {
+      const s = parseFloat(score) || 0;
+      if (s >= 0) return 'risk-normal';      // 绿色 - 正常（分数大于等于0）
+      return 'risk-dangerous';               // 红色 - 危险（负数）
+    },
+    getRiskText(score) {
+      const s = parseFloat(score) || 0;
+      if (s >= 0) return '正常';
+      return '危险';
+    },
+    getDefaultThreatLevel(item) {
+      // 根据查询内容或其他条件返回默认威胁等级
+      if (item.query && (item.query.includes('malware') || item.query.includes('virus'))) {
+        return 'malicious';
+      }
+      if (item.results && item.results > 5) {
+        return 'suspicious';
+      }
+      return 'harmless';
+    },
+    getDefaultScore(item) {
+      // 根据查询内容或其他条件返回默认风险分数
+      if (item.query && (item.query.includes('malware') || item.query.includes('virus'))) {
+        return 5;
+      }
+      if (item.results && item.results > 5) {
+        return -1;
+      }
+      return 0;
+    },
     getDisplayId(result,type){return type==='url'?result.target_url||result.id:result.id;},
     formatTime(ts){ const date=new Date(ts); const year=date.getFullYear(),month=String(date.getMonth()+1).padStart(2,'0'),day=String(date.getDate()).padStart(2,'0'),hours=String(date.getHours()).padStart(2,'0'),minutes=String(date.getMinutes()).padStart(2,'0'),seconds=String(date.getSeconds()).padStart(2,'0'); return`${year}/${month}/${day} ${hours}:${minutes}:${seconds}`; },
     formatDate(d){if(!d)return'未知';try{return new Date(d).toLocaleString('zh-CN');}catch{return'格式错误';}},
@@ -162,7 +189,19 @@ export default {
     isRawDetailsExpanded(hid,index){return this.expandedRawDetails.has(`${hid}_${index}`);},
     handleSearchAgain(item){this.$emit('search-again',{query:item.query,type:item.type});},
     getUniqueSourcesCount(results){return new Set(results.map(r=>r.source)).size;},
-    getAverageScore(results){if(!results||!results.length)return 0; return Math.round(results.reduce((sum,r)=>sum+(r.reputation_score||0),0)/results.length);},
+    getAverageScore(results){
+      if(!results||!results.length) return 0; 
+      const sum = results.reduce((sum,r)=>sum+(parseFloat(r.reputation_score)||0),0);
+      return Math.round(sum/results.length * 10) / 10; // 保留一位小数
+    },
+    getAverageScoreForItem(item) {
+      // 如果有详细结果，计算平均分
+      if (item.detailResults && item.detailResults.length > 0) {
+        return this.getAverageScore(item.detailResults);
+      }
+      // 否则使用默认值
+      return this.getDefaultScore(item);
+    },
     async copyDetails(details){try{await navigator.clipboard.writeText(JSON.stringify(details,null,2));this.$emit('copy-success')}catch(e){console.error('复制失败:',e)}}
   }
 }
@@ -171,8 +210,8 @@ export default {
 <style scoped>
 /* 整个组件的容器 */
 .search-history {
-  background: #100f1c; /* 暗色背景 */
-  color: #f3f4f6; /* 亮色文字 */
+  background: #100f1c;
+  color: #f3f4f6;
   border-radius: 0.5rem;
   padding: 1rem;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -255,47 +294,24 @@ export default {
   white-space: nowrap;
 }
 
-/* 威胁等级徽章 */
-.threat-level-badge {
-  font-size: 0.7rem;
-  font-weight: 500;
-  padding: 0.15rem 0.6rem;
-  border-radius: 9999px;
+/* 统一的风险徽章 - 只有两种状态 */
+.risk-badge {
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  border-radius: 0.25rem;
+  white-space: nowrap;
+  text-transform: none;
+  letter-spacing: 0;
+  line-height: 1.2;
+  border: none;
   color: #fff;
-  white-space: nowrap;
 }
-.threat-level-badge.threat-malicious {
-  background: #ef4444; /* 红色 */
+.risk-badge.risk-normal {
+  background: #16a34a;  /* 绿色 - 正常（分数大于等于0） */
 }
-.threat-level-badge.threat-suspicious {
-  background: #f97316; /* 橙色 */
-}
-.threat-level-badge.threat-harmless,
-.threat-level-badge.threat-clean {
-  background: #22c55e; /* 绿色 */
-}
-.threat-level-badge.threat-unknown {
-  background: #6b7280; /* 灰色 */
-}
-
-/* 风险分数徽章 */
-.risk-score-badge {
-  background: #232231;
-  border: 1px solid #14131d;
-  font-size: 0.7rem;
-  font-weight: bold;
-  padding: 0.15rem 0.6rem;
-  border-radius: 9999px;
-  white-space: nowrap;
-}
-.risk-score-badge.score-high {
-  color: #ef4444; /* 高风险 - 红色 */
-}
-.risk-score-badge.score-low {
-  color: #22c55e; /* 低风险 - 绿色 */
-}
-.risk-score-badge.score-neutral {
-  color: #f97316; /* 中性 - 橙色 */
+.risk-badge.risk-dangerous {
+  background: #dc2626;  /* 红色 - 危险（负数） */
 }
 
 /* 右侧操作区域 */
@@ -392,16 +408,16 @@ export default {
   word-break: break-all;
 }
 .threat-badge {
-  font-size: 0.8rem;
-  font-weight: 500;
-  padding: 0.25rem 0.75rem;
-  border-radius: 9999px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  border-radius: 0.25rem;
   color: #fff;
   white-space: nowrap;
 }
-.threat-badge.threat-malicious { background: #ef4444; }
-.threat-badge.threat-suspicious { background: #f97316; }
-.threat-badge.threat-harmless { background: #22c55e; }
+.threat-badge.threat-malicious { background: #dc2626; }
+.threat-badge.threat-suspicious { background: #ea580c; }
+.threat-badge.threat-harmless { background: #16a34a; }
 .threat-badge.threat-unknown { background: #64748b; }
 .score-section {
   display: flex;
@@ -413,6 +429,15 @@ export default {
   font-weight: 700;
   line-height: 1;
 }
+.score-value.score-positive {
+  color: #16a34a;  /* 绿色 - 正数 */
+}
+.score-value.score-zero {
+  color: #ea580c;  /* 橙色 - 0 */
+}
+.score-value.score-negative {
+  color: #dc2626;  /* 红色 - 负数 */
+}
 .result-details {
   display: flex;
   flex-direction: column;
@@ -421,12 +446,14 @@ export default {
 }
 .detail-row {
   display: flex;
+  align-items: flex-start;
   gap: 0.5rem;
 }
 .detail-row .label {
   color: #94a3b8;
   font-weight: 500;
   min-width: 5rem;
+  flex-shrink: 0;
 }
 .detail-row .value {
   flex: 1;
@@ -473,6 +500,7 @@ export default {
   max-height: 200px;
   line-height: 1.5;
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+  margin: 0;
 }
 .copy-btn {
   position: absolute;
@@ -489,5 +517,25 @@ export default {
 }
 .copy-btn:hover {
   background: rgba(147, 197, 253, 0.4);
+}
+
+/* 确保跨平台字体一致性 */
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 移除浏览器默认的outline */
+button:focus {
+  outline: none;
+}
+
+/* 确保在不同分辨率下的一致显示 */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .threat-level-badge,
+  .risk-score-badge,
+  .threat-badge {
+    -webkit-font-smoothing: subpixel-antialiased;
+  }
 }
 </style>
