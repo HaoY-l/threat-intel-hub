@@ -17,20 +17,12 @@
             <code class="history-query" :title="item.query">{{ item.query }}</code>
             <span class="result-count">{{ item.results || 0 }} 结果</span>
             
-            <!-- 威胁等级徽章 - 添加默认值用于测试 -->
+            <!-- 统一的风险等级和分数徽章 -->
             <span 
-              class="threat-level-badge"
-              :class="getThreatLevelClass(item.maxThreatLevel || getDefaultThreatLevel(item))"
+              class="risk-badge"
+              :class="getRiskClass(getAverageScoreForItem(item))"
             >
-              {{ getThreatLevelText(item.maxThreatLevel || getDefaultThreatLevel(item)) }}
-            </span>
-            
-            <!-- 风险分数徽章 - 显示平均分 -->
-            <span 
-              class="risk-score-badge"
-              :class="getScoreClass(getAverageScoreForItem(item))"
-            >
-              风险: {{ getAverageScoreForItem(item) }}
+              {{ getRiskText(getAverageScoreForItem(item)) }}: {{ getAverageScoreForItem(item) }}
             </span>
           </div>
           
@@ -157,6 +149,16 @@ export default {
       if (s > 0) return 'score-positive';  // 绿色 - 正常
       if (s === 0) return 'score-zero';    // 橙色 - 未知
       return 'score-negative';             // 红色 - 危险
+    },
+    getRiskClass(score) {
+      const s = parseFloat(score) || 0;
+      if (s >= 0) return 'risk-normal';      // 绿色 - 正常（分数大于等于0）
+      return 'risk-dangerous';               // 红色 - 危险（负数）
+    },
+    getRiskText(score) {
+      const s = parseFloat(score) || 0;
+      if (s >= 0) return '正常';
+      return '危险';
     },
     getDefaultThreatLevel(item) {
       // 根据查询内容或其他条件返回默认威胁等级
@@ -292,39 +294,8 @@ export default {
   white-space: nowrap;
 }
 
-/* 威胁等级徽章 - 优化样式匹配图片效果 */
-.threat-level-badge {
-  font-size: 0.65rem;
-  font-weight: 600;
-  padding: 0.2rem 0.5rem;
-  border-radius: 0.25rem;
-  color: #fff;
-  white-space: nowrap;
-  text-transform: none;
-  letter-spacing: 0;
-  line-height: 1.2;
-  border: none;
-}
-.threat-level-badge.threat-malicious {
-  background: #dc2626;
-  color: #fff;
-}
-.threat-level-badge.threat-suspicious {
-  background: #ea580c;
-  color: #fff;
-}
-.threat-level-badge.threat-harmless,
-.threat-level-badge.threat-clean {
-  background: #16a34a;
-  color: #fff;
-}
-.threat-level-badge.threat-unknown {
-  background: #64748b;
-  color: #fff;
-}
-
-/* 风险分数徽章 - 更新颜色方案 */
-.risk-score-badge {
+/* 统一的风险徽章 - 只有两种状态 */
+.risk-badge {
   font-size: 0.65rem;
   font-weight: 600;
   padding: 0.2rem 0.5rem;
@@ -334,18 +305,13 @@ export default {
   letter-spacing: 0;
   line-height: 1.2;
   border: none;
-}
-.risk-score-badge.score-positive {
-  background: #16a34a;  /* 绿色 - 正常（正数） */
   color: #fff;
 }
-.risk-score-badge.score-zero {
-  background: #ea580c;  /* 橙色 - 未知（0） */
-  color: #fff;
+.risk-badge.risk-normal {
+  background: #16a34a;  /* 绿色 - 正常（分数大于等于0） */
 }
-.risk-score-badge.score-negative {
+.risk-badge.risk-dangerous {
   background: #dc2626;  /* 红色 - 危险（负数） */
-  color: #fff;
 }
 
 /* 右侧操作区域 */
