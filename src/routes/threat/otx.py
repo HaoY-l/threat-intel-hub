@@ -33,7 +33,12 @@ class OtxCollector(ThreatIntelCollector):
             # URL 编码避免路径参数导致接口异常
             encoded_url = requests.utils.quote(url, safe='')
             otx_url = f"{self.base_url}/indicators/url/{encoded_url}/general"
-            return self._get(otx_url)
+            
+            # 在返回结果中额外保存原始URL
+            result = self._get(otx_url)
+            if result and not result.get('error'):
+                result['original_url'] = url
+            return result
         except Exception as e:
             logging.error(f"平台{self.name()} 解析 URL 时异常: {url} - {e}")
             return {"error": str(e)}
@@ -205,8 +210,14 @@ class OtxCollector(ThreatIntelCollector):
                 else:
                     threat_level = 'high'
 
-                # URL 可能在 base_indicator.indicator 或 attributes.url
-                target_url = attributes.get('url') or data_obj.get('base_indicator', {}).get('indicator') or ''
+                # --- 修改开始 ---
+                # id和target_url字段都存储用户输入的原始url
+                target_url = data_obj.get('original_url')
+                if not target_url:
+                    logging.error(f"平台{self.name()}处理 URL 数据时缺少原始 URL")
+                    return False
+                target_id = target_url # id字段也存入用户输入的url
+                # --- 修改结束 ---
 
                 last_update_ts = attributes.get('modified')
                 last_update = None
