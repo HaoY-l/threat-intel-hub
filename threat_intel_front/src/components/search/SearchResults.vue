@@ -251,9 +251,10 @@ export default {
     
     getScoreClass(score) {
       const numScore = parseInt(score) || 0
-      if (numScore >= 0) return 'score-high'
+      if (numScore > 0) return 'score-low'      // 正数为绿色
+      if (numScore === 0) return 'score-low'    // 0 也为绿色
       if (numScore >= -10) return 'score-medium'
-      return 'score-low'
+      return 'score-high'                       // 负数为红色
     },
     
     formatDate(dateString) {

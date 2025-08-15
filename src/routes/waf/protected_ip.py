@@ -77,7 +77,7 @@ def protected_ip_task():
 
                 logger.info(f"IP {ip} 的威胁情报最低 reputation_score: {reputation_score}")
 
-                if reputation_score is not None and reputation_score < -5:
+                if reputation_score is not None and reputation_score < -5000:
                     logger.info(f"IP {ip} 威胁分数 {reputation_score} 低于 -5，准备加入黑名单。")
                     blacklist_url = f"{WAF_API_BASE_URL}/modifyblackrule"
                     # --- 修正点 2: /api/modifyblackrule 接口的请求参数 ---

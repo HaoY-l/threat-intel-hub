@@ -1,9 +1,9 @@
 import requests
-import os, json,logging
+import os, json, logging
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
-from ._BaseThreat import ThreatIntelCollector  # 确保路径正确
-from data.db_init import get_db_connection  # 确保路径正确
+from ._BaseThreat import ThreatIntelCollector
+from data.db_init import get_db_connection
 
 load_dotenv()
 
@@ -42,6 +42,47 @@ class VirusTotalCollector(ThreatIntelCollector):
         except Exception as e:
             return {"error": str(e)}
 
+    def calculate_reputation_score(self, attributes: dict, data_type: str) -> int:
+        """
+        重新计算reputation分值（简化版）
+        
+        Returns:
+            int: reputation分值
+            - 负数: 有风险
+            - 0或正数: 无风险/低风险
+        """
+        score = 0
+        
+        # 基于检测引擎分析结果计算
+        analysis_stats = attributes.get('last_analysis_stats', {})
+        malicious = analysis_stats.get('malicious', 0)
+        harmless = analysis_stats.get('harmless', 0)
+        suspicious = analysis_stats.get('suspicious', 0)
+        
+        if data_type == 'file':
+            # 文件类型：主要看恶意检测数量和YARA规则
+            score -= malicious * 3  # 每个恶意检测 -3分
+            score -= suspicious * 1  # 每个可疑检测 -1分
+            score += harmless * 1   # 每个良性检测 +1分
+            
+            # YARA规则匹配
+            yara_count = len(attributes.get('crowdsourced_yara_results', []))
+            score -= yara_count * 10  # 每个YARA规则 -10分
+            
+        elif data_type == 'ip_address':
+            # IP地址类型
+            score -= malicious * 5   # 每个恶意检测 -5分  
+            score -= suspicious * 2  # 每个可疑检测 -2分
+            score += harmless * 1    # 每个良性检测 +1分
+            
+        elif data_type == 'url':
+            # URL类型
+            score -= malicious * 4   # 每个恶意检测 -4分
+            score -= suspicious * 2  # 每个可疑检测 -2分  
+            score += harmless * 1    # 每个良性检测 +1分
+        
+        return score
+
     def connect_to_db(self):
         if self.conn is None:
             self.conn = get_db_connection()
@@ -60,16 +101,18 @@ class VirusTotalCollector(ThreatIntelCollector):
         source = self.name()
         attributes = data_obj.get('attributes', {})
         details_json = json.dumps(data, ensure_ascii=False)
+        
+        # 重新计算reputation分值
+        reputation_score = self.calculate_reputation_score(attributes, type_)
 
         with self.conn.cursor() as cursor:
             if type_ == 'ip_address':
-                reputation_score = attributes.get('reputation', 0)
-                if reputation_score > 0:
+                # 根据重新计算的reputation分值设置威胁等级
+                if reputation_score >= 0:
                     threat_level = 'low'
-                elif reputation_score == 0:
-                    threat_level = 'medium'
                 else:
                     threat_level = 'high'
+                    
                 last_update_ts = attributes.get('last_analysis_date')
                 type_ = 'ip'  # 确保类型一致
                 last_update = datetime.fromtimestamp(last_update_ts) if last_update_ts else None
@@ -77,7 +120,7 @@ class VirusTotalCollector(ThreatIntelCollector):
                 cursor.execute("SELECT id FROM ip_threat_intel WHERE id=%s AND source=%s", (target_id, source))
                 row = cursor.fetchone()
 
-                if not row:  # 修复：只有当记录不存在时才插入
+                if not row:
                     cursor.execute(
                         """
                         INSERT INTO ip_threat_intel (id, type, source, reputation_score, threat_level, last_update, details)
@@ -85,9 +128,8 @@ class VirusTotalCollector(ThreatIntelCollector):
                         """,
                         (target_id, type_, source, reputation_score, threat_level, last_update, details_json)
                     )
-                    logging.info(f"平台{self.name()}的IP数据{target_id}已插入")
+                    logging.info(f"平台{self.name()}的IP数据{target_id}已插入，重新计算的reputation: {reputation_score}")
                 else:
-                    # 如果记录存在，更新数据
                     cursor.execute(
                         """
                         UPDATE ip_threat_intel 
@@ -96,10 +138,15 @@ class VirusTotalCollector(ThreatIntelCollector):
                         """,
                         (reputation_score, threat_level, last_update, details_json, target_id, source)
                     )
-                    logging.info(f"平台{self.name()}的IP数据{target_id}已更新")
+                    logging.info(f"平台{self.name()}的IP数据{target_id}已更新，重新计算的reputation: {reputation_score}")
 
             elif type_ == 'url':
-                reputation_score = attributes.get('reputation', 0)
+                # 根据重新计算的reputation分值设置威胁等级
+                if reputation_score >= 0:
+                    threat_level = 'low'
+                else:
+                    threat_level = 'high'
+                    
                 last_update_ts = attributes.get('last_analysis_date') or attributes.get('last_modification_date')
                 last_update = datetime.fromtimestamp(last_update_ts) if last_update_ts else None
                 target_url = attributes.get('url') or attributes.get('last_final_url') or ''
@@ -107,7 +154,7 @@ class VirusTotalCollector(ThreatIntelCollector):
                 cursor.execute("SELECT id FROM url_threat_intel WHERE id=%s AND source=%s", (target_id, source))
                 row = cursor.fetchone()
 
-                if not row:  # 修复：只有当记录不存在时才插入
+                if not row:
                     cursor.execute(
                         """
                         INSERT INTO url_threat_intel (id, type, source, target_url, reputation_score, last_update, details)
@@ -115,9 +162,8 @@ class VirusTotalCollector(ThreatIntelCollector):
                         """,
                         (target_id, type_, source, target_url, reputation_score, last_update, details_json)
                     )
-                    logging.info(f"平台{self.name()}的URL数据 {target_url} 已插入")
+                    logging.info(f"平台{self.name()}的URL数据 {target_url} 已插入，重新计算的reputation: {reputation_score}")
                 else:
-                    # 如果记录存在，更新数据
                     cursor.execute(
                         """
                         UPDATE url_threat_intel 
@@ -126,29 +172,22 @@ class VirusTotalCollector(ThreatIntelCollector):
                         """,
                         (target_url, reputation_score, last_update, details_json, target_id, source)
                     )
-                    logging.info(f"平台{self.name()}的URL数据 {target_url} 已更新")
+                    logging.info(f"平台{self.name()}的URL数据 {target_url} 已更新，重新计算的reputation: {reputation_score}")
 
             elif type_ == 'file':
-                reputation_score = attributes.get('reputation', 0)
-                
-                # 根据恶意检测数量设置威胁等级
-                analysis_stats = attributes.get('last_analysis_stats', {})
-                malicious_count = analysis_stats.get('malicious', 0)
-                if malicious_count > 5:
-                    threat_level = 'high'
-                elif malicious_count > 0:
-                    threat_level = 'medium'
-                else:
+                # 根据重新计算的reputation分值设置威胁等级
+                if reputation_score >= 0:
                     threat_level = 'low'
-                
-                # 最后分析时间
+                else:
+                    threat_level = 'high'
+                    
                 last_update_ts = attributes.get('last_analysis_date')
                 last_update = datetime.fromtimestamp(last_update_ts) if last_update_ts else None
 
                 cursor.execute("SELECT id FROM file_threat_intel WHERE id=%s AND source=%s", (target_id, source))
                 row = cursor.fetchone()
 
-                if not row:  # 修复：只有当记录不存在时才插入
+                if not row:
                     cursor.execute(
                         """
                         INSERT INTO file_threat_intel (id, type, source, reputation_score, threat_level, last_update, details)
@@ -156,9 +195,8 @@ class VirusTotalCollector(ThreatIntelCollector):
                         """,
                         (target_id, type_, source, reputation_score, threat_level, last_update, details_json)
                     )
-                    logging.info(f"平台{self.name()}的文件数据 {target_id} 已插入")
+                    logging.info(f"平台{self.name()}的文件数据 {target_id} 已插入，重新计算的reputation: {reputation_score}")
                 else:
-                    # 如果记录存在，更新数据
                     cursor.execute(
                         """
                         UPDATE file_threat_intel 
@@ -167,7 +205,7 @@ class VirusTotalCollector(ThreatIntelCollector):
                         """,
                         (reputation_score, threat_level, last_update, details_json, target_id, source)
                     )
-                    logging.info(f"平台{self.name()}的文件数据 {target_id} 已更新")
+                    logging.info(f"平台{self.name()}的文件数据 {target_id} 已更新，重新计算的reputation: {reputation_score}")
 
             else:
                 logging.info(f"平台{self.name()}的不支持的类型: {type_}")
