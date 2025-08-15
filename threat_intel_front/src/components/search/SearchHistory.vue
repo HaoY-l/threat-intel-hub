@@ -25,12 +25,12 @@
               {{ getThreatLevelText(item.maxThreatLevel || getDefaultThreatLevel(item)) }}
             </span>
             
-            <!-- 风险分数徽章 - 添加默认值用于测试 -->
+            <!-- 风险分数徽章 - 显示平均分 -->
             <span 
               class="risk-score-badge"
-              :class="getScoreClass(item.maxScore !== undefined ? item.maxScore : getDefaultScore(item))"
+              :class="getScoreClass(getAverageScoreForItem(item))"
             >
-              风险: {{ item.maxScore !== undefined ? item.maxScore : getDefaultScore(item) }}
+              风险: {{ getAverageScoreForItem(item) }}
             </span>
           </div>
           
@@ -152,7 +152,12 @@ export default {
     getThreatLevelClass(level){ const map={malicious:'threat-malicious',suspicious:'threat-suspicious',harmless:'threat-harmless',clean:'threat-harmless'}; return map[level]||'threat-unknown'; },
     getThreatIcon(level){ const map={malicious:'fas fa-skull-crossbones',suspicious:'fas fa-exclamation-triangle',harmless:'fas fa-shield-alt',clean:'fas fa-shield-alt'}; return map[level]||'fas fa-question-circle'; },
     getThreatLevelText(level){ const map={malicious:'恶意',suspicious:'可疑',harmless:'无害',clean:'清洁'}; return map[level]||'未知'; },
-    getScoreClass(score){ const s=parseInt(score)||0; if(s>0) return'score-high'; if(s<0)return'score-low'; return'score-neutral'; },
+    getScoreClass(score){ 
+      const s = parseFloat(score) || 0; 
+      if (s > 0) return 'score-positive';  // 绿色 - 正常
+      if (s === 0) return 'score-zero';    // 橙色 - 未知
+      return 'score-negative';             // 红色 - 危险
+    },
     getDefaultThreatLevel(item) {
       // 根据查询内容或其他条件返回默认威胁等级
       if (item.query && (item.query.includes('malware') || item.query.includes('virus'))) {
@@ -182,7 +187,19 @@ export default {
     isRawDetailsExpanded(hid,index){return this.expandedRawDetails.has(`${hid}_${index}`);},
     handleSearchAgain(item){this.$emit('search-again',{query:item.query,type:item.type});},
     getUniqueSourcesCount(results){return new Set(results.map(r=>r.source)).size;},
-    getAverageScore(results){if(!results||!results.length)return 0; return Math.round(results.reduce((sum,r)=>sum+(r.reputation_score||0),0)/results.length);},
+    getAverageScore(results){
+      if(!results||!results.length) return 0; 
+      const sum = results.reduce((sum,r)=>sum+(parseFloat(r.reputation_score)||0),0);
+      return Math.round(sum/results.length * 10) / 10; // 保留一位小数
+    },
+    getAverageScoreForItem(item) {
+      // 如果有详细结果，计算平均分
+      if (item.detailResults && item.detailResults.length > 0) {
+        return this.getAverageScore(item.detailResults);
+      }
+      // 否则使用默认值
+      return this.getDefaultScore(item);
+    },
     async copyDetails(details){try{await navigator.clipboard.writeText(JSON.stringify(details,null,2));this.$emit('copy-success')}catch(e){console.error('复制失败:',e)}}
   }
 }
@@ -306,7 +323,7 @@ export default {
   color: #fff;
 }
 
-/* 风险分数徽章 - 优化样式匹配图片效果 */
+/* 风险分数徽章 - 更新颜色方案 */
 .risk-score-badge {
   font-size: 0.65rem;
   font-weight: 600;
@@ -318,16 +335,16 @@ export default {
   line-height: 1.2;
   border: none;
 }
-.risk-score-badge.score-high {
-  background: #dc2626;
+.risk-score-badge.score-positive {
+  background: #16a34a;  /* 绿色 - 正常（正数） */
   color: #fff;
 }
-.risk-score-badge.score-low {
-  background: #16a34a;
+.risk-score-badge.score-zero {
+  background: #ea580c;  /* 橙色 - 未知（0） */
   color: #fff;
 }
-.risk-score-badge.score-neutral {
-  background: #ea580c;
+.risk-score-badge.score-negative {
+  background: #dc2626;  /* 红色 - 危险（负数） */
   color: #fff;
 }
 
@@ -445,6 +462,15 @@ export default {
   font-size: 1.1rem;
   font-weight: 700;
   line-height: 1;
+}
+.score-value.score-positive {
+  color: #16a34a;  /* 绿色 - 正数 */
+}
+.score-value.score-zero {
+  color: #ea580c;  /* 橙色 - 0 */
+}
+.score-value.score-negative {
+  color: #dc2626;  /* 红色 - 负数 */
 }
 .result-details {
   display: flex;
