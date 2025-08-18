@@ -5,6 +5,7 @@
       <WeChatPublisherCard />
       <IpQueryCard />
       <DomainWhoisCard />
+      <WafBlockIpCard />
     </div>
   </div>
 </template>
@@ -13,13 +14,15 @@
 import WeChatPublisherCard from '@/components/tools/WeChatPublisherCard.vue'
 import IpQueryCard from '@/components/tools/IpQueryCard.vue'
 import DomainWhoisCard from '@/components/tools/DomainWhoisCard.vue'
+import WafBlockIpCard from '@/components/tools/WafBlockIpCard.vue'
 
 export default {
   name: 'Tools',
   components: {
     WeChatPublisherCard,
     IpQueryCard,
-    DomainWhoisCard // 注册新组件
+    DomainWhoisCard,
+    WafBlockIpCard
   }
 }
 </script>
