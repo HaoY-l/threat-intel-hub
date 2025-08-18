@@ -419,3 +419,58 @@ json数组
 
 
 ---
+
+## GET /api/alert
+
+### 描述
+钉钉waf封禁播报（日报）
+
+### 请求参数
+暂无
+
+### 示例响应
+{
+  "message": "Daily report sent successfully.",
+  "status": "success"
+}
+
+### 响应字段
+
+
+---
+
+
+## GET /api/news
+
+### 描述
+Freebuf、CSDN最新安全资讯获取
+
+### 请求参数
+暂无
+
+### 示例响应
+[
+  {
+    "author": "一只牛博",
+    "category": "网络安全",
+    "content": "",
+    "cover": "https://i-blog.csdnimg.cn/direct/f824564ffa654b45a8ede7f0c4e43548.png",
+    "created_at": "2025-08-18T03:08:00",
+    "hot": 20864,
+    "id": 6,
+    "mobile_url": "https://blog.csdn.net/Mrxiao_bo/article/details/150447592",
+    "published_at": "2025-08-18T11:07:58",
+    "source": "CSDN",
+    "summary": "暂无描述信息...",
+    "time": "刚刚",
+    "timestamp": 1755486478,
+    "title": "从0到1掌握 Spring Security（第三篇）：三种认证方式，按配置一键切换",
+    "updated_at": "2025-08-18T03:08:00",
+    "url": "https://blog.csdn.net/Mrxiao_bo/article/details/150447592"
+  },
+]
+
+### 响应字段
+
+
+---

@@ -11,6 +11,7 @@ from .tools_wxgzh import wxgzh_bp
 from .alicloud_waf_attackauto import waf_logs_bp
 from .tools_all import tools_bp
 from .ai_chat import aichat_bp
+from .alicloud_waf_alert import waf_alert
 
 # 创建API蓝图
 api_bp = Blueprint('api', __name__, url_prefix='/api')
@@ -28,3 +29,4 @@ api_bp.register_blueprint(wxgzh_bp)
 api_bp.register_blueprint(waf_logs_bp)
 api_bp.register_blueprint(tools_bp)
 api_bp.register_blueprint(aichat_bp)
+api_bp.register_blueprint(waf_alert)
