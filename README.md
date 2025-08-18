@@ -149,6 +149,10 @@ DDINGTALK_WEBHOOK_URL = ''
 # 微信公众号
 wx_appid=''
 wx_secret=''
+
+# AI 模型配置
+ai_model=''
+api_key=''
 ```
 
 ### 数据源配置
