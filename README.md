@@ -195,4 +195,4 @@ api_key=''
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=threat-intel-hub/threat-intel-hub&type=Date)](https://www.star-history.com/#threat-intel-hub/threat-intel-hub&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=HaoY-l/threat-intel-hub&type=Date)](https://www.star-history.com/#HaoY-l/threat-intel-hub&Date)
