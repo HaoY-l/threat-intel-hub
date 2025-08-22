@@ -192,3 +192,7 @@ api_key=''
 
 ---
 **⭐ 如果这个项目对你有帮助，请给我们一个星标！**
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=threat-intel-hub/threat-intel-hub&type=Date)](https://www.star-history.com/#threat-intel-hub/threat-intel-hub&Date)
