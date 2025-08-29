@@ -152,11 +152,12 @@ def protected_ip_task_in_context():
 if __name__ == '__main__':
     # 启动定时任务调度器
     scheduler = None
+    create_database_and_tables()
+    logging.info("数据库初始化成功")
     try:
         # 确保所有初始化和首次运行的函数都在应用上下文中执行
         with app.app_context():
-            create_database_and_tables()
-            logging.info("数据库初始化成功")
+            
             run_cve_in_context()  # 启动时立即执行一次
             fetch_and_save_blocked_ips_in_context()
             fetch_and_save_ip_request_frequency_in_context()
