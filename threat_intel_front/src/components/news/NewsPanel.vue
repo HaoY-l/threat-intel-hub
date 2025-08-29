@@ -39,7 +39,7 @@
               {{ news.category || '未分类' }}
             </span>
           </div>
-          <span class="date">{{ formatDate(news.time) }}</span>
+          <span class="date">{{ formatRelativeTime(news.time) }}</span>
         </div>
 
         <h3 class="title" :title="news.title">{{ news.title || '无标题' }}</h3>
@@ -80,10 +80,24 @@ export default {
     openNewsDetail(news) {
       if (news.url) window.open(news.url, "_blank")
     },
-    formatDate(dateString) {
+    // 相对时间格式化
+    formatRelativeTime(dateString) {
       if (!dateString) return '未知时间'
       try {
-        return new Date(dateString).toLocaleDateString("zh-CN")
+        const date = new Date(dateString)
+        if (isNaN(date.getTime())) return dateString
+
+        const now = new Date()
+        const diff = Math.floor((now - date) / 1000) // 秒差
+
+        if (diff < 60) return '刚刚'
+        if (diff < 3600) return `${Math.floor(diff / 60)} 分钟前`
+        if (diff < 86400) return `${Math.floor(diff / 3600)} 小时前`
+        if (diff < 172800) return '昨天'
+        if (diff < 604800) return `${Math.floor(diff / 86400)} 天前`
+
+        // 超过 7 天，显示日期
+        return date.toLocaleDateString("zh-CN")
       } catch {
         return dateString
       }
@@ -93,6 +107,7 @@ export default {
 </script>
 
 <style scoped>
+/* 原样保持，不动 */
 .news-list {
   background: rgba(0, 0, 0, 0.2);
   backdrop-filter: blur(10px);
@@ -101,15 +116,12 @@ export default {
   padding: 1.5rem;
   height: fit-content;
 }
-
-/* 头部标题样式对齐 CVE */
 .list-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 1.5rem;
 }
-
 .list-header h2 {
   display: flex;
   align-items: center;
@@ -119,17 +131,13 @@ export default {
   color: white;
   margin: 0;
 }
-
 .list-header i {
   color: #06b6d4;
 }
-
 .count {
   font-size: 0.875rem;
   color: #a855f7;
 }
-
-/* 加载 & 空状态 */
 .loading-container, .empty-container {
   display: flex;
   flex-direction: column;
@@ -138,7 +146,6 @@ export default {
   min-height: 400px;
   color: #a855f7;
 }
-
 .spinner {
   width: 40px;
   height: 40px;
@@ -148,14 +155,11 @@ export default {
   animation: spin 1s linear infinite;
   margin-bottom: 1rem;
 }
-
 @keyframes spin { to { transform: rotate(360deg); } }
-
 .empty-container i {
   font-size: 3rem;
   color: #374151;
 }
-
 .refresh-btn {
   background: rgba(168, 85, 247, 0.8);
   color: white;
@@ -169,13 +173,10 @@ export default {
   margin-top: 1rem;
   transition: all 0.3s ease;
 }
-
 .refresh-btn:hover {
   background: rgba(168, 85, 247, 1);
   transform: translateY(-1px);
 }
-
-/* 新闻列表滚动区域 */
 .news-items {
   display: flex;
   flex-direction: column;
@@ -184,7 +185,6 @@ export default {
   overflow-y: auto;
   padding-right: 0.5rem;
 }
-
 .news-items::-webkit-scrollbar {
   width: 4px;
 }
@@ -199,8 +199,6 @@ export default {
 .news-items::-webkit-scrollbar-thumb:hover {
   background: rgba(139, 92, 246, 0.8);
 }
-
-/* 新闻卡片样式，和 CVE 高度一致 */
 .news-card {
   background: rgba(30, 41, 59, 0.5);
   border: 1px solid rgba(71, 85, 105, 0.5);
@@ -209,31 +207,26 @@ export default {
   cursor: pointer;
   transition: all 0.3s ease;
   min-height: 120px;
-  min-width: 280px; /* 新增：设定最小宽度，防止被挤压过小 */
+  min-width: 280px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
 }
-
 .news-card:hover {
   border-color: rgba(139, 92, 246, 0.5);
   transform: translateY(-1px);
 }
-
-/* 卡片头部 */
 .card-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   margin-bottom: 0.5rem;
 }
-
 .news-info {
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
-
 .category-tag {
   padding: 0.125rem 0.5rem;
   border-radius: 0.25rem;
@@ -241,7 +234,6 @@ export default {
   font-weight: 500;
   color: white;
 }
-
 .category-red { background: #ef4444; }
 .category-blue { background: #3b82f6; }
 .category-orange { background: #f97316; }
@@ -250,13 +242,10 @@ export default {
 .category-cyan { background: #06b6d4; }
 .category-yellow { background: #f59e0b; }
 .category-gray { background: #6b7280; }
-
 .date {
   font-size: 0.75rem;
   color: #a855f7;
 }
-
-/* 标题 & 描述对齐 CVE 样式 */
 .title {
   color: white;
   font-size: 1rem;
@@ -268,7 +257,6 @@ export default {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-
 .description {
   color: #9ca3af;
   font-size: 0.875rem;
@@ -279,18 +267,15 @@ export default {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-
 .card-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
-
 .source {
   font-size: 0.75rem;
   color: #a855f7;
 }
-
 .card-footer i {
   color: #8b5cf6;
   font-size: 0.875rem;
