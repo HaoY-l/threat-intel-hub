@@ -99,8 +99,11 @@ def insert_news_data(news_items):
         return False
 
 def get_time(time_str):
-    """将相对时间字符串转换为时间戳"""
+    """将相对时间字符串转换为时间戳，自动识别格式"""
     try:
+        if not time_str:
+            return int(time.time())
+
         if "分钟前" in time_str:
             minutes = int(re.search(r"(\d+)", time_str).group(1))
             return int((datetime.now() - timedelta(minutes=minutes)).timestamp())
@@ -112,8 +115,21 @@ def get_time(time_str):
             return int((datetime.now() - timedelta(days=days)).timestamp())
         elif "刚刚" in time_str:
             return int(datetime.now().timestamp())
-        else:
+
+        # 自动格式识别
+        if re.match(r"^\d{4}-\d{2}-\d{2}-\d{2}$", time_str):
+            # 2025-08-29-09
+            return int(datetime.strptime(time_str, "%Y-%m-%d-%H").timestamp())
+        elif re.match(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$", time_str):
+            # 2025-08-29 09:30
             return int(datetime.strptime(time_str, "%Y-%m-%d %H:%M").timestamp())
+        elif re.match(r"^\d{4}-\d{2}-\d{2}$", time_str):
+            # 2025-08-29
+            return int(datetime.strptime(time_str, "%Y-%m-%d").timestamp())
+
+        # 都不匹配，返回当前时间
+        raise ValueError(f"Unsupported time format: {time_str}")
+
     except Exception as e:
         logging.warning(f"Failed to parse time string: {time_str}, error: {e}")
         return int(time.time())
