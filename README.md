@@ -129,6 +129,7 @@ MYSQL_NAME=xxx
 # threat intel
 virustotal_api_key=xxx
 shodan_api_key=xxx
+reputation_score = -50
 
 # system
 file_log=app.log
