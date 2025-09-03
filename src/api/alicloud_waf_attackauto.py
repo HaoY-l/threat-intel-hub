@@ -107,17 +107,17 @@ def get_ip_request_frequency():
                 from_dt = datetime.datetime.strptime(from_str, "%Y-%m-%d %H:%M") if from_str else to_dt.replace(hour=0, minute=0, second=0, microsecond=0)
             except ValueError:
                 from_dt = to_dt.replace(hour=0, minute=0, second=0, microsecond=0) # 最终兜底
-
+        highfreq_ip_count = int(os.getenv("highfreq_ip_count"))
         conn = get_db_connection()
         with conn.cursor(pymysql.cursors.DictCursor) as cursor:
             sql = """
             SELECT ip, request_count, from_time AS last_request_time, to_time,
                    created_at -- **新增：选择 created_at 字段**
             FROM ip_request_frequency
-            WHERE from_time >= %s AND to_time <= %s AND request_count > 2000
+            WHERE from_time >= %s AND to_time <= %s AND request_count > %s
             ORDER BY request_count DESC
             """
-            cursor.execute(sql, (from_dt, to_dt))
+            cursor.execute(sql, (from_dt, to_dt,highfreq_ip_count))
             results = cursor.fetchall()
 
         formatted_results = []

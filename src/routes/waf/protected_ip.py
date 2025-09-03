@@ -14,7 +14,7 @@ WAF_API_BASE_URL = 'http://localhost:8891/api'
 def protected_ip_task():
     """
     查询高频请求的IP和被封禁IP，查询相对时间1分钟内，时间参考数据表中的 to_time 字段。
-    如果有IP，则调用接口localhost:8891/api/query(post),查询IP的威胁情报。查询对应的reputation_score字段，如果值小于-5，则调用添加黑名单接口拉黑（接口localhost:8891/api/modifyblackrule）
+    如果有IP，则调用接口localhost:8891/api/query(post),查询IP的威胁情报。查询对应的reputation_score字段，如果值小于规定值，则调用添加黑名单接口拉黑（接口localhost:8891/api/modifyblackrule）
     对应的操作记录记录到数据库中。表名：protected_ip
     这是一个独立的定时任务函数，不作为Flask路由。
     所有时间均为天真 datetime 对象。

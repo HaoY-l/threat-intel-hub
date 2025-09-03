@@ -125,11 +125,11 @@ def fetch_and_save_ip_request_frequency():
     from_time = int(from_dt.timestamp())
 
     client = get_sls_client()
-
-    query = '''* | SELECT real_client_ip AS ip, COUNT(*) AS request_count
+    highfreq_ip_count = int(os.getenv("highfreq_ip_count"))
+    query = f'''* | SELECT real_client_ip AS ip, COUNT(*) AS request_count
 WHERE real_client_ip != ''
 GROUP BY real_client_ip
-HAVING request_count > 3000
+HAVING request_count > {highfreq_ip_count}
 ORDER BY request_count DESC'''
 
     get_logs_request = sls_20201230_models.GetLogsRequest(
@@ -156,7 +156,7 @@ ORDER BY request_count DESC'''
             for item in logs:
                 ip = item.get("ip")
                 request_count = int(item.get("request_count", 0))
-                if request_count > 2000:
+                if request_count > highfreq_ip_count:
                     sql = """
                     INSERT INTO ip_request_frequency (ip, request_count, from_time, to_time)
                     VALUES (%s, %s, %s, %s)
