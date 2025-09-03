@@ -130,6 +130,7 @@ MYSQL_NAME=xxx
 virustotal_api_key=xxx
 shodan_api_key=xxx
 reputation_score = -50
+highfreq_ip_count = 6000
 
 # system
 file_log=app.log
