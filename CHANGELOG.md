@@ -1,5 +1,8 @@
 # 更新日志（Changelog）
 
+### 2025-09-19
+- 增加docker部署方式，具体可看readme.md文件
+
 ### 2025-09-03
 - 增加高频IP请求参数环境变量highfreq_ip_count = 6000，默认6000次
 
