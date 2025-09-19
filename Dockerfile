@@ -38,4 +38,4 @@ RUN mkdir -p src/static && rm -rf src/static/* \
 
 # ========= 启动命令 =========
 EXPOSE 8891
-CMD ["gunicorn", "-b", "0.0.0.0:8891", "app:app"]
+CMD ["python", "app.py"]
