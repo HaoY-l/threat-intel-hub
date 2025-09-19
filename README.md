@@ -162,6 +162,10 @@ api_key=''
 ### Docker部署（推荐）
 Docker Hub搜索🔍：monday1/threat-intel-hub:latest
 ```bash
+# 下载仓库代码到本地
+git clone https://github.com/HaoY-l/threat-intel-hub.git
+# 进入项目目录
+cd threat-intel-hub
 # 后台执行
 docker compose up -d
 ```
