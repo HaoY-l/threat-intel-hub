@@ -160,11 +160,10 @@ ai_model=''
 api_key=''
 ```
 ### Docker部署（推荐）
+Docker Hub搜索🔍：monday1/threat-intel-hub:latest
 ```bash
-# pull镜像
-docker pull monday1/threat-intel-hub:latest
-# 运行容器
-docker run -itd -p 8891:8891 --name threat-intel-hub monday1/threat-intel-hub:latest
+# 后台执行
+docker compose up -d
 ```
 
 **可以把.env文件映射到宿主机，方便配置！！**
