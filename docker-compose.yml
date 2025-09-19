@@ -1,39 +1,32 @@
 version: "3.9"
 
 services:
-  # === Flask 后端（含前端静态资源）===
-  threat-intel-hub:
+  app:
     build: .
     container_name: threat-intel-hub
+    env_file:
+      - .env
+    environment:
+      MYSQL_HOST: mysql        # 覆盖 .env 里的 IP
+      MYSQL_PORT: 3306         # 保持一致
     ports:
       - "8891:8891"
-    environment:
-      - FLASK_ENV=production
-      - MYSQL_HOST=mysql
-      - MYSQL_PORT=3306
-      - MYSQL_USER=root
-      - MYSQL_PASSWORD=threat_pass
-      - MYSQL_DB=threat_intel
     depends_on:
       - mysql
-    restart: unless-stopped
 
-  # === MySQL 数据库 ===
   mysql:
     image: mysql:8.0
-    container_name: threat-mysql
-    restart: unless-stopped
+    container_name: threat-intel-db
+    restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: threat_intel
-      MYSQL_DATABASE: threat_intel
-      MYSQL_USER: root
-      MYSQL_PASSWORD: threat_pass
+      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_NAME}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     ports:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
 
-
-# === 数据持久化卷 ===
 volumes:
   mysql_data:
