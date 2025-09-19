@@ -2,7 +2,7 @@
 services:
   app:
     build: .
-    container_name: threat-intel-hub
+    container_name: threat-intel-hub-app
     env_file:
       - .env
     environment:
@@ -15,7 +15,7 @@ services:
 
   mysql:
     image: mysql:8.0
-    container_name: threat-intel-db
+    container_name: threat-intel-hub-db
     restart: always
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD}
