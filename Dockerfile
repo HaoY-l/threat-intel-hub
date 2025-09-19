@@ -6,10 +6,12 @@ WORKDIR /app
 
 # 安装系统依赖（构建前端需要 node）
 RUN apt-get update && apt-get install -y \
-    build-essential \
-    libssl-dev \
-    libffi-dev \
+    gcc \
+    g++ \
+    libxml2-dev \
+    libxslt-dev \
     python3-dev \
+    build-essential \
     curl \
     git \
     npm \
