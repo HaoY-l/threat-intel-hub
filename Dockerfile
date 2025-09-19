@@ -17,7 +17,7 @@ RUN apt-get update && apt-get install -y \
 
 # ========= 安装 Python 依赖 =========
 COPY requirements.txt .
-RUN pip install --upgrade pip && pip install -r requirements.txt
+RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
 
 # ========= 构建前端 =========
 COPY threat_intel_front ./threat_intel_front
