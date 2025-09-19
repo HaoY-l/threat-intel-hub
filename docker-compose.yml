@@ -1,7 +1,7 @@
 
 services:
   app:
-    build: .
+    image: monday1/threat-intel-hub:latest
     container_name: threat-intel-hub-app
     env_file:
       - .env
