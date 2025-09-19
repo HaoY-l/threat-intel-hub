@@ -12,3 +12,4 @@ alibabacloud_sls20201230
 python-whois
 feedparser
 markdown
+gunicorn
