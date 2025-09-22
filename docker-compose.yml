@@ -1,18 +1,6 @@
+version: "3.9"
 
 services:
-  app:
-    image: monday1/threat-intel-hub:latest
-    container_name: threat-intel-hub-app
-    env_file:
-      - .env
-    environment:
-      MYSQL_HOST: mysql        # 覆盖 .env 里的 IP
-      MYSQL_PORT: 3306         # 保持一致
-    ports:
-      - "8891:8891"
-    depends_on:
-      - mysql
-
   mysql:
     image: mysql:8.0
     container_name: threat-intel-hub-db
@@ -20,11 +8,32 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_NAME}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     ports:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_PASSWORD}"]
+      interval: 5s
+      retries: 10
+
+  app:
+    image: monday1/threat-intel-hub:latest
+    container_name: threat-intel-hub-app
+    env_file:
+      - .env
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: root
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_NAME: ${MYSQL_NAME}
+    ports:
+      - "8891:8891"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: always
 
 volumes:
   mysql_data:
