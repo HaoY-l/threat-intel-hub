@@ -166,6 +166,8 @@ Docker Hub搜索🔍：monday1/threat-intel-hub:latest
 git clone https://github.com/HaoY-l/threat-intel-hub.git
 # 进入项目目录
 cd threat-intel-hub
+# 创建.env文件并配置环境变量
+mv .env.example .env
 # 后台执行
 docker compose up -d
 ```
