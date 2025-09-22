@@ -3,6 +3,9 @@
 🔥 一个集成多源威胁情报的聚合平台，为安全研究人员和运维团队提供实时威胁情报查询和播报服务、主动拦截威胁IP，集成AI等多项常用安全类工具🔧   
 ---   
 
+## 在线文档
+[Threat Intelligence Hub在线文档](https://docs.qq.com/doc/DQXJ3R0x0R0x0R0x0)
+
 ## 最近更新
 ### 2025-09-19
 - 增加docker部署方式，具体可看readme.md文件
