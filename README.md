@@ -4,7 +4,7 @@
 ---   
 
 ## 在线文档
-[Threat Intelligence Hub在线文档](https://docs.qq.com/doc/DQXJ3R0x0R0x0R0x0)
+[Threat Intelligence Hub在线文档](https://www.yuque.com/weare/mx0zcy/vrqwsxe3vgtesate?singleDoc#)
 
 ## 最近更新
 ### 2025-09-19
