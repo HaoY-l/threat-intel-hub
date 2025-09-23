@@ -30,6 +30,14 @@
               <a
                 href="#"
                 class="nav-link"
+                :class="{ active: active === 'phishing' }"
+                @click.prevent="setActiveTab('phishing')"
+              >钓鱼邮件检测🎣</a>
+            </li>
+            <li>
+              <a
+                href="#"
+                class="nav-link"
                 :class="{ active: active === 'tools' }"
                 @click.prevent="setActiveTab('tools')"
               >工具箱🧰</a>

@@ -19,6 +19,7 @@ from dotenv import load_dotenv
 from flask_cors import CORS
 import atexit
 import datetime # 确保 datetime 模块被导入
+from src.api.phishing_email import phishing_bp, init_phishing
 
 # -----------------------------------------------
 load_dotenv()
@@ -154,6 +155,7 @@ if __name__ == '__main__':
     scheduler = None
     create_database_and_tables()
     logging.info("数据库初始化成功")
+    init_phishing()
     try:
         # 确保所有初始化和首次运行的函数都在应用上下文中执行
         with app.app_context():

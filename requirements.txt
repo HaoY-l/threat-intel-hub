@@ -13,3 +13,10 @@ python-whois
 feedparser
 markdown
 gunicorn
+pandas
+scikit-learn
+keras
+nltk
+matplotlib
+tensorflow
+seaborn
