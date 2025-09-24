@@ -557,8 +557,10 @@ export default {
 .log-content {
   background: white;
   border-radius: 12px;
-  overflow: hidden;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+  /* 新增或修改以下两行 */
+  max-height: 300px; /* 估算三条记录的高度，请根据实际效果调整 */
+  overflow-y: auto;  /* 启用垂直滚动条 */
 }
 
 .log-empty {
