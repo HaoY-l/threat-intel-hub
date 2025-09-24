@@ -19,6 +19,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from flask_cors import CORS
 from data.db_init import get_db_connection
+from src.routes.email.get_qx_email import main as get_qx_email
 
 # 创建蓝图
 phishing_bp = Blueprint('phishing_bp', __name__, url_prefix='/phishing')
@@ -245,5 +246,17 @@ def clear_prediction_results():
             cursor.execute(sql)
         conn.close()
         return jsonify({'status': 'success', 'message': '预测结果已清理'})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+    
+@phishing_bp.route('/cron_email_check/<int:minutes>', methods=['GET'])
+def cron_email_check(minutes):
+    """
+    定时检查邮箱中的新邮件并进行钓鱼检测
+    """
+    try:
+        # 这里调用你的main函数（假设你把main函数重命名为get_qx_email或者导入了）
+        email_ids = get_qx_email(minutes)  # 或者 get_qx_email(minutes)
+        return jsonify({'status': 'success', 'checked_email_ids': email_ids})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
