@@ -25,15 +25,15 @@ from src.api.phishing_email import phishing_bp, init_phishing
 load_dotenv()
 
 # 配置日志
-log_file = os.getenv('file_log', 'app.log')
+handlers = [
+    logging.FileHandler(os.getenv('file_log'), encoding="utf-8"),
+    logging.StreamHandler()
+]
 logging.basicConfig(
-    level=logging.INFO, 
-    format='%(asctime)s - %(levelname)s - %(message)s', 
-    datefmt='%Y-%m-%d %H:%M:%S',
-    handlers=[
-        logging.FileHandler(log_file, encoding='utf-8'),
-        logging.StreamHandler()  # 同时输出到控制台
-    ]
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    handlers=handlers
 )
 
 app = Flask(__name__, static_folder='src/static', static_url_path='/')

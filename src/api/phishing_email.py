@@ -18,6 +18,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import seaborn as sns
 from flask_cors import CORS
+from data.db_init import get_db_connection
 
 # 创建蓝图
 phishing_bp = Blueprint('phishing_bp', __name__, url_prefix='/phishing')
@@ -143,8 +144,23 @@ def predict():
     result = 'Phishing' if prob > 0.5 else 'Not Phishing'
 
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    # 写入日志文件（保留原有功能）
     with open(LOG_FILE, 'a', encoding='utf-8') as f:
         f.write(f"[{ts}] {result} ({prob:.4f})\n{email_content}\n{'-'*50}\n")
+
+    # 写入数据库
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cursor:
+            insert_sql = """
+                INSERT INTO phishing_results (timestamp, result, probability, email_content)
+                VALUES (%s, %s, %s, %s)
+            """
+            cursor.execute(insert_sql, (ts, result, prob, email_content))
+        conn.close()
+    except Exception as e:
+        print(f"写入数据库失败: {e}")
 
     return jsonify({'result': result, 'probability': prob})
 
@@ -193,3 +209,41 @@ def save_model_metrics():
         with open(os.path.join(STATIC_DIR, 'model_metrics.txt'), 'w') as f:
             for k, v in metrics.items():
                 f.write(f"{k}: {v:.4f}\n")
+
+
+@phishing_bp.route('/history', methods=['GET'])
+def get_prediction_history():
+    """
+    查询最近的预测结果
+    GET 参数: ?limit=10
+    """
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cursor:
+            sql = """
+                SELECT id, timestamp, result, probability, email_content
+                FROM phishing_results
+                ORDER BY timestamp DESC
+            """
+            cursor.execute(sql)
+            results = cursor.fetchall()
+        conn.close()
+        return jsonify({'status': 'success', 'data': results})
+    except Exception as e:
+        print(f"Error in get_prediction_history: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+    
+@phishing_bp.route('/clear', methods=['GET'])
+def clear_prediction_results():
+    """
+    清理预测结果，直接清空整个表。
+    """
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cursor:
+            sql = "TRUNCATE TABLE phishing_results"
+            cursor.execute(sql)
+        conn.close()
+        return jsonify({'status': 'success', 'message': '预测结果已清理'})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
