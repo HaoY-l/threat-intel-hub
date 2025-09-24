@@ -1,0 +1,21 @@
+# 忽略 Python 缓存文件
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# 忽略虚拟环境
+venv/
+
+# 忽略 git 文件
+.git/
+.gitignore
+test*
+
+# 忽略日志和临时文件
+*.log
+tmp/
+*.swp
+
+# 忽略 Dockerfile 中不需要的文件
+.dockerignore

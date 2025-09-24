@@ -13,12 +13,15 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_PASSWORD}"]
-      interval: 5s
-      retries: 10
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
 
   app:
-    image: monday1/threat-intel-hub:latest
+    # image: monday1/threat-intel-hub:latest
+    image: threat-intel-hub:latest
     container_name: threat-intel-hub-app
     env_file:
       - .env
