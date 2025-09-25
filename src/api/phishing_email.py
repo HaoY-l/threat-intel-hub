@@ -10,6 +10,7 @@ from sklearn.metrics import (
 )
 from keras.models import Sequential, load_model
 from keras.layers import Dense, Dropout
+from keras.layers import Input
 from flask import Blueprint, jsonify, request
 import nltk
 from nltk.tokenize import word_tokenize
@@ -76,9 +77,9 @@ def load_resources():
 
 
 def build_model(input_dim):
-    """定义深度学习模型"""
     model = Sequential([
-        Dense(128, activation='relu', input_dim=input_dim),
+        Input(shape=(input_dim,), name='input_layer'),
+        Dense(128, activation='relu'),
         Dropout(0.2),
         Dense(64, activation='relu'),
         Dense(1, activation='sigmoid')
@@ -189,12 +190,35 @@ def retrain():
 
 
 def init_phishing():
+    """
+    初始化钓鱼邮件检测
+    1. 加载数据和向量化
+    2. 尝试加载已有模型
+       - 若加载失败，尝试兼容旧版 h5 文件
+       - 若不存在模型，训练新模型
+    """
     global model
     load_resources()
+
     if os.path.exists(MODEL_FILE):
-        model = load_model(MODEL_FILE)
+        try:
+            # 尝试直接加载模型
+            model = load_model(MODEL_FILE)
+            print("模型加载成功")
+        except TypeError as e:
+            print(f"模型加载失败: {e}, 尝试兼容旧版 h5 模型...")
+            # 兼容旧版 h5 模型，忽略 batch_shape
+            from keras.layers import InputLayer
+
+            def fixed_input_layer(**kwargs):
+                kwargs.pop('batch_shape', None)
+                return InputLayer(**kwargs)
+
+            model = load_model(MODEL_FILE, custom_objects={'InputLayer': fixed_input_layer})
+            print("旧版模型兼容加载成功")
         save_model_metrics()  # 只生成 metrics，不重新训练
     else:
+        print("未找到模型文件，开始训练新模型...")
         train_and_save_model()
 def save_model_metrics():
     """仅计算并保存 metrics，不重新训练模型"""
