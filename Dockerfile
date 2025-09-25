@@ -24,7 +24,7 @@ RUN pip install --no-cache-dir -r requirements.txt -i https://pypi.tuna.tsinghua
 COPY app.py .
 COPY src/ src/
 COPY .env .
-COPY data/ .
+COPY data/ data/
 
 # 暴露端口
 EXPOSE 8891
