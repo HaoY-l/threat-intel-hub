@@ -367,8 +367,8 @@ export default {
       phishingEmailCount: 0,
       autoDetectLogs: [],
       
-      // API基础URL，根据你的后端地址修改
-      apiBaseUrl: 'http://localhost:8891/api/phishing'
+      // API基础URL，初始化为空，将在 mounted 钩子中动态设置
+      apiBaseUrl: ''
     }
   },
   computed: {
@@ -377,6 +377,9 @@ export default {
     }
   },
   mounted() {
+    // 动态设置 API Base URL
+    this.setDynamicApiBaseUrl(); 
+    
     this.checkSystemStatus();
     this.loadHistoryFromStorage();
     this.loadAutoDetectSettings();
@@ -385,6 +388,26 @@ export default {
     this.stopAutoCheck();
   },
   methods: {
+    /**
+     * 动态设置 API Base URL，使用当前访问的协议和主机名
+     * 假设后端 API 端口通过 Docker 映射到了宿主机的 8891 端口。
+     */
+    setDynamicApiBaseUrl() {
+      const protocol = window.location.protocol; // http: 或 https:
+      
+      // 获取当前访问的主机名或IP，并移除可能的端口号（如 :8080）
+      const hostname = window.location.hostname;
+      
+      // 构造 API 的基础 URL，强制使用后端服务映射的端口 8891
+      const baseUrl = `${protocol}//${hostname}:8891`; 
+      
+      // 拼接完整的 API 路径
+      this.apiBaseUrl = `${baseUrl}/api/phishing`;
+      
+      // 仅用于调试，在控制台查看设置结果
+      console.log('Dynamic API Base URL set to:', this.apiBaseUrl); 
+    },
+    
     // 邮件预测
     async predictEmail() {
       if (!this.emailContent.trim()) {
@@ -422,7 +445,8 @@ export default {
         
       } catch (error) {
         console.error('预测失败:', error);
-        alert('预测失败，请检查网络连接或联系管理员。');
+        // 确保在错误信息中提示用户检查动态设置的 URL
+        alert(`预测失败，请检查网络连接或确认后端服务（${this.apiBaseUrl}）是否可用。`);
       } finally {
         this.loading = false;
       }
@@ -626,6 +650,12 @@ export default {
     
     // 检查系统状态
     async checkSystemStatus() {
+      // 确保 apiBaseUrl 已经设置
+      if (!this.apiBaseUrl) {
+        // 如果在 mounted 钩子中设置，这里可能需要等待一下
+        await new Promise(resolve => setTimeout(resolve, 50)); 
+      }
+      
       try {
         // 尝试获取指标来检查模型状态
         const response = await axios.get(`${this.apiBaseUrl}/metrics`);
