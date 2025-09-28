@@ -20,7 +20,7 @@ services:
       start_period: 30s
 
   app:
-    image: monday1/threat-intel-hub:v1.0.0
+    image: monday1/threat-intel-hub:latest
     # image: threat-intel-hub:latest
     container_name: threat-intel-hub-app
     env_file:
