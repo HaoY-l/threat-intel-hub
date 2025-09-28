@@ -34,7 +34,7 @@ services:
     ports:
       - "8891:8891"
     depends_on:
-      mysql:
+      threat-intel-hub-db  :
         condition: service_healthy
     restart: always
 
