@@ -7,7 +7,7 @@
 [Threat Intelligence Hub在线文档](https://www.yuque.com/weare/mx0zcy/vrqwsxe3vgtesate?singleDoc#)
 
 ## 最近更新
-### 2025-09-25
+### 2025-09-28
 - 增加钓鱼邮件检测模块，支持检测钓鱼邮件，并返回钓鱼邮件的检测结果
 - 钓鱼邮件检测支持手动输入和自动获取收件邮件进行检测
 - 基于机器学习、模型训练和规则匹配的钓鱼邮件检测算法
@@ -126,38 +126,32 @@
 ENV=pro
 
 DB_TYPE=mysql
-MYSQL_HOST=2xx.xx.26
-MYSQL_PORT=xxx
+MYSQL_HOST=threat-intel-hub-db   # 要和docker-compose.yml中的db服务名一致 
+MYSQL_PORT=3306           
 MYSQL_USER=root
-MYSQL_PASSWORD=xxx
-MYSQL_NAME=xxx
+MYSQL_PASSWORD=threat_intel # 数据库默认密码
+MYSQL_NAME=threat_intel # 数据库名称
 
 # threat intel
-virustotal_api_key=xxx
+virustotal_api_key=xxx 
 shodan_api_key=xxx
-reputation_score = -50
-highfreq_ip_count = 6000
+reputation_score=-50
+highfreq_ip_count=6000
 
 # system
 file_log=app.log
 
 # WAF API INFO
-# WAF INSTACE_ID INFO
-INSTANCE_ID = ''
-REGION_ID = ''
-# WAF AKSK INFO
-ALIBABA_CLOUD_ACCESS_KEY_ID = ''
-ALIBABA_CLOUD_ACCESS_KEY_SECRET = '' 
-# WAF SLS INFO
-SLS_PROJECT_NAME = ''
-SLS_LOGSTORE_NAME = ''
-# WAF WHITELIST INFO
-WHITELIST_TEMPLATE_ID = ''
-# WAF BLACKLIST INFO
-BLACKLIST_TEMPLATE_ID = ''
-BLACKLIST_RULES_ID = ''
-# DINGDING INFO
-DDINGTALK_WEBHOOK_URL = ''
+INSTANCE_ID=''
+REGION_ID=''
+ALIBABA_CLOUD_ACCESS_KEY_ID=''
+ALIBABA_CLOUD_ACCESS_KEY_SECRET='' 
+SLS_PROJECT_NAME=''
+SLS_LOGSTORE_NAME=''
+WHITELIST_TEMPLATE_ID=''
+BLACKLIST_TEMPLATE_ID=''
+BLACKLIST_RULES_ID=''
+DDINGTALK_WEBHOOK_URL=''
 
 # 微信公众号
 wx_appid=''
@@ -166,6 +160,13 @@ wx_secret=''
 # AI 模型配置
 ai_model=''
 api_key=''
+
+# 企业微信邮箱
+email_username=''
+email_passwd=''
+imap_server = "imap.exmail.qq.com"
+imap_port = 993
+qw_webhook_url=''
 ```
 ### Docker部署（推荐）
 Docker Hub搜索🔍：monday1/threat-intel-hub:latest
@@ -174,13 +175,13 @@ Docker Hub搜索🔍：monday1/threat-intel-hub:latest
 git clone https://github.com/HaoY-l/threat-intel-hub.git
 # 进入项目目录
 cd threat-intel-hub
-# 创建.env文件并配置环境变量
+# 创建.env文件并配置环境变量，记得添加正确的配置
 mv .env.example .env
 # 后台执行
 docker compose up -d
 ```
 
-**可以把.env文件映射到宿主机，方便配置！！**
+**这里可能出现应用启动失败，可以手动启动app容器，原因是mysql还没有完全起来就开始连接mysql导致**
 
 
 ### 数据源配置
