@@ -474,3 +474,134 @@ Freebuf、CSDN最新安全资讯获取
 
 
 ---
+
+# 钓鱼邮件检测 API 接口文档
+
+## 基础 URL
+
+```
+http://<your-server>:<port>/phishing
+```
+
+---
+
+## 1. POST `/predict`
+
+### 功能
+
+对单封邮件内容进行钓鱼邮件预测。
+
+### 请求参数
+
+| 参数名            | 类型     | 必填 | 描述                 |
+| -------------- | ------ | -- | ------------------ |
+| email\_content | string | 是  | 邮件正文内容，用于预测是否为钓鱼邮件 |
+
+请求示例（JSON Body）：
+
+```json
+{
+  "email_content": "Dear user, please verify your account by clicking this link..."
+}
+```
+
+### 返回结果
+
+| 字段          | 类型     | 描述                               |
+| ----------- | ------ | -------------------------------- |
+| result      | string | 预测结果：`Phishing` 或 `Not Phishing` |
+| probability | float  | 模型预测的钓鱼概率（0\~1）                  |
+
+返回示例：
+
+```json
+{
+  "result": "Phishing",
+  "probability": 0.87
+}
+```
+
+---
+
+## 2. GET `/metrics`
+
+### 功能
+
+获取当前模型的评估指标（accuracy、precision、recall、f1\_score）。
+
+### 请求参数
+
+无。
+
+### 返回结果
+
+| 字段        | 类型    | 描述    |
+| --------- | ----- | ----- |
+| accuracy  | float | 准确率   |
+| precision | float | 精确率   |
+| recall    | float | 召回率   |
+| f1\_score | float | F1 分数 |
+
+返回示例：
+
+```json
+{
+  "accuracy": 0.9983,
+  "precision": 0.9975,
+  "recall": 0.9990,
+  "f1_score": 0.9982
+}
+```
+
+### 错误返回
+
+* 模型未训练时返回 HTTP 400：
+
+```json
+{
+  "error": "模型未训练"
+}
+```
+
+---
+
+## 3. POST `/retrain`
+
+### 功能
+
+重新训练模型，并保存最新模型和评估指标。
+
+### 请求参数
+
+无。
+
+### 返回结果
+
+| 字段      | 类型     | 描述                  |
+| ------- | ------ | ------------------- |
+| status  | string | 请求状态，成功返回 `success` |
+| metrics | object | 最新模型的评估指标           |
+
+返回示例：
+
+```json
+{
+  "status": "success",
+  "metrics": {
+    "accuracy": 0.9983,
+    "precision": 0.9975,
+    "recall": 0.9990,
+    "f1_score": 0.9982
+  }
+}
+```
+
+---
+
+## 备注
+
+1. `/predict` 接口要求 **Content-Type 为 `application/json`**。
+2. 模型输出为钓鱼概率，默认阈值为 0.5，可根据业务需求调整。
+3. `/retrain` 会覆盖原有模型，请确保在非高峰期操作以避免影响线上预测。
+
+

@@ -1,0 +1,29 @@
+# 忽略 git 文件
+.git/
+.gitignore
+test*
+CHANGELOG.md
+# 忽略日志和临时文件
+*.log
+tmp/
+*.swp
+
+# 忽略 Dockerfile 中不需要的文件
+.dockerignore
+
+# Python虚拟环境
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# MacOS 系统文件
+.DS_Store
+
+# 前端源码和依赖（已打包，不需要）
+threat_intel_front/
+
+# 环境示例
+.env-example
+threat_intel.sql

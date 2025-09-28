@@ -19,20 +19,21 @@ from dotenv import load_dotenv
 from flask_cors import CORS
 import atexit
 import datetime # 确保 datetime 模块被导入
+from src.api.phishing_email import phishing_bp, init_phishing
 
 # -----------------------------------------------
 load_dotenv()
 
 # 配置日志
-log_file = os.getenv('file_log', 'app.log')
+handlers = [
+    logging.FileHandler(os.getenv('file_log'), encoding="utf-8"),
+    logging.StreamHandler()
+]
 logging.basicConfig(
-    level=logging.INFO, 
-    format='%(asctime)s - %(levelname)s - %(message)s', 
-    datefmt='%Y-%m-%d %H:%M:%S',
-    handlers=[
-        logging.FileHandler(log_file, encoding='utf-8'),
-        logging.StreamHandler()  # 同时输出到控制台
-    ]
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    handlers=handlers
 )
 
 app = Flask(__name__, static_folder='src/static', static_url_path='/')
@@ -154,6 +155,7 @@ if __name__ == '__main__':
     scheduler = None
     create_database_and_tables()
     logging.info("数据库初始化成功")
+    init_phishing()
     try:
         # 确保所有初始化和首次运行的函数都在应用上下文中执行
         with app.app_context():

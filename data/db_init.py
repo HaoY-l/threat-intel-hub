@@ -201,6 +201,22 @@ def create_database_and_tables():
         """
         cursor.execute(create_news_data_table_sql)
 
+        # 创建邮件预测结果表
+        create_phishing_results_table_sql = """
+        CREATE TABLE IF NOT EXISTS phishing_results (
+            id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '自增主键',
+            timestamp DATETIME NOT NULL COMMENT '预测时间',
+            result VARCHAR(20) NOT NULL COMMENT '预测结果：Phishing 或 Not Phishing',
+            probability FLOAT(5,4) NOT NULL COMMENT '模型预测的概率值',
+            email_content TEXT NOT NULL COMMENT '邮件原文内容',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '记录创建时间',
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '记录更新时间',
+            INDEX idx_timestamp (timestamp),
+            INDEX idx_result (result)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='邮件钓鱼预测结果表';
+        """
+        cursor.execute(create_phishing_results_table_sql)
+
         
     conn.close()
 
