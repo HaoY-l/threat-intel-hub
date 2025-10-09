@@ -224,7 +224,18 @@ docker compose up -d
 [![Star History Chart](https://api.star-history.com/svg?repos=HaoY-l/threat-intel-hub&type=Date)](https://www.star-history.com/#HaoY-l/threat-intel-hub&Date)
 ---
 
+## 🏢 Who's Using This Project
+
+We’re proud that our project is trusted by awesome teams around the world 🌍
+
+
+[<img src="threat_intel_front/public/favicon.ico" height="40" title="Threat-Intel-Hub" />](https://github.com/HaoY-l/threat-intel-hub)   
+
+> 💬 If your company is using this project, feel free to [open a PR](https://github.com/hyyy/myproject/pulls) and add your logo here!
+
 
 ## 有任何问题请联系作者✍️进群也请加作者微信
 **项目不得用于任何非法用途，一切行为自行承担后果，与作者无关；若该工具的任何行为有违规请联系作者✍️**。 
 ![作者✍️微信🛰️](./data/public/author.png) 
+
+
