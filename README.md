@@ -134,7 +134,7 @@ MYSQL_NAME=threat_intel # 数据库名称
 
 # threat intel
 virustotal_api_key=xxx 
-shodan_api_key=xxx
+otx_api_key=xxx
 reputation_score=-50
 highfreq_ip_count=6000
 
