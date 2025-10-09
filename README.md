@@ -231,7 +231,7 @@ We’re proud that our project is trusted by awesome teams around the world 🌍
 
 [<img src="threat_intel_front/public/favicon.ico" height="40" title="Threat-Intel-Hub" />](https://github.com/HaoY-l/threat-intel-hub)   
 
-> 💬 If your company is using this project, feel free to [open a PR](https://github.com/hyyy/myproject/pulls) and add your logo here!
+> 💬 If your company is using this project, feel free to open a PR and add your logo here!
 
 
 ## 有任何问题请联系作者✍️进群也请加作者微信
