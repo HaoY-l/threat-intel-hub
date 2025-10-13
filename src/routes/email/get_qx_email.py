@@ -5,22 +5,13 @@ import requests
 import json
 import time
 from datetime import datetime, timedelta
-from dotenv import load_dotenv
-import os
-
-load_dotenv()
+from flask_cors import CORS
 
 # 配置 - 替换为实际值
-EMAIL = os.getenv('email_username')  # 完整邮箱地址
-PASSWORD = os.getenv('email_passwd')  # 邮箱密码
-IMAP_SERVER = os.getenv('imap_server')  # IMAP服务器地址
-IMAP_PORT = os.getenv('imap_port')  # IMAP端口
+# 注意：现在main函数接受参数，而不是使用dotenv
 
-PHISHING_API_URL = "http://localhost:8891/api/phishing/predict"  # 钓鱼判断API
-WEBHOOK_URL = os.getenv('qw_webhook_url')  # 企业微信机器人Webhook
-
-def connect_imap(email_addr, password):
-    mail = imaplib.IMAP4_SSL(IMAP_SERVER, IMAP_PORT)
+def connect_imap(email_addr, password, imap_server, imap_port):
+    mail = imaplib.IMAP4_SSL(imap_server, imap_port)
     mail.login(email_addr, password)
     mail.select("inbox")  # 选择收件箱
     return mail
@@ -126,37 +117,59 @@ def send_to_webhook(webhook_url, message):
     else:
         print("Message sent")
 
-def main(zidingyishijian):  # 输入参数为分钟数
+def main(minutes, email_addr, password, imap_server, imap_port, webhook_url, phishing_api_url="http://localhost:8891/api/phishing/predict"):
+    """
+    检查单个邮箱中的钓鱼邮件
+    
+    Args:
+        minutes: 检查多少分钟内的邮件
+        email_addr: 邮箱地址
+        password: 邮箱密码
+        imap_server: IMAP服务器地址
+        imap_port: IMAP端口
+        webhook_url: 企业微信Webhook URL
+        phishing_api_url: 钓鱼邮件检测API地址
+    """
     try:
-        mail = connect_imap(EMAIL, PASSWORD)
+        mail = connect_imap(email_addr, password, imap_server, imap_port)
         
         # 计算时间范围
         current_time = datetime.now()
-        start_time = current_time - timedelta(minutes=zidingyishijian)
+        start_time = current_time - timedelta(minutes=minutes)
         
         # 先获取可能的邮件列表（按天筛选，避免获取太多邮件）
-        email_ids = fetch_email_list(mail, zidingyishijian)
+        email_ids = fetch_email_list(mail, minutes)
         
         # 精确筛选：检查每封邮件的时间戳是否在指定范围内
         filtered_emails = []
+        phishing_count = 0  # 添加钓鱼邮件计数器
+        
         for email_id in email_ids:
             email_date = get_email_date(mail, email_id)
             if email_date and start_time <= email_date <= current_time:
                 filtered_emails.append(email_id)
         
-        print(f"找到 {len(filtered_emails)} 封邮件在过去 {zidingyishijian} 分钟内")
+        print(f"找到 {len(filtered_emails)} 封邮件在过去 {minutes} 分钟内 for {email_addr}")
         
         # 处理筛选后的邮件
         for email_id in filtered_emails:
             content = fetch_email_content(mail, email_id)
-            is_phishing = predict_phishing(PHISHING_API_URL, content)
-            result = "phishing" if is_phishing else "Safe"
+            is_phishing = predict_phishing(phishing_api_url, content)
+            result = "phishing" if is_phishing == "Phishing" else "Safe"
+            
+            # 统计钓鱼邮件数量
+            if is_phishing == "Phishing":
+                phishing_count += 1
+                
             message = f"Email ID: {email_id.decode()}\nResult: {result}\nDetails: {content[:200]}..."
-            send_to_webhook(WEBHOOK_URL, message)
-            # break
+            send_to_webhook(webhook_url, message)
         
         mail.logout()
-        return [eid.decode() for eid in filtered_emails]  # 返回符合时间范围的邮件ID
+        # 返回符合时间范围的邮件ID和钓鱼邮件数量
+        return {
+            'email_ids': [eid.decode() for eid in filtered_emails],
+            'phishing_count': phishing_count
+        }
     except Exception as e:
-        print(f"Error: {e}")
-        return []  # 错误时返回空列表
+        print(f"Error for {email_addr}: {e}")
+        return {'email_ids': [], 'phishing_count': 0}  # 错误时返回空列表
