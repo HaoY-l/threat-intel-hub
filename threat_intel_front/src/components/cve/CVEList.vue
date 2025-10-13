@@ -58,6 +58,8 @@ export default {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
 }
 
 .list-header h2 {
@@ -103,5 +105,16 @@ export default {
 
 .cve-items::-webkit-scrollbar-thumb:hover {
   background: rgba(139, 92, 246, 0.7);
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .cve-list {
+    padding: 1rem;
+  }
+  
+  .list-header {
+    margin-bottom: 1rem;
+  }
 }
 </style>

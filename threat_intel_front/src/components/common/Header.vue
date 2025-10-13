@@ -9,7 +9,7 @@
       </div>
       <div class="right-section" style="display: flex !important; align-items: center !important; margin-left: auto !important; position: absolute !important; right: 1.5rem !important; top: 50% !important; transform: translateY(-50%) !important;">
         <nav class="nav">
-          <ul style="display: flex !important; gap: 2rem !important; margin: 0 !important; padding: 0 !important; list-style: none !important;">
+          <ul style="display: flex !important; gap: 2rem !important; margin: 0 !important; padding: 0 !important; list-style: none !important; flex-wrap: wrap !important; justify-content: flex-end !important;">
             <li>
               <a
                 href="#"
@@ -126,6 +126,8 @@ export default {
   gap: 2rem;
   margin: 0;
   padding: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 .nav-link {
   color: #fff;
@@ -145,6 +147,24 @@ export default {
   background: rgba(255, 255, 255, 0.2);
   border-color: rgba(255, 255, 255, 0.4);
 }
+
+/* 优化小屏幕下的菜单显示 */
+@media (max-width: 1200px) {
+  .nav ul {
+    gap: 1rem;
+  }
+}
+
+@media (max-width: 992px) {
+  .nav ul {
+    gap: 0.5rem;
+  }
+  .nav-link {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.9rem;
+  }
+}
+
 @media (max-width: 768px) {
   .container {
     flex-direction: column;
@@ -160,10 +180,14 @@ export default {
     justify-content: center;
     width: 100%;
     margin-left: 0;
+    position: static !important;
+    transform: none !important;
   }
   .logo {
     text-align: center;
     font-size: 1.3rem;
+    position: static !important;
+    transform: none !important;
   }
   .nav ul {
     flex-wrap: wrap;
@@ -175,6 +199,7 @@ export default {
     font-size: 0.9rem;
   }
 }
+
 @media (max-width: 480px) {
   .logo {
     font-size: 1.2rem;
