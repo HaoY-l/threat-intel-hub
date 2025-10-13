@@ -448,3 +448,98 @@ def delete_email_config(config_id):
         return jsonify({'message': '邮箱配置删除成功'}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+    
+
+# 获取数据集信息
+@phishing_bp.route('/dataset/info', methods=['GET'])
+def get_dataset_info():
+    """
+    获取数据集信息
+    """
+    try:
+        # 检查数据集文件是否存在
+        if not os.path.exists(DATASET_FILE):
+            return jsonify({
+                'exists': False,
+                'message': '数据集文件不存在'
+            })
+        
+        # 读取数据集
+        df = pd.read_csv(DATASET_FILE)
+        
+        # 获取文件统计信息
+        file_stats = os.stat(DATASET_FILE)
+        file_size = file_stats.st_size
+        last_modified = datetime.fromtimestamp(file_stats.st_mtime).strftime('%Y-%m-%d %H:%M:%S')
+        
+        # 获取数据统计信息
+        total_rows = len(df)
+        spam_count = len(df[df['target'] == 1]) if 'target' in df.columns else 0
+        ham_count = len(df[df['target'] == 0]) if 'target' in df.columns else 0
+        
+        # 获取列信息
+        columns = list(df.columns)
+        
+        return jsonify({
+            'exists': True,
+            'filename': 'spam_assassin.csv',
+            'filepath': DATASET_FILE,
+            'file_size': file_size,
+            'last_modified': last_modified,
+            'total_rows': total_rows,
+            'spam_count': spam_count,
+            'ham_count': ham_count,
+            'columns': columns
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# 上传数据集
+@phishing_bp.route('/dataset/upload', methods=['POST'])
+def upload_dataset():
+    """
+    上传新的数据集文件
+    """
+    try:
+        # 检查是否有文件上传
+        if 'file' not in request.files:
+            return jsonify({'error': '没有文件被上传'}), 400
+        
+        file = request.files['file']
+        
+        # 检查文件名
+        if file.filename == '':
+            return jsonify({'error': '未选择文件'}), 400
+        
+        # 检查文件类型
+        if not file.filename.endswith('.csv'):
+            return jsonify({'error': '只支持CSV文件'}), 400
+        
+        # 保存文件到指定位置
+        file.save(DATASET_FILE)
+        
+        # 验证文件格式
+        try:
+            df = pd.read_csv(DATASET_FILE)
+            if 'text' not in df.columns or 'target' not in df.columns:
+                # 如果不是有效的数据集格式，删除文件
+                os.remove(DATASET_FILE)
+                return jsonify({
+                    'error': 'CSV文件必须包含"text"和"target"列'
+                }), 400
+        except Exception as e:
+            # 如果文件无法读取，删除文件
+            if os.path.exists(DATASET_FILE):
+                os.remove(DATASET_FILE)
+            return jsonify({'error': f'文件格式错误: {str(e)}'}), 400
+        
+        # 重新加载资源
+        load_resources()
+        
+        return jsonify({
+            'message': '数据集上传成功',
+            'filename': file.filename
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500

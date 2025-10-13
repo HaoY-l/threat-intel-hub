@@ -295,6 +295,7 @@
           <h3>模型管理</h3>
           
           <div class="management-grid">
+            <!-- 现有的三个卡片 -->
             <div class="management-card">
               <h4>重新训练模型</h4>
               <p>使用最新数据重新训练模型，提升检测准确性。训练过程可能需要几分钟时间。</p>
@@ -339,6 +340,62 @@
                 </div>
               </div>
               <button @click="checkSystemStatus" class="check-btn">检查状态</button>
+            </div>
+            
+            <!-- 新增的数据集管理卡片 -->
+            <div class="management-card">
+              <h4>数据集管理</h4>
+              <div v-if="datasetInfo.exists" class="dataset-info">
+                <div class="info-item">
+                  <span class="info-label">文件名：</span>
+                  <span class="info-value">{{ datasetInfo.filename }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">总记录数：</span>
+                  <span class="info-value">{{ datasetInfo.total_rows }} 条</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">垃圾邮件：</span>
+                  <span class="info-value">{{ datasetInfo.spam_count }} 条</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">正常邮件：</span>
+                  <span class="info-value">{{ datasetInfo.ham_count }} 条</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">最后修改：</span>
+                  <span class="info-value">{{ datasetInfo.last_modified }}</span>
+                </div>
+              </div>
+              <div v-else class="no-dataset">
+                <p>数据集文件不存在</p>
+              </div>
+              
+              <div class="upload-section">
+                <h5>上传新数据集</h5>
+                <input 
+                  type="file" 
+                  ref="fileInput" 
+                  accept=".csv" 
+                  @change="handleFileSelect" 
+                  style="display: none"
+                />
+                <button @click="$refs.fileInput.click()" class="upload-btn">
+                  选择CSV文件
+                </button>
+                <button 
+                  @click="uploadDataset" 
+                  :disabled="!selectedFile || uploading"
+                  class="upload-btn primary"
+                  style="margin-left: 10px"
+                >
+                  <span v-if="uploading">上传中...</span>
+                  <span v-else>上传</span>
+                </button>
+                <div v-if="selectedFile" class="file-info">
+                  已选择: {{ selectedFile.name }}
+                </div>
+              </div>
             </div>
           </div>
           
@@ -420,7 +477,18 @@ export default {
       },
       
       // API基础URL，初始化为空，将在 mounted 钩子中动态设置
-      apiBaseUrl: ''
+      apiBaseUrl: '',
+      // 数据集管理相关
+      datasetInfo: {
+        exists: false,
+        filename: '',
+        total_rows: 0,
+        spam_count: 0,
+        ham_count: 0,
+        last_modified: ''
+      },
+      selectedFile: null,
+      uploading: false
     }
   },
   computed: {
@@ -436,6 +504,7 @@ export default {
     this.loadHistoryFromStorage();
     this.loadAutoDetectSettings();
     this.loadEmailConfigs(); // 从后端加载邮箱配置
+    this.loadDatasetInfo(); // 加载数据集信息
   },
   beforeUnmount() {
     this.stopAutoCheck();
@@ -858,6 +927,57 @@ export default {
         }
       } catch (error) {
         console.warn('加载历史记录失败:', error);
+      }
+    },
+    // 加载数据集信息
+    async loadDatasetInfo() {
+      try {
+        const response = await axios.get(`${this.apiBaseUrl}/dataset/info`);
+        this.datasetInfo = response.data;
+      } catch (error) {
+        console.error('加载数据集信息失败:', error);
+      }
+    },
+    
+    // 处理文件选择
+    handleFileSelect(event) {
+      const files = event.target.files;
+      if (files.length > 0) {
+        this.selectedFile = files[0];
+      } else {
+        this.selectedFile = null;
+      }
+    },
+    
+    // 上传数据集
+    async uploadDataset() {
+      if (!this.selectedFile) {
+        alert('请先选择文件');
+        return;
+      }
+      
+      this.uploading = true;
+      const formData = new FormData();
+      formData.append('file', this.selectedFile);
+      
+      try {
+        const response = await axios.post(`${this.apiBaseUrl}/dataset/upload`, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        });
+        
+        alert('数据集上传成功');
+        this.selectedFile = null;
+        this.$refs.fileInput.value = ''; // 清空文件输入框
+        
+        // 重新加载数据集信息
+        await this.loadDatasetInfo();
+      } catch (error) {
+        console.error('上传失败:', error);
+        alert('数据集上传失败: ' + (error.response?.data?.message || error.message));
+      } finally {
+        this.uploading = false;
       }
     }
   }
@@ -1648,5 +1768,83 @@ h3, h4 {
 .result-item .value {
   font-weight: bold;
   color: #34495e;
+}
+
+/* 数据集管理相关样式 */
+.dataset-info {
+  margin-bottom: 20px;
+}
+
+.info-item {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  padding: 5px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.info-label {
+  font-weight: 500;
+  color: #7f8c8d;
+}
+
+.info-value {
+  font-weight: bold;
+  color: #2c3e50;
+}
+
+.no-dataset {
+  text-align: center;
+  color: #e74c3c;
+  padding: 20px;
+  background-color: #fdf6f6;
+  border-radius: 4px;
+  margin-bottom: 20px;
+}
+
+.upload-section {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #eee;
+}
+
+.upload-section h5 {
+  margin-bottom: 15px;
+  color: #2c3e50;
+}
+
+.upload-btn {
+  padding: 8px 15px;
+  border: 1px solid #bdc3c7;
+  border-radius: 4px;
+  background-color: #ecf0f1;
+  color: #2c3e50;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.upload-btn:hover {
+  background-color: #d5dbdb;
+}
+
+.upload-btn.primary {
+  background-color: #3498db;
+  color: white;
+  border-color: #3498db;
+}
+
+.upload-btn.primary:hover {
+  background-color: #2980b9;
+}
+
+.upload-btn:disabled {
+  background-color: #b9c1c6;
+  cursor: not-allowed;
+}
+
+.file-info {
+  margin-top: 10px;
+  font-size: 0.9rem;
+  color: #7f8c8d;
 }
 </style>
