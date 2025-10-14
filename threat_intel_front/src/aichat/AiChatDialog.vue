@@ -34,8 +34,8 @@
       
       <div class="chat-body" ref="chatBody" aria-live="polite">
         <div 
-          v-for="(message, index) in messages" 
-          :key="index" 
+          v-for="(message, index) in displayedMessages" 
+          :key="getMessageKey(message, index)" 
           class="message-container" 
           :class="{ 'user-message': message.sender === 'user' }"
         >
@@ -133,8 +133,19 @@ export default {
         { sender: 'ai', text: '你好！我是你的智能助手 👋 有什么可以帮你的吗？', time: this.getCurrentTime() }
       ],
       isLoading: false,
-      showModelManagement: false
+      showModelManagement: false,
+      maxVisibleMessages: 50 // 限制显示的消息数量
     };
+  },
+  computed: {
+    displayedMessages() {
+      if (this.messages.length <= this.maxVisibleMessages) {
+        return this.messages;
+      }
+      // 始终包含第一条消息（欢迎消息）和最后maxVisibleMessages-1条消息
+      const startIdx = this.messages.length - this.maxVisibleMessages + 1;
+      return [this.messages[0], ...this.messages.slice(startIdx)];
+    }
   },
   async mounted() {
     await this.fetchAvailableModels();
@@ -143,6 +154,10 @@ export default {
     });
   },
   methods: {
+    getMessageKey(message, index) {
+      // 为每条消息生成唯一key
+      return `${message.sender}-${message.time}-${index}`;
+    },
     closeDialog() {
       this.$emit('close-ai-dialog');
     },
@@ -197,6 +212,12 @@ export default {
         text: this.userInput,
         time: this.getCurrentTime()
       };
+      
+      // 限制总消息数量，避免过多DOM元素
+      if (this.messages.length >= 100) {
+        this.messages.splice(1, 1); // 删除第二条消息（保留欢迎消息）
+      }
+      
       this.messages.push(userMessage);
       this.isLoading = true;
       this.userInput = '';
@@ -279,10 +300,10 @@ export default {
   },
   watch: {
     userInput() {
-      this.$nextTick(() => {
+      // 使用 requestAnimationFrame 优化性能
+      requestAnimationFrame(() => {
         const textarea = this.$refs.textareaInput;
         if (textarea) {
-          // 确保内容填满后才扩展，并限制最大高度
           textarea.style.height = 'auto';
           textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
         }
@@ -300,13 +321,17 @@ export default {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(0, 0, 0, 0.65);
-  backdrop-filter: blur(4px);
+  /* 移除影响性能的 backdrop-filter: blur(4px) */
+  background: rgba(0, 0, 0, 0.75);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 1000;
   animation: fadeIn 0.15s ease-out;
+  /* 添加硬件加速 */
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
 }
 
 @keyframes fadeIn {
@@ -324,8 +349,10 @@ export default {
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
   overflow: hidden;
   animation: slideUp 0.2s ease-out;
+  /* 添加硬件加速 */
   transform: translateZ(0);
   backface-visibility: hidden;
+  perspective: 1000px;
 }
 
 @keyframes slideUp {
@@ -417,6 +444,8 @@ export default {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  /* 添加硬件加速 */
+  transform: translateZ(0);
 }
 
 .icon-btn:hover {
@@ -443,6 +472,8 @@ export default {
   border-radius: 8px;
   line-height: 1;
   flex-shrink: 0;
+  /* 添加硬件加速 */
+  transform: translateZ(0);
 }
 
 .close-btn:hover {
@@ -625,6 +656,8 @@ export default {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  /* 添加硬件加速 */
+  transform: translateZ(0);
 }
 
 .send-btn:hover:not(:disabled) {
@@ -679,13 +712,17 @@ export default {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.85);
+  /* 移除影响性能的 backdrop-filter: blur(4px) */
+  background: rgba(0, 0, 0, 0.9);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 2000; /* Z-index: 2000，确保高于聊天主窗口 (1000) */
-  backdrop-filter: blur(4px);
   animation: fadeIn 0.15s ease-out;
+  /* 添加硬件加速 */
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
 }
 
 .model-management-container {
@@ -697,7 +734,10 @@ export default {
   overflow-y: auto;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
   animation: slideUp 0.2s ease-out;
+  /* 添加硬件加速 */
   transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
 }
 
 .model-management-header {
@@ -734,6 +774,8 @@ export default {
   border-radius: 12px;
   transition: all 0.15s;
   line-height: 1;
+  /* 添加硬件加速 */
+  transform: translateZ(0);
 }
 
 .close-management-btn:hover {

@@ -293,6 +293,8 @@ export default {
   font-weight: 600;
   transition: all 0.2s;
   box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);
+  /* 添加硬件加速 */
+  transform: translateZ(0);
 }
 
 .add-model-btn:hover {
@@ -315,6 +317,9 @@ export default {
   border: 1px solid #3c4a60;
   transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  /* 添加硬件加速 */
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 .model-card:hover {
@@ -389,6 +394,8 @@ export default {
   font-size: 14px;
   font-weight: 500;
   transition: all 0.2s;
+  /* 添加硬件加速 */
+  transform: translateZ(0);
 }
 
 .edit-btn {
@@ -436,13 +443,17 @@ export default {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(0, 0, 0, 0.85); 
+  /* 移除影响性能的 backdrop-filter: blur(4px) */
+  background: rgba(0, 0, 0, 0.9); 
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 9999; 
-  backdrop-filter: blur(4px);
   animation: modal-fade-in 0.15s ease-out;
+  /* 添加硬件加速 */
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
 }
 
 @keyframes modal-fade-in {
@@ -460,7 +471,12 @@ export default {
   border: 1px solid #3c4a60;
   box-shadow: 0 25px 50px rgba(0, 0, 0, 0.7);
   transform: translateY(0);
-  animation: modal-slide-in 0.2s ease-out;
+  /* 简化动画以提升性能 */
+  animation: modal-slide-in 0.1s ease-out;
+  /* 添加硬件加速 */
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
 }
 
 @keyframes modal-slide-in {
@@ -497,6 +513,8 @@ export default {
   height: 36px;
   border-radius: 8px;
   transition: all 0.2s;
+  /* 添加硬件加速 */
+  transform: translateZ(0);
 }
 
 .close-modal:hover {
@@ -582,6 +600,8 @@ export default {
   border-radius: 8px;
   font-weight: 600;
   font-size: 16px;
+  /* 添加硬件加速 */
+  transform: translateZ(0);
 }
 
 .cancel-btn {

@@ -1,4 +1,3 @@
-# AiRobot.vue
 <template>
   <div class="ai-robot-container" @click="handleRobotClick">
     <div class="ai-robot-icon">
@@ -32,6 +31,10 @@ export default {
   display: flex;
   align-items: center;
   gap: 1rem;
+  /* 添加硬件加速 */
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
 }
 .ai-robot-icon {
   width: 40px;
