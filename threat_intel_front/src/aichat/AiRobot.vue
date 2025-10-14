@@ -1,3 +1,4 @@
+# AiRobot.vue
 <template>
   <div class="ai-robot-container" @click="handleRobotClick">
     <div class="ai-robot-icon">
