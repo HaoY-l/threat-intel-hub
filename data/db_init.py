@@ -232,7 +232,26 @@ def create_database_and_tables():
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='邮箱配置表';
         """
         cursor.execute(create_email_configs_table_sql)
+
+        # 创建AI模型配置表
+        create_ai_models_table_sql = """
+        CREATE TABLE IF NOT EXISTS ai_models (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(100) NOT NULL UNIQUE COMMENT '模型名称，如 doubao, qwen 等',
+            provider VARCHAR(50) NOT NULL COMMENT '提供商，如 volcengine, alibaba 等',
+            api_key VARCHAR(255) NOT NULL COMMENT 'API密钥',
+            model_identifier VARCHAR(100) NOT NULL COMMENT '模型标识符，如具体模型名',
+            is_active BOOLEAN DEFAULT TRUE COMMENT '是否启用',
+            config JSON COMMENT '其他配置参数',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI模型配置表';
+        """
+        cursor.execute(create_ai_models_table_sql)
+
         logging.info("Email configs table created or already exists.")
+
+        
         
     conn.close()
 

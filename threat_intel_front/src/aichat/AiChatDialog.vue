@@ -1,8 +1,17 @@
+<!-- AiChatDialog.vue -->
 <template>
   <div class="ai-chat-dialog-overlay" @click.self="closeDialog">
     <div class="ai-chat-dialog">
       <div class="chat-header">
         <span class="chat-title">AI 助手</span>
+        <select v-model="selectedModel" @change="onModelChange" class="model-selector">
+          <option v-for="model in availableModels" :key="model.id" :value="model.name">
+            {{ model.name }}
+          </option>
+        </select>
+        <button @click="openModelManagement" class="manage-models-btn" title="模型管理">
+          🤖 模型管理
+        </button>
         <button class="close-btn" @click="closeDialog">×</button>
       </div>
       <div class="chat-body" ref="chatBody">
@@ -23,27 +32,88 @@
         <button @click="sendMessage" :disabled="isLoading">发送</button>
       </div>
     </div>
+    
+    <!-- 模型管理模态框 -->
+    <div v-if="showModelManagement" class="model-management-overlay" @click.self="closeModelManagement">
+      <div class="model-management-container" @click.stop>
+        <div class="model-management-header">
+          <h2>🤖 AI 模型管理</h2>
+          <button class="close-management-btn" @click="closeModelManagement">×</button>
+        </div>
+        <ModelManagement @model-updated="handleModelUpdated" />
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
 import axios from 'axios';
+import ModelManagement from './ModelManagement.vue';
 
 export default {
   name: 'AiChatDialog',
+  components: {
+    ModelManagement
+  },
   data() {
     return {
       userInput: '',
+      selectedModel: 'doubao', // 默认模型
+      availableModels: [],     // 可用模型列表
       messages: [
         { sender: 'ai', text: '你好，我是你的智能助手，有什么可以帮你的吗？' }
       ],
-      isLoading: false
+      isLoading: false,
+      showModelManagement: false
     };
+  },
+  async mounted() {
+    // 组件加载时获取可用模型列表
+    await this.fetchAvailableModels();
   },
   methods: {
     closeDialog() {
       this.$emit('close-ai-dialog');
     },
+    
+    async fetchAvailableModels() {
+      try {
+        const response = await axios.get('/api/models');
+        this.availableModels = response.data.models;
+        // 设置默认模型为第一个可用模型（如果没有默认的doubao）
+        if (this.availableModels.length > 0) {
+          // 如果有doubao模型，使用它作为默认模型
+          const doubaoModel = this.availableModels.find(m => m.name === 'doubao');
+          if (doubaoModel) {
+            this.selectedModel = 'doubao';
+          } else {
+            // 否则使用第一个启用的模型
+            const activeModel = this.availableModels.find(m => m.is_active);
+            if (activeModel) {
+              this.selectedModel = activeModel.name;
+            } else {
+              // 如果没有启用的模型，使用第一个模型
+              this.selectedModel = this.availableModels[0].name;
+            }
+          }
+        }
+      } catch (error) {
+        console.error('获取模型列表失败:', error);
+        // 出错时保留默认模型
+      }
+    },
+    
+    onModelChange() {
+      const modelInfo = this.availableModels.find(m => m.name === this.selectedModel);
+      if (modelInfo) {
+        const switchMsg = { 
+          sender: 'ai', 
+          text: `已切换到 ${modelInfo.name} 模型。` 
+        };
+        this.messages.push(switchMsg);
+      }
+    },
+    
     async sendMessage() {
       if (!this.userInput.trim()) return;
 
@@ -58,8 +128,11 @@ export default {
       });
 
       try {
-        // 注意：这里我将接口路径改成了 '/api/aichat'，请确保你的后端蓝图配置与此匹配
-        const response = await axios.post('/api/aichat', { message: userMessage.text });
+        // 发送消息时携带模型信息
+        const response = await axios.post('/api/aichat', { 
+          message: userMessage.text,
+          model: this.selectedModel  // 添加模型参数
+        });
         const aiReply = { sender: 'ai', text: response.data.reply };
         this.messages.push(aiReply);
       } catch (error) {
@@ -74,9 +147,25 @@ export default {
         });
       }
     },
+    
     scrollToBottom() {
       const chatBody = this.$refs.chatBody;
       chatBody.scrollTop = chatBody.scrollHeight;
+    },
+    
+    openModelManagement() {
+      this.showModelManagement = true;
+    },
+    
+    closeModelManagement() {
+      this.showModelManagement = false;
+      // 关闭模型管理时重新加载模型列表
+      this.fetchAvailableModels();
+    },
+    
+    handleModelUpdated() {
+      // 模型更新后重新加载模型列表
+      this.fetchAvailableModels();
     }
   }
 };
@@ -124,6 +213,35 @@ export default {
   font-weight: 600;
 }
 
+.model-selector {
+  margin-right: auto;
+  margin-left: 1rem;
+  background: #3b4b60;
+  color: white;
+  border: 1px solid #475569;
+  border-radius: 0.5rem;
+  padding: 0.25rem 0.5rem;
+}
+
+.manage-models-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  color: #fff;
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  margin-left: 0.5rem;
+  transition: all 0.3s;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.manage-models-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.5);
+}
+
 .close-btn {
   background: none;
   border: none;
@@ -131,6 +249,7 @@ export default {
   font-size: 1.75rem;
   cursor: pointer;
   transition: transform 0.2s;
+  margin-left: 0.5rem;
 }
 .close-btn:hover {
   transform: rotate(90deg) scale(1.2);
@@ -244,4 +363,71 @@ export default {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
 }
+
+/* 模型管理模态框样式 */
+.model-management-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+  backdrop-filter: blur(8px);
+}
+
+.model-management-container {
+  background: #0f0f23;
+  border-radius: 15px;
+  width: 90%;
+  max-width: 1200px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.model-management-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 30px;
+  background: #101729;
+  border-bottom: 1px solid #3c4a60;
+  border-radius: 15px 15px 0 0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.model-management-header h2 {
+  color: #fff;
+  margin: 0;
+  font-size: 24px;
+}
+
+.close-management-btn {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 32px;
+  cursor: pointer;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.close-management-btn:hover {
+  background: #1e293b;
+  color: #fff;
+  transform: rotate(90deg);
+}
+
 </style>
