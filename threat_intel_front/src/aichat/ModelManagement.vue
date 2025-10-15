@@ -20,6 +20,7 @@
           <h3>{{ model.name }}</h3>
           
           <p class="identifier">模型标识: {{ model.model_identifier }}</p>
+          <p class="endpoint">API端点: {{ model.api_endpoint }}</p>
           
           <p class="status">
             状态: 
@@ -43,7 +44,7 @@
       </div>
 
       <p v-if="models.length === 0" class="no-models-hint">
-        暂无可用模型，请点击“添加模型”按钮配置你的第一个AI模型。
+        暂无可用模型，请点击"添加模型"按钮配置你的第一个AI模型。
       </p>
     </div>
 
@@ -101,6 +102,18 @@
             </div>
             
             <div class="form-group">
+              <label for="apiEndpoint">API端点 <span class="required">*</span></label>
+              <input 
+                id="apiEndpoint" 
+                v-model="modelForm.api_endpoint" 
+                type="text" 
+                placeholder="例如: https://api.openai.com/v1/chat/completions"
+                required
+              />
+              <small class="hint-text">请填写该模型的API调用地址。</small>
+            </div>
+            
+            <div class="form-group">
               <label class="checkbox-label">
                 <input 
                   v-model="modelForm.is_active" 
@@ -135,21 +148,14 @@ export default {
       editingModel: null,
       modelForm: {
         name: '',
-        // 注意：保留 provider 字段并硬编码默认值，以确保后端 API 正常工作
-        provider: 'volcengine', 
         api_key: '',
         model_identifier: '',
+        api_endpoint: '',
         is_active: true,
         config: {}
       }
     };
   },
-  // 核心移除: 移除 filters，因为它不再被使用
-  // filters: {
-  //   formatProvider(provider) {
-  //     // ... logic
-  //   }
-  // },
   async mounted() {
     await this.loadModels();
   },
@@ -168,10 +174,9 @@ export default {
       this.editingModel = null;
       this.modelForm = {
         name: '',
-        // 核心：新模型创建时，硬编码默认提供商
-        provider: 'volcengine', 
         api_key: '',
         model_identifier: '',
+        api_endpoint: '',
         is_active: true,
         config: {}
       };
@@ -182,10 +187,9 @@ export default {
       this.editingModel = model;
       this.modelForm = {
         name: model.name,
-        // 核心：编辑时从数据库加载 provider，但仍不在前端显示
-        provider: model.provider, 
         api_key: model.api_key || '', 
         model_identifier: model.model_identifier,
+        api_endpoint: model.api_endpoint || '',
         is_active: model.is_active,
         config: model.config
       };
@@ -198,8 +202,8 @@ export default {
     },
     
     async saveModel() {
-      if (!this.modelForm.api_key.trim() || !this.modelForm.model_identifier.trim()) {
-        alert('API密钥和模型标识是必填项！');
+      if (!this.modelForm.api_key.trim() || !this.modelForm.model_identifier.trim() || !this.modelForm.api_endpoint.trim()) {
+        alert('API密钥、模型标识和API端点是必填项！');
         return;
       }
 
@@ -242,10 +246,9 @@ export default {
     async toggleModelStatus(model) {
       const newStatus = !model.is_active;
       try {
-        // 确保 provider 字段被发送，即使它没有被修改
         await axios.put(`/api/models/${model.id}`, {
           is_active: newStatus,
-          provider: model.provider // 确保 provider 字段随请求发送，避免后端报错
+          api_endpoint: model.api_endpoint
         });
         alert(`模型 ${model.name} 已${newStatus ? '启用' : '禁用'}。`);
         await this.loadModels();
@@ -260,9 +263,7 @@ export default {
 </script>
 
 <style scoped>
-/* 样式保持不变 */
-/* ... (所有的样式代码保持不变) ... */
-
+/* 样式部分保持不变 */
 .model-management {
   padding: 30px; 
   max-width: 1200px;
@@ -293,7 +294,6 @@ export default {
   font-weight: 600;
   transition: all 0.2s;
   box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);
-  /* 添加硬件加速 */
   transform: translateZ(0);
 }
 
@@ -317,7 +317,6 @@ export default {
   border: 1px solid #3c4a60;
   transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-  /* 添加硬件加速 */
   transform: translateZ(0);
   backface-visibility: hidden;
 }
@@ -394,7 +393,6 @@ export default {
   font-size: 14px;
   font-weight: 500;
   transition: all 0.2s;
-  /* 添加硬件加速 */
   transform: translateZ(0);
 }
 
@@ -443,14 +441,12 @@ export default {
   left: 0;
   width: 100vw;
   height: 100vh;
-  /* 移除影响性能的 backdrop-filter: blur(4px) */
   background: rgba(0, 0, 0, 0.9); 
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 9999; 
   animation: modal-fade-in 0.15s ease-out;
-  /* 添加硬件加速 */
   transform: translateZ(0);
   backface-visibility: hidden;
   perspective: 1000px;
@@ -471,9 +467,7 @@ export default {
   border: 1px solid #3c4a60;
   box-shadow: 0 25px 50px rgba(0, 0, 0, 0.7);
   transform: translateY(0);
-  /* 简化动画以提升性能 */
   animation: modal-slide-in 0.1s ease-out;
-  /* 添加硬件加速 */
   transform: translateZ(0);
   backface-visibility: hidden;
   perspective: 1000px;
@@ -513,7 +507,6 @@ export default {
   height: 36px;
   border-radius: 8px;
   transition: all 0.2s;
-  /* 添加硬件加速 */
   transform: translateZ(0);
 }
 
@@ -600,7 +593,6 @@ export default {
   border-radius: 8px;
   font-weight: 600;
   font-size: 16px;
-  /* 添加硬件加速 */
   transform: translateZ(0);
 }
 
