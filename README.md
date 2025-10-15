@@ -7,13 +7,16 @@
 [Threat Intelligence Hub在线文档](https://www.yuque.com/weare/mx0zcy/vrqwsxe3vgtesate?singleDoc#)
 
 ## 最近更新
+### 2025-10-15
+- 新增支持批量邮箱钓鱼邮件检测能力
+- 新增支持在线手动上传钓鱼邮件数据集
+- AI机器人🤖支持多模型切换，已实测豆包、deepseek
+- AI、邮箱相关配置从.env文件中移除，改为数据库保存配置
+
 ### 2025-09-28
 - 增加钓鱼邮件检测模块，支持检测钓鱼邮件，并返回钓鱼邮件的检测结果
 - 钓鱼邮件检测支持手动输入和自动获取收件邮件进行检测
 - 基于机器学习、模型训练和规则匹配的钓鱼邮件检测算法
-
-### 2025-09-19
-- 增加docker部署方式，具体可看readme.md文件
 
 [查看完整更新日志](./CHANGELOG.md)
 
@@ -40,7 +43,7 @@
 查询文件哈希值，快速识别恶意样本；利用多源情报进行威胁狩猎和溯源分析；获取最新CVE信息，跟踪漏洞披露和利用情况
 
 ### 🏢 企业安全团队
-通过威胁情报播报了解最新安全态势；检测内网资产是否存在已知威胁；获取威胁情报报告，满足合规要求
+通过威胁情报播报了解最新安全态势；检测内网资产是否存在已知威胁；获取威胁情报报告，满足合规要求;实时检测钓鱼邮件并告警
 
 ## 🎯 使用场景
 **让安全运营从被动变为主动**
@@ -156,17 +159,6 @@ DDINGTALK_WEBHOOK_URL=''
 # 微信公众号
 wx_appid=''
 wx_secret=''
-
-# AI 模型配置
-ai_model=''
-api_key=''
-
-# 企业微信邮箱
-email_username=''
-email_passwd=''
-imap_server = "imap.exmail.qq.com"
-imap_port = 993
-qw_webhook_url=''
 ```
 ### Docker部署（推荐）
 Docker Hub搜索🔍：monday1/threat-intel-hub:latest

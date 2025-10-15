@@ -1,5 +1,5 @@
 from datetime import datetime
-import os
+import os,json
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
@@ -273,14 +273,273 @@ def clear_prediction_results():
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
     
-@phishing_bp.route('/cron_email_check/<int:minutes>', methods=['GET'])
-def cron_email_check(minutes):
+@phishing_bp.route('/cron_email_check', methods=['POST'])
+def cron_email_check():
     """
     定时检查邮箱中的新邮件并进行钓鱼检测
     """
     try:
-        # 这里调用你的main函数（假设你把main函数重命名为get_qx_email或者导入了）
-        email_ids = get_qx_email(minutes)  # 或者 get_qx_email(minutes)
-        return jsonify({'status': 'success', 'checked_email_ids': email_ids})
+        # 从请求体中获取数据
+        data = request.get_json()
+        minutes = data.get('minutes', 3)  # 默认3分钟
+        configs = data.get('configs', [])  # 邮箱配置列表
+        
+        checked_email_ids = []
+        total_phishing_count = 0
+        
+        # 遍历所有邮箱配置并检查邮件
+        for config in configs:
+            try:
+                # 确保所有必需字段都存在
+                required_fields = ['username', 'passwd', 'server', 'port', 'webhook_url']
+                for field in required_fields:
+                    if field not in config:
+                        raise ValueError(f"缺少必需字段: {field}")
+                
+                result = get_qx_email(
+                    minutes,
+                    config['username'],
+                    config['passwd'],
+                    config['server'],
+                    config['port'],
+                    config['webhook_url']
+                )
+                
+                checked_email_ids.extend(result['email_ids'])
+                total_phishing_count += result['phishing_count']
+            except Exception as e:
+                print(f"检查邮箱 {config.get('username', 'unknown')} 时出错: {e}")
+                continue
+        
+        return jsonify({
+            'status': 'success', 
+            'checked_email_ids': checked_email_ids,
+            'phishing_count': total_phishing_count,
+            'total_count': len(checked_email_ids)
+        })
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
+    
+# 获取所有邮箱配置
+# 获取所有邮箱配置
+@phishing_bp.route('/email_configs', methods=['GET'])
+def get_email_configs():
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cursor:
+            # 确保查询包含 passwd 字段
+            sql = "SELECT id, username, passwd, server, port, webhook_url FROM email_configs ORDER BY created_at DESC"
+            cursor.execute(sql)
+            configs = cursor.fetchall()
+        conn.close()
+        return jsonify(configs)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# 创建新的邮箱配置
+@phishing_bp.route('/email_configs', methods=['POST'])
+def create_email_config():
+    try:
+        data = request.get_json()
+        
+        # 验证必需字段
+        required_fields = ['username', 'passwd', 'server', 'port', 'webhook_url']
+        for field in required_fields:
+            if field not in data or not data[field]:
+                return jsonify({'error': f'缺少必需字段: {field}'}), 400
+        
+        conn = get_db_connection()
+        with conn.cursor() as cursor:
+            sql = """
+                INSERT INTO email_configs (username, passwd, server, port, webhook_url)
+                VALUES (%s, %s, %s, %s, %s)
+            """
+            cursor.execute(sql, (
+                data['username'],
+                data['passwd'],
+                data['server'],
+                int(data['port']),
+                data['webhook_url']
+            ))
+            config_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        
+        # 返回创建的配置（包含ID）
+        return jsonify({
+            'id': config_id,
+            'username': data['username'],
+            'server': data['server'],
+            'port': int(data['port']),
+            'webhook_url': data['webhook_url']
+        }), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# 更新邮箱配置
+@phishing_bp.route('/email_configs/<int:config_id>', methods=['PUT'])
+def update_email_config(config_id):
+    try:
+        data = request.get_json()
+        
+        # 验证必需字段
+        required_fields = ['username', 'passwd', 'server', 'port', 'webhook_url']
+        for field in required_fields:
+            if field not in data or not data[field]:
+                return jsonify({'error': f'缺少必需字段: {field}'}), 400
+        
+        conn = get_db_connection()
+        with conn.cursor() as cursor:
+            # 检查配置是否存在
+            check_sql = "SELECT id FROM email_configs WHERE id = %s"
+            cursor.execute(check_sql, (config_id,))
+            if not cursor.fetchone():
+                return jsonify({'error': '邮箱配置不存在'}), 404
+            
+            # 更新配置
+            sql = """
+                UPDATE email_configs 
+                SET username = %s, passwd = %s, server = %s, port = %s, webhook_url = %s
+                WHERE id = %s
+            """
+            cursor.execute(sql, (
+                data['username'],
+                data['passwd'],
+                data['server'],
+                int(data['port']),
+                data['webhook_url'],
+                config_id
+            ))
+        conn.commit()
+        conn.close()
+        
+        # 返回更新后的配置
+        return jsonify({
+            'id': config_id,
+            'username': data['username'],
+            'server': data['server'],
+            'port': int(data['port']),
+            'webhook_url': data['webhook_url']
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# 删除邮箱配置
+@phishing_bp.route('/email_configs/<int:config_id>', methods=['DELETE'])
+def delete_email_config(config_id):
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cursor:
+            # 检查配置是否存在
+            check_sql = "SELECT id FROM email_configs WHERE id = %s"
+            cursor.execute(check_sql, (config_id,))
+            if not cursor.fetchone():
+                return jsonify({'error': '邮箱配置不存在'}), 404
+            
+            # 删除配置
+            sql = "DELETE FROM email_configs WHERE id = %s"
+            cursor.execute(sql, (config_id,))
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'message': '邮箱配置删除成功'}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    
+
+# 获取数据集信息
+@phishing_bp.route('/dataset/info', methods=['GET'])
+def get_dataset_info():
+    """
+    获取数据集信息
+    """
+    try:
+        # 检查数据集文件是否存在
+        if not os.path.exists(DATASET_FILE):
+            return jsonify({
+                'exists': False,
+                'message': '数据集文件不存在'
+            })
+        
+        # 读取数据集
+        df = pd.read_csv(DATASET_FILE)
+        
+        # 获取文件统计信息
+        file_stats = os.stat(DATASET_FILE)
+        file_size = file_stats.st_size
+        last_modified = datetime.fromtimestamp(file_stats.st_mtime).strftime('%Y-%m-%d %H:%M:%S')
+        
+        # 获取数据统计信息
+        total_rows = len(df)
+        spam_count = len(df[df['target'] == 1]) if 'target' in df.columns else 0
+        ham_count = len(df[df['target'] == 0]) if 'target' in df.columns else 0
+        
+        # 获取列信息
+        columns = list(df.columns)
+        
+        return jsonify({
+            'exists': True,
+            'filename': 'spam_assassin.csv',
+            'filepath': DATASET_FILE,
+            'file_size': file_size,
+            'last_modified': last_modified,
+            'total_rows': total_rows,
+            'spam_count': spam_count,
+            'ham_count': ham_count,
+            'columns': columns
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# 上传数据集
+@phishing_bp.route('/dataset/upload', methods=['POST'])
+def upload_dataset():
+    """
+    上传新的数据集文件
+    """
+    try:
+        # 检查是否有文件上传
+        if 'file' not in request.files:
+            return jsonify({'error': '没有文件被上传'}), 400
+        
+        file = request.files['file']
+        
+        # 检查文件名
+        if file.filename == '':
+            return jsonify({'error': '未选择文件'}), 400
+        
+        # 检查文件类型
+        if not file.filename.endswith('.csv'):
+            return jsonify({'error': '只支持CSV文件'}), 400
+        
+        # 保存文件到指定位置
+        file.save(DATASET_FILE)
+        
+        # 验证文件格式
+        try:
+            df = pd.read_csv(DATASET_FILE)
+            if 'text' not in df.columns or 'target' not in df.columns:
+                # 如果不是有效的数据集格式，删除文件
+                os.remove(DATASET_FILE)
+                return jsonify({
+                    'error': 'CSV文件必须包含"text"和"target"列'
+                }), 400
+        except Exception as e:
+            # 如果文件无法读取，删除文件
+            if os.path.exists(DATASET_FILE):
+                os.remove(DATASET_FILE)
+            return jsonify({'error': f'文件格式错误: {str(e)}'}), 400
+        
+        # 重新加载资源
+        load_resources()
+        
+        return jsonify({
+            'message': '数据集上传成功',
+            'filename': file.filename
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500

@@ -56,11 +56,10 @@ export default {
   padding: 1rem;
   cursor: pointer;
   transition: all 0.3s ease;
-  min-height: 120px; /* 固定最小高度，与新闻卡片一致 */
-  min-width: 280px;  /* 固定最小宽度，防止被挤压过小 */
+  min-width: 280px;
   display: flex;
   flex-direction: column;
-  justify-content: space-between; /* 确保内容均匀分布 */
+  justify-content: space-between;
 }
 
 .cve-card:hover {
@@ -73,12 +72,15 @@ export default {
   align-items: flex-start;
   justify-content: space-between;
   margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 .cve-info {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .cve-id {
@@ -119,6 +121,7 @@ export default {
 .date {
   font-size: 0.75rem;
   color: #a855f7;
+  white-space: nowrap;
 }
 
 .title {
@@ -127,10 +130,6 @@ export default {
   font-weight: 500;
   margin: 0 0 0.5rem 0;
   line-height: 1.4;
-  display: -webkit-box;
-  -webkit-line-clamp: 1; /* 限制为1行，与新闻卡片一致 */
-  -webkit-box-orient: vertical;
-  overflow: hidden;
 }
 
 .description {
@@ -138,10 +137,6 @@ export default {
   font-size: 0.875rem;
   margin: 0 0 0.75rem 0;
   line-height: 1.4;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
 }
 
 .card-footer {
@@ -158,5 +153,21 @@ export default {
 .card-footer i {
   color: #8b5cf6;
   font-size: 0.875rem;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .cve-card {
+    min-width: unset;
+  }
+  
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .date {
+    align-self: flex-end;
+  }
 }
 </style>

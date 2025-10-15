@@ -217,6 +217,41 @@ def create_database_and_tables():
         """
         cursor.execute(create_phishing_results_table_sql)
 
+        # 创建邮箱配置表
+        create_email_configs_table_sql = """
+        CREATE TABLE IF NOT EXISTS email_configs (
+            id INT AUTO_INCREMENT PRIMARY KEY COMMENT '自增主键',
+            username VARCHAR(255) NOT NULL COMMENT '邮箱用户名',
+            passwd VARCHAR(255) NOT NULL COMMENT '邮箱密码',
+            server VARCHAR(255) NOT NULL COMMENT 'IMAP服务器地址',
+            port INT NOT NULL COMMENT 'IMAP端口',
+            webhook_url TEXT NOT NULL COMMENT '企业微信Webhook URL',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '记录创建时间',
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '记录更新时间',
+            INDEX idx_username (username)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='邮箱配置表';
+        """
+        cursor.execute(create_email_configs_table_sql)
+
+        # 创建AI模型配置表
+        create_ai_models_table_sql = """
+        CREATE TABLE IF NOT EXISTS ai_models (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(100) NOT NULL UNIQUE COMMENT '模型名称，如 doubao, qwen 等',
+            api_key VARCHAR(255) NOT NULL COMMENT 'API密钥',
+            model_identifier VARCHAR(100) NOT NULL COMMENT '模型标识符，如具体模型名',
+            api_endpoint VARCHAR(255) NOT NULL COMMENT 'API调用地址',
+            is_active BOOLEAN DEFAULT TRUE COMMENT '是否启用',
+            config JSON COMMENT '其他配置参数',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI模型配置表';
+        """
+        cursor.execute(create_ai_models_table_sql)
+
+        logging.info("Email configs table created or already exists.")
+
+        
         
     conn.close()
 

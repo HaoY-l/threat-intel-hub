@@ -90,6 +90,45 @@
         <div class="autodetect-section">
           <h3>自动邮件检测</h3>
           
+          <!-- 邮箱配置管理 -->
+          <div class="config-card email-config-card">
+            <h4>邮箱配置</h4>
+            <div class="email-config-list">
+              <div v-for="(config, index) in emailConfigs" :key="config.id || index" class="email-config-item">
+                <div class="config-details">
+                  <p><strong>用户名：</strong>{{ config.username }}</p>
+                  <p><strong>IMAP服务器：</strong>{{ config.server }}</p>
+                  <p><strong>端口：</strong>{{ config.port }}</p>
+                  <p><strong>Webhook URL：</strong>{{ config.webhook_url }}</p>
+                </div>
+                <div class="config-actions">
+                  <button @click="editEmailConfig(index)" class="edit-btn">编辑</button>
+                  <button @click="deleteEmailConfig(index)" class="delete-btn">删除</button>
+                </div>
+              </div>
+              <div v-if="emailConfigs.length === 0" class="no-configs">
+                暂无邮箱配置，请添加。
+              </div>
+            </div>
+            <button @click="showAddEmailConfig = true" class="add-btn">添加邮箱配置</button>
+            
+            <!-- 添加/编辑模态 -->
+            <div v-if="showAddEmailConfig" class="modal-overlay">
+              <div class="modal-content">
+                <h4>{{ editingConfigIndex !== null ? '编辑邮箱配置' : '添加邮箱配置' }}</h4>
+                <input v-model="newConfig.username" placeholder="邮箱用户名" class="config-input" />
+                <input v-model="newConfig.passwd" type="password" placeholder="邮箱密码" class="config-input" />
+                <input v-model="newConfig.server" placeholder="IMAP服务器 (e.g., imap.e.com)" class="config-input" />
+                <input v-model.number="newConfig.port" type="number" placeholder="IMAP端口 (e.g., 993)" class="config-input" />
+                <input v-model="newConfig.webhook_url" placeholder="企业微信Webhook URL" class="config-input" />
+                <div class="modal-buttons">
+                  <button @click="saveEmailConfig" class="save-btn">保存</button>
+                  <button @click="cancelEmailConfig" class="cancel-btn">取消</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          
           <!-- 自动检测配置 -->
           <div class="autodetect-config">
             <div class="config-card">
@@ -135,7 +174,7 @@
               <div class="control-buttons">
                 <button 
                   @click="startAutoCheck" 
-                  :disabled="isAutoCheckRunning || autoCheckInterval < 1"
+                  :disabled="isAutoCheckRunning || autoCheckInterval < 1 || emailConfigs.length === 0"
                   class="start-btn"
                 >
                   开始自动检测
@@ -213,7 +252,7 @@
             <h3>模型性能指标</h3>
             <button @click="loadMetrics" :disabled="loading" class="refresh-btn">
               <span v-if="loading">加载中...</span>
-              <span v-else">刷新数据</span>
+              <span v-else>刷新数据</span>
             </button>
           </div>
           
@@ -256,6 +295,7 @@
           <h3>模型管理</h3>
           
           <div class="management-grid">
+            <!-- 现有的三个卡片 -->
             <div class="management-card">
               <h4>重新训练模型</h4>
               <p>使用最新数据重新训练模型，提升检测准确性。训练过程可能需要几分钟时间。</p>
@@ -300,6 +340,62 @@
                 </div>
               </div>
               <button @click="checkSystemStatus" class="check-btn">检查状态</button>
+            </div>
+            
+            <!-- 新增的数据集管理卡片 -->
+            <div class="management-card">
+              <h4>数据集管理</h4>
+              <div v-if="datasetInfo.exists" class="dataset-info">
+                <div class="info-item">
+                  <span class="info-label">文件名：</span>
+                  <span class="info-value">{{ datasetInfo.filename }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">总记录数：</span>
+                  <span class="info-value">{{ datasetInfo.total_rows }} 条</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">垃圾邮件：</span>
+                  <span class="info-value">{{ datasetInfo.spam_count }} 条</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">正常邮件：</span>
+                  <span class="info-value">{{ datasetInfo.ham_count }} 条</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">最后修改：</span>
+                  <span class="info-value">{{ datasetInfo.last_modified }}</span>
+                </div>
+              </div>
+              <div v-else class="no-dataset">
+                <p>数据集文件不存在</p>
+              </div>
+              
+              <div class="upload-section">
+                <h5>上传新数据集</h5>
+                <input 
+                  type="file" 
+                  ref="fileInput" 
+                  accept=".csv" 
+                  @change="handleFileSelect" 
+                  style="display: none"
+                />
+                <button @click="$refs.fileInput.click()" class="upload-btn">
+                  选择CSV文件
+                </button>
+                <button 
+                  @click="uploadDataset" 
+                  :disabled="!selectedFile || uploading"
+                  class="upload-btn primary"
+                  style="margin-left: 10px"
+                >
+                  <span v-if="uploading">上传中...</span>
+                  <span v-else>上传</span>
+                </button>
+                <div v-if="selectedFile" class="file-info">
+                  已选择: {{ selectedFile.name }}
+                </div>
+              </div>
             </div>
           </div>
           
@@ -367,8 +463,32 @@ export default {
       phishingEmailCount: 0,
       autoDetectLogs: [],
       
+      // 邮箱配置相关
+      emailConfigs: [],
+      showAddEmailConfig: false,
+      editingConfigIndex: null,
+      newConfig: {
+        id: null,
+        username: '',
+        passwd: '',
+        server: 'imap.e.com',
+        port: 993,
+        webhook_url: ''
+      },
+      
       // API基础URL，初始化为空，将在 mounted 钩子中动态设置
-      apiBaseUrl: ''
+      apiBaseUrl: '',
+      // 数据集管理相关
+      datasetInfo: {
+        exists: false,
+        filename: '',
+        total_rows: 0,
+        spam_count: 0,
+        ham_count: 0,
+        last_modified: ''
+      },
+      selectedFile: null,
+      uploading: false
     }
   },
   computed: {
@@ -383,6 +503,8 @@ export default {
     this.checkSystemStatus();
     this.loadHistoryFromStorage();
     this.loadAutoDetectSettings();
+    this.loadEmailConfigs(); // 从后端加载邮箱配置
+    this.loadDatasetInfo(); // 加载数据集信息
   },
   beforeUnmount() {
     this.stopAutoCheck();
@@ -459,6 +581,11 @@ export default {
         return;
       }
       
+      if (this.emailConfigs.length === 0) {
+        alert('请先添加至少一个邮箱配置！');
+        return;
+      }
+      
       this.isAutoCheckRunning = true;
       this.addAutoDetectLog('info', '自动检测已启动');
       
@@ -491,21 +618,27 @@ export default {
       try {
         this.addAutoDetectLog('info', `开始检测过去${this.actualTimeRange}分钟内的邮件...`);
         
-        const response = await axios.get(`${this.apiBaseUrl}/cron_email_check/${this.actualTimeRange}`);
+        const response = await axios.post(`${this.apiBaseUrl}/cron_email_check`, {
+          minutes: this.actualTimeRange,
+          configs: this.emailConfigs
+        });
         
         this.totalCheckCount++;
         
         if (response.data.status === 'success') {
           const emailIds = response.data.checked_email_ids || [];
+          const phishingCount = response.data.phishing_count || 0;
+          const totalCount = response.data.total_count || emailIds.length;
+          
+          // 更新钓鱼邮件统计
+          if (phishingCount > 0) {
+            this.phishingEmailCount += phishingCount;
+          }
           
           if (emailIds.length === 0) {
             this.addAutoDetectLog('success', '未发现新邮件');
           } else {
-            this.addAutoDetectLog('success', `检测完成`, emailIds);
-            
-            // 这里可以根据实际需要统计钓鱼邮件数量
-            // 由于后端接口可能需要扩展返回钓鱼邮件统计，这里先简单处理
-            // this.phishingEmailCount += phishingCount;
+            this.addAutoDetectLog('success', `检测完成 (发现${phishingCount}封钓鱼邮件)`, emailIds);
           }
         } else {
           this.addAutoDetectLog('error', `检测失败: ${response.data.message}`);
@@ -569,7 +702,8 @@ export default {
         customTimeRange: this.customTimeRange,
         totalCheckCount: this.totalCheckCount,
         phishingEmailCount: this.phishingEmailCount,
-        autoDetectLogs: this.autoDetectLogs.slice(0, 20) // 只保存最近20条
+        autoDetectLogs: this.autoDetectLogs.slice(0, 20), // 只保存最近20条
+        emailConfigs: this.emailConfigs
       };
       
       try {
@@ -591,10 +725,100 @@ export default {
           this.totalCheckCount = settings.totalCheckCount || 0;
           this.phishingEmailCount = settings.phishingEmailCount || 0;
           this.autoDetectLogs = settings.autoDetectLogs || [];
+          // emailConfigs 从后端加载，不再从localStorage加载
         }
       } catch (error) {
         console.warn('加载自动检测设置失败:', error);
       }
+    },
+    
+    // 从后端加载邮箱配置
+    async loadEmailConfigs() {
+      try {
+        const response = await axios.get(`${this.apiBaseUrl}/email_configs`);
+        this.emailConfigs = response.data;
+      } catch (error) {
+        console.error('加载邮箱配置失败:', error);
+        // 如果后端没有这个接口或者出错，可以回退到本地存储
+        this.loadAutoDetectSettings();
+      }
+    },
+    
+    // 编辑邮箱配置
+    editEmailConfig(index) {
+      this.editingConfigIndex = index;
+      // 注意：这里创建一个副本，避免直接修改原对象
+      this.newConfig = { ...this.emailConfigs[index] };
+      this.showAddEmailConfig = true;
+    },
+    
+    // 删除邮箱配置
+    async deleteEmailConfig(index) {
+      if (!confirm('确定删除此邮箱配置吗？')) {
+        return;
+      }
+      
+      try {
+        const configId = this.emailConfigs[index].id;
+        await axios.delete(`${this.apiBaseUrl}/email_configs/${configId}`);
+        this.emailConfigs.splice(index, 1);
+      } catch (error) {
+        console.error('删除邮箱配置失败:', error);
+        alert('删除邮箱配置失败: ' + (error.response?.data?.message || error.message));
+      }
+    },
+    
+    // 保存邮箱配置到后端
+    async saveEmailConfig() {
+      if (!this.newConfig.username || !this.newConfig.passwd || 
+          !this.newConfig.server || !this.newConfig.port || 
+          !this.newConfig.webhook_url) {
+        alert('请填写所有字段！');
+        return;
+      }
+      
+      try {
+        let response;
+        if (this.editingConfigIndex !== null) {
+          // 编辑现有配置
+          const configId = this.emailConfigs[this.editingConfigIndex].id;
+          response = await axios.put(
+            `${this.apiBaseUrl}/email_configs/${configId}`, 
+            this.newConfig
+          );
+          
+          // 更新本地数据
+          this.emailConfigs[this.editingConfigIndex] = response.data;
+        } else {
+          // 添加新配置
+          response = await axios.post(
+            `${this.apiBaseUrl}/email_configs`, 
+            this.newConfig
+          );
+          
+          // 添加到本地数据
+          this.emailConfigs.push(response.data);
+        }
+        
+        this.cancelEmailConfig();
+        // 不再保存到localStorage，而是依赖后端存储
+      } catch (error) {
+        console.error('保存邮箱配置失败:', error);
+        alert('保存邮箱配置失败: ' + (error.response?.data?.message || error.message));
+      }
+    },
+    
+    cancelEmailConfig() {
+      this.showAddEmailConfig = false;
+      this.editingConfigIndex = null;
+      this.newConfig = {
+        id: null,
+        username: '',
+        passwd: '',
+        server: 'imap.e.com',
+        port: 993,
+        webhook_url: ''
+      };
     },
     
     // 加载模型性能指标
@@ -703,6 +927,57 @@ export default {
         }
       } catch (error) {
         console.warn('加载历史记录失败:', error);
+      }
+    },
+    // 加载数据集信息
+    async loadDatasetInfo() {
+      try {
+        const response = await axios.get(`${this.apiBaseUrl}/dataset/info`);
+        this.datasetInfo = response.data;
+      } catch (error) {
+        console.error('加载数据集信息失败:', error);
+      }
+    },
+    
+    // 处理文件选择
+    handleFileSelect(event) {
+      const files = event.target.files;
+      if (files.length > 0) {
+        this.selectedFile = files[0];
+      } else {
+        this.selectedFile = null;
+      }
+    },
+    
+    // 上传数据集
+    async uploadDataset() {
+      if (!this.selectedFile) {
+        alert('请先选择文件');
+        return;
+      }
+      
+      this.uploading = true;
+      const formData = new FormData();
+      formData.append('file', this.selectedFile);
+      
+      try {
+        const response = await axios.post(`${this.apiBaseUrl}/dataset/upload`, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        });
+        
+        alert('数据集上传成功');
+        this.selectedFile = null;
+        this.$refs.fileInput.value = ''; // 清空文件输入框
+        
+        // 重新加载数据集信息
+        await this.loadDatasetInfo();
+      } catch (error) {
+        console.error('上传失败:', error);
+        alert('数据集上传失败: ' + (error.response?.data?.message || error.message));
+      } finally {
+        this.uploading = false;
       }
     }
   }
@@ -964,6 +1239,116 @@ h3, h4 {
   padding: 25px;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.email-config-card {
+  grid-column: span 2; /* 占据整行 */
+  margin-bottom: 20px;
+}
+
+.email-config-list {
+  max-height: 300px;
+  overflow-y: auto;
+  margin-bottom: 20px;
+}
+
+.email-config-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 15px;
+  border-bottom: 1px solid #dfe6e9;
+}
+
+.config-details p {
+  margin: 5px 0;
+  font-size: 0.9rem;
+}
+
+.config-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.edit-btn, .delete-btn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.edit-btn {
+  background-color: #3498db;
+  color: white;
+}
+
+.delete-btn {
+  background-color: #e74c3c;
+  color: white;
+}
+
+.no-configs {
+  text-align: center;
+  color: #95a5a6;
+  padding: 20px;
+}
+
+.add-btn {
+  background-color: #2ecc71;
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-content {
+  background: white;
+  padding: 30px;
+  border-radius: 8px;
+  width: 400px;
+}
+
+.config-input {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 10px;
+  border: 1px solid #bdc3c7;
+  border-radius: 6px;
+}
+
+.modal-buttons {
+  display: flex;
+  gap: 15px;
+  justify-content: flex-end;
+}
+
+.save-btn {
+  background-color: #3498db;
+  color: white;
+}
+
+.cancel-btn {
+  background-color: #ecf0f1;
+  color: #2c3e50;
+}
+
+.modal-buttons button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
 }
 
 .config-card h4, .status-card h4 {
@@ -1383,5 +1768,83 @@ h3, h4 {
 .result-item .value {
   font-weight: bold;
   color: #34495e;
+}
+
+/* 数据集管理相关样式 */
+.dataset-info {
+  margin-bottom: 20px;
+}
+
+.info-item {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  padding: 5px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.info-label {
+  font-weight: 500;
+  color: #7f8c8d;
+}
+
+.info-value {
+  font-weight: bold;
+  color: #2c3e50;
+}
+
+.no-dataset {
+  text-align: center;
+  color: #e74c3c;
+  padding: 20px;
+  background-color: #fdf6f6;
+  border-radius: 4px;
+  margin-bottom: 20px;
+}
+
+.upload-section {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #eee;
+}
+
+.upload-section h5 {
+  margin-bottom: 15px;
+  color: #2c3e50;
+}
+
+.upload-btn {
+  padding: 8px 15px;
+  border: 1px solid #bdc3c7;
+  border-radius: 4px;
+  background-color: #ecf0f1;
+  color: #2c3e50;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.upload-btn:hover {
+  background-color: #d5dbdb;
+}
+
+.upload-btn.primary {
+  background-color: #3498db;
+  color: white;
+  border-color: #3498db;
+}
+
+.upload-btn.primary:hover {
+  background-color: #2980b9;
+}
+
+.upload-btn:disabled {
+  background-color: #b9c1c6;
+  cursor: not-allowed;
+}
+
+.file-info {
+  margin-top: 10px;
+  font-size: 0.9rem;
+  color: #7f8c8d;
 }
 </style>
