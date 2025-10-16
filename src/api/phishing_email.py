@@ -317,8 +317,20 @@ def cron_email_check():
                     config['webhook_url']
                 )
                 
-                checked_email_ids.extend(result['email_ids'])
-                total_phishing_count += result['phishing_count']
+                # 正确处理返回结果
+                if isinstance(result, dict) and 'email_ids' in result and 'phishing_count' in result:
+                    checked_email_ids.extend(result['email_ids'])
+                    total_phishing_count += result['phishing_count']
+                else:
+                    # 如果返回的是列表或其他格式，需要特殊处理
+                    if isinstance(result, list):
+                        checked_email_ids.extend(result)
+                        # 对于列表格式，需要单独计算钓鱼邮件数量
+                    elif isinstance(result, dict):
+                        # 处理其他可能的字典格式
+                        email_ids = result.get('email_ids', [])
+                        checked_email_ids.extend(email_ids)
+                        total_phishing_count += result.get('phishing_count', 0)
             except Exception as e:
                 print(f"检查邮箱 {config.get('username', 'unknown')} 时出错: {e}")
                 continue
