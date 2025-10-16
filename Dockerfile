@@ -3,6 +3,9 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+ENV TZ=Asia/Shanghai
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
 # 安装系统依赖（Python 扩展依赖）
 RUN apt-get update && apt-get install -y \
     gcc \
