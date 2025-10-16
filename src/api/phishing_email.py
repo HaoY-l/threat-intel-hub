@@ -282,8 +282,20 @@ def cron_email_check():
         # 从请求体中获取数据
         data = request.get_json()
         minutes = data.get('minutes', 3)  # 默认3分钟
-        configs = data.get('configs', [])  # 邮箱配置列表
         
+        # 从数据库获取邮箱配置
+        configs = []
+        try:
+            conn = get_db_connection()
+            with conn.cursor() as cursor:
+                sql = "SELECT username, passwd, server, port, webhook_url FROM email_configs"
+                cursor.execute(sql)
+                configs = cursor.fetchall()
+            conn.close()
+        except Exception as e:
+            print(f"获取邮箱配置失败: {e}")
+            return jsonify({'status': 'error', 'message': f'获取邮箱配置失败: {str(e)}'}), 500
+
         checked_email_ids = []
         total_phishing_count = 0
         
