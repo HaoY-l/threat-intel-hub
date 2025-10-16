@@ -160,10 +160,10 @@ def main(minutes, email_addr, password, imap_server, imap_port, webhook_url, phi
             # 统计钓鱼邮件数量
             if is_phishing == "Phishing":
                 phishing_count += 1
+                # 只有在检测到钓鱼邮件时才发送通知
+                message = f"⚠️ 钓鱼邮件警报!\nEmail ID: {email_id.decode()}\nResult: {result}\nDetails: {content[:200]}..."
+                send_to_webhook(webhook_url, message)
                 
-            message = f"Email ID: {email_id.decode()}\nResult: {result}\nDetails: {content[:200]}..."
-            send_to_webhook(webhook_url, message)
-        
         mail.logout()
         # 返回符合时间范围的邮件ID和钓鱼邮件数量
         return {
@@ -172,4 +172,10 @@ def main(minutes, email_addr, password, imap_server, imap_port, webhook_url, phi
         }
     except Exception as e:
         print(f"Error for {email_addr}: {e}")
+        # 发生错误时也发送通知
+        try:
+            error_message = f"❌ 邮件检测出错!\n邮箱: {email_addr}\n错误: {str(e)}"
+            send_to_webhook(webhook_url, error_message)
+        except:
+            pass
         return {'email_ids': [], 'phishing_count': 0}  # 错误时返回空列表

@@ -630,7 +630,7 @@ export default {
           const phishingCount = response.data.phishing_count || 0;
           const totalCount = response.data.total_count || emailIds.length;
           
-          // 更新钓鱼邮件统计
+          // 更新钓鱼邮件统计 - 确保正确更新计数
           if (phishingCount > 0) {
             this.phishingEmailCount += phishingCount;
           }
@@ -638,7 +638,8 @@ export default {
           if (emailIds.length === 0) {
             this.addAutoDetectLog('success', '未发现新邮件');
           } else {
-            this.addAutoDetectLog('success', `检测完成 (发现${phishingCount}封钓鱼邮件)`, emailIds);
+            // 确保在日志中显示正确的邮件数量
+            this.addAutoDetectLog('success', `检测完成 (发现${phishingCount}封钓鱼邮件，共${totalCount}封邮件)`, emailIds);
           }
         } else {
           this.addAutoDetectLog('error', `检测失败: ${response.data.message}`);
