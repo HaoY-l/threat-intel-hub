@@ -20,3 +20,5 @@ nltk
 matplotlib
 tensorflow
 seaborn
+PyYAML
+xmltodict
