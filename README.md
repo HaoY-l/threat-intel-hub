@@ -224,7 +224,7 @@ We’re proud that our project is trusted by awesome teams around the world 🌍
 | Logo / Name | Description |
 |--------------|--------------|
 | [Threat-Intel-Hub](https://github.com/HaoY-l/threat-intel-hub) | 作者✍️ | 
-| [中铁信（北京）网络技术研究院有限公司人工智能团队](-) | ㊙️ | 
+| [中铁信（北京）网络技术研究院有限公司智能技术部](-) | ㊙️ | 
 
 
 > 💬 If your company is using this project, feel free to open a PR and add your logo here!
