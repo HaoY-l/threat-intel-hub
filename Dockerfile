@@ -1,5 +1,6 @@
 # ---- 基础镜像 ----
-FROM python:3.11-slim
+# FROM python:3.11-slim
+FROM registry.cn-hangzhou.aliyuncs.com/libraries/python:3.11-slim
 
 WORKDIR /app
 
