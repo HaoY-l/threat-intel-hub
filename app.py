@@ -20,6 +20,8 @@ from flask_cors import CORS
 import atexit
 import datetime # 确保 datetime 模块被导入
 from src.api.phishing_email import phishing_bp, init_phishing
+from flask_casbin import CasbinEnforcer
+from casbin.persist.adapters import FileAdapter  # 新增
 
 # -----------------------------------------------
 load_dotenv()
@@ -43,6 +45,11 @@ CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 # 注册蓝图
 app.register_blueprint(api_bp)
+
+# 新增Casbin配置
+app.config['CASBIN_MODEL'] = os.path.join(os.path.dirname(__file__), 'model.conf')
+app.config['CASBIN_ADAPTER'] = FileAdapter(os.path.join(os.path.dirname(__file__), 'policy.csv'))
+enforcer = CasbinEnforcer(app)  # 初始化Casbin实例
 
 # 错误处理
 @app.errorhandler(500)

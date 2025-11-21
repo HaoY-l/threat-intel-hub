@@ -1,6 +1,7 @@
 import os,logging
 import pymysql
 from dotenv import load_dotenv
+from werkzeug.security import generate_password_hash # 密码加密工具
 
 load_dotenv()
 
@@ -251,7 +252,39 @@ def create_database_and_tables():
 
         logging.info("Email configs table created or already exists.")
 
-        
+        # 创建用户表（新增）
+        create_users_table_sql = """
+        CREATE TABLE IF NOT EXISTS users (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            username VARCHAR(50) NOT NULL UNIQUE COMMENT '登录用户名',
+            password_hash VARCHAR(255) NOT NULL COMMENT '加密存储的密码',
+            role VARCHAR(20) NOT NULL DEFAULT 'user' COMMENT '角色：admin/user',
+            email VARCHAR(100) UNIQUE COMMENT '用户邮箱',
+            is_active BOOLEAN DEFAULT TRUE COMMENT '是否激活',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_role (role)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='系统用户表';
+        """
+        cursor.execute(create_users_table_sql)
+        logging.info("Users table created or already exists.")
+
+        # 插入默认管理员用户（新增）
+        # 密码使用werkzeug加密，默认密码为'admin123'
+        default_admin_sql = """
+        INSERT IGNORE INTO users (username, password_hash, role, email, is_active)
+        VALUES (
+            'threatintel',
+            %s,
+            'admin',
+            'threatintel@example.com',
+            TRUE
+        )
+        """
+        # 生成密码哈希
+        hashed_password = generate_password_hash('threatintel', method='pbkdf2:sha256')
+        cursor.execute(default_admin_sql, (hashed_password,))
+        logging.info("Default admin user initialized (username: threatintel, password: threatintel)")
         
     conn.close()
 

@@ -1,0 +1,6 @@
+p, admin, /api/email_configs, PUT
+p, admin, /api/waf/modifyblackrule, POST
+p, admin, /api/ai/models, PUT
+p, user, /api/threat/query, POST
+p, admin, /api/tools_wxgzh/create_article, POST
+g, admin, admin
