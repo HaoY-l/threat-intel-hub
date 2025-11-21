@@ -4,7 +4,7 @@
 ---   
 
 ## 在线文档
-[Threat Intelligence Hub在线文档](https://www.yuque.com/weare/mx0zcy/vrqwsxe3vgtesate?singleDoc#)
+[Threat Intel Hub在线文档](https://www.yuque.com/weare/mx0zcy/vrqwsxe3vgtesate?singleDoc#)
 
 ## 最近更新
 ### 2025-10-15
