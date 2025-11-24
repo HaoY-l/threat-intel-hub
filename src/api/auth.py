@@ -1,19 +1,14 @@
 import os
 from flask import Blueprint, request, jsonify, session, g  # 新增session和g
 from werkzeug.security import check_password_hash
-import mysql.connector
+from data.db_init import get_db_connection
 
-auth_bp = Blueprint('auth', __name__)
+auth_bp = Blueprint('auth_bp', __name__)
 
 # 新增数据库连接工具
 def get_db():
     if 'db' not in g:
-        g.db = mysql.connector.connect(
-            host=os.getenv('DB_HOST', 'localhost'),
-            user=os.getenv('DB_USER', 'root'),
-            password=os.getenv('DB_PASSWORD', ''),
-            database=os.getenv('DB_NAME', 'threat_intel_hub')
-        )
+        g.db = get_db_connection
     return g.db
 
 # 新增登录接口

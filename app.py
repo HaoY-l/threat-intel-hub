@@ -50,6 +50,8 @@ app.register_blueprint(api_bp)
 app.config['CASBIN_MODEL'] = os.path.join(os.path.dirname(__file__), 'model.conf')
 app.config['CASBIN_ADAPTER'] = FileAdapter(os.path.join(os.path.dirname(__file__), 'policy.csv'))
 enforcer = CasbinEnforcer(app)  # 初始化Casbin实例
+from src.api.auth import auth_bp
+app.register_blueprint(auth_bp, url_prefix='/api/auth')  # 认证接口前缀：/api/auth/login
 
 # 错误处理
 @app.errorhandler(500)
