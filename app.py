@@ -40,16 +40,18 @@ logging.basicConfig(
 app = Flask(__name__, static_folder='src/static', static_url_path='/')
 
 # 更完整的CORS配置
-CORS(app, resources={r"/api/*": {"origins": "*"}})
+# CORS(app, resources={r"/api/*": {"origins": "*"}})
+CORS(app,
+     resources={r"/api/*": {"origins": "http://localhost:5173"}},
+     supports_credentials=True,
+     allow_headers=["Content-Type", "Authorization"],
+     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+)
 # 新增Casbin配置
 casbin_enforcer = init_casbin()
 app.enforcer = casbin_enforcer
 # 注册蓝图
 app.register_blueprint(api_bp)
-
-# 导入并注册认证蓝图
-from src.api.auth import auth_bp
-app.register_blueprint(auth_bp, url_prefix='/api/auth')
 
 
 # 错误处理
@@ -90,14 +92,14 @@ def method_not_allowed(error):
     }), 405
 
 # 处理CORS预检请求
-@app.before_request
-def handle_preflight():
-    if request.method == "OPTIONS":
-        response = jsonify()
-        response.headers.add("Access-Control-Allow-Origin", "*")
-        response.headers.add('Access-Control-Allow-Headers', "*")
-        response.headers.add('Access-Control-Allow-Methods', "*")
-        return response
+# @app.before_request
+# def handle_preflight():
+#     if request.method == "OPTIONS":
+#         response = jsonify()
+#         response.headers.add("Access-Control-Allow-Origin", "*")
+#         response.headers.add('Access-Control-Allow-Headers', "*")
+#         response.headers.add('Access-Control-Allow-Methods', "*")
+#         return response
 
 # 全局异常处理
 @app.errorhandler(Exception)

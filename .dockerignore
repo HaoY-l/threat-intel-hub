@@ -27,3 +27,4 @@ threat_intel_front/
 # 环境示例
 .env-example
 threat_intel.sql
+.env

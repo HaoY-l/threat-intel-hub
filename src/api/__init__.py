@@ -14,6 +14,7 @@ from .ai_chat import aichat_bp
 from .alicloud_waf_alert import waf_alert
 from .phishing_email import phishing_bp
 from .auth import auth_bp
+from .auth_users import auth_users_bp
 
 # 创建API蓝图
 api_bp = Blueprint('api', __name__, url_prefix='/api')
@@ -33,4 +34,5 @@ api_bp.register_blueprint(tools_bp)
 api_bp.register_blueprint(aichat_bp)
 api_bp.register_blueprint(waf_alert)
 api_bp.register_blueprint(phishing_bp)
-api_bp.register_blueprint(auth_bp)
+api_bp.register_blueprint(auth_bp)  
+api_bp.register_blueprint(auth_users_bp) 

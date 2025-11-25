@@ -1,75 +1,114 @@
 import { createRouter, createWebHistory } from 'vue-router';
-import { isLoggedIn } from '@/utils/auth'; // 之前创建的权限工具函数
+import { isLoggedIn, getCurrentUser } from '@/utils/auth';
 import { ElMessage } from 'element-plus';
 
-// 导入页面组件
-import Home from '@/views/Home.vue';
+// 👉 1. 仅同步导入登录页（未登录时唯一加载的组件）
 import Login from '@/views/Login.vue';
-import ThreatQuery from '@/views/ThreatQuery.vue';
-import EmailConfig from '@/views/EmailConfig.vue';
-import Layout from '@/layout/Layout.vue';
 
+// 👉 2. 自动扫描所有受保护组件（无需手动列举，新增组件自动识别）
+const scanProtectedComponents = () => {
+  const components = {};
+
+  // 扫描布局组件（src/layout/Layout.vue）
+  components.Layout = () => import('@/layout/Layout.vue');
+
+  // 扫描 views 目录下的受保护页面（src/views/ 下除了 Login.vue 之外的所有 .vue 文件）
+  const viewModules = import.meta.glob('@/views/!(Login).vue', { eager: false });
+  Object.entries(viewModules).forEach(([path, component]) => {
+    // 提取组件名（如 Dashboard.vue → Dashboard）
+    const name = path.match(/\/([^\/]+)\.vue$/)[1];
+    components[name] = component;
+  });
+
+  // 扫描 components/user 目录下的组件（如 UserManagement.vue）
+  const userComponents = import.meta.glob('@/components/user/*.vue', { eager: false });
+  Object.entries(userComponents).forEach(([path, component]) => {
+    const name = path.match(/\/([^\/]+)\.vue$/)[1];
+    components[name] = component;
+  });
+
+  return components;
+};
+
+const protectedComponents = scanProtectedComponents();
+
+// 👉 3. 动态生成受保护路由（自动根据组件名生成路由路径）
+const generateProtectedRoutes = () => {
+  return Object.entries(protectedComponents)
+    .filter(([name]) => name !== 'Layout') // 排除布局组件，单独处理
+    .map(([name, component]) => {
+      // 组件名转路由路径（如 Dashboard → dashboard，UserManagement → user-management）
+      const path = name.toLowerCase().replace(/([A-Z])/g, '-$1').replace(/^-/, '');
+      // 权限约定：组件名含 Admin/Management 则为 admin 权限，否则为 user 权限
+      const role = name.includes('Admin') || name.includes('Management') ? 'admin' : 'user';
+
+      return {
+        path: path,
+        name: name,
+        component: component,
+        meta: { role: role }
+      };
+    });
+};
+
+// 👉 4. 最终路由配置（固定结构，无需修改）
 const routes = [
+  // 公开路由：仅登录页
+  {
+    path: '/login',
+    name: 'Login',
+    component: Login,
+    meta: { public: true }
+  },
+
+  // 受保护路由：布局 + 自动生成的子路由
   {
     path: '/',
-    component: Layout,
-    children: [
-      { 
-        path: '', 
-        name: 'Home', 
-        component: Home,
-        meta: { requiresAuth: true } // 关键：首页需要登录才能访问
-      },
-      { 
-        path: 'threat-query', 
-        name: 'ThreatQuery', 
-        component: ThreatQuery,
-        meta: { requiresAuth: true }
-      },
-      { 
-        path: 'email-config', 
-        name: 'EmailConfig', 
-        component: EmailConfig,
-        meta: { requiresAuth: true, role: 'admin' }
-      }
-    ]
+    component: protectedComponents.Layout,
+    meta: { requiresAuth: true },
+    children: generateProtectedRoutes() // 动态生成子路由
   },
-  { 
-    path: '/login', 
-    name: 'Login', 
-    component: Login,
-    meta: { requiresAuth: false } // 登录页无需登录
-  },
-  { path: '/:pathMatch(.*)*', redirect: '/' } // 404跳转首页（会被守卫拦截到登录页）
+
+  // 404路由
+  {
+    path: '/:pathMatch(.*)*',
+    redirect: (to) => isLoggedIn() ? '/dashboard' : '/login'
+  }
 ];
 
+// 👉 5. 创建路由实例
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes
 });
 
-// 路由守卫：所有需要登录的页面，未登录则跳登录页
+// 👉 6. 全局路由守卫（固定逻辑，无需修改）
 router.beforeEach((to, from, next) => {
-  // 1. 登录页直接放行
-  if (to.name === 'Login') {
-    next();
+  // 公开路由（仅登录页）：放行
+  if (to.meta.public) {
+    isLoggedIn() ? next('/dashboard') : next();
     return;
   }
 
-  // 2. 所有需要登录的页面（包括首页），校验登录状态
-  if (to.meta.requiresAuth || to.path === '/') { // 首页强制校验
-    if (isLoggedIn()) {
-      // 已登录：放行
-      next();
-    } else {
-      // 未登录：提示并跳登录页
-      ElMessage.warning('请先登录后再访问');
-      next('/login'); // 跳转到登录页
-    }
+  // 未登录：拦截所有非公开路由
+  if (!isLoggedIn()) {
+    ElMessage.warning('请先登录后再访问');
+    next('/login');
     return;
   }
 
-  // 其他页面默认放行
+  // 已登录：校验角色权限
+  const user = getCurrentUser();
+  const requiredRole = to.meta.role || 'user';
+  const hasPermission = user.role === 'admin' || user.role === requiredRole;
+
+  if (!hasPermission) {
+    ElMessage.error('无权限访问该页面');
+    next('/dashboard');
+    return;
+  }
+
+  // 已登录+有权限：放行（此时才加载对应组件）
   next();
 });
 

@@ -1,5 +1,5 @@
-// src/utils/auth.js
 import { ElMessage } from 'element-plus';
+import router from '@/router'; // 导入路由实例，用于跳转
 
 /**
  * 获取当前登录用户信息（从本地存储读取）
@@ -25,22 +25,45 @@ export const isAdmin = () => {
 };
 
 /**
- * 注销登录（清除本地存储，无需路由跳转，由 App.vue 处理页面切换）
+ * 登录成功：存储用户信息 + 跳转首页
+ * @param {Object} userInfo - 后端返回的用户信息（含 role 字段）
+ */
+export const loginSuccess = (userInfo) => {
+  localStorage.setItem('user', JSON.stringify(userInfo));
+  ElMessage.success('登录成功');
+  router.push('/'); // 跳首页
+};
+
+/**
+ * 注销登录：清除本地存储 + 跳转登录页
  */
 export const logout = () => {
   localStorage.removeItem('user');
   ElMessage.success('已成功注销');
-  // 无需路由跳转，App.vue 会监听本地存储变化或直接通过父组件方法切换页面
+  router.push('/login'); // 跳登录页
 };
 
 /**
- * 检查用户是否有权限（配合后端 Casbin 权限规则）
- * @param {string} requiredRole - 所需角色（如 'admin'、'user'）
- * @returns {boolean} 是否有权限
+ * 检查用户是否有权限访问指定路由
  */
-export const hasRolePermission = (requiredRole) => {
+export const hasRoutePermission = (route) => {
   if (!isLoggedIn()) return false;
   const user = getCurrentUser();
-  // 管理员拥有所有权限，普通用户仅拥有 user 权限
+  const requiredRole = route.meta.role;
   return user.role === 'admin' || user.role === requiredRole;
+};
+
+/**
+ * 过滤有权限的路由（用于侧边栏渲染）
+ */
+export const filterAuthorizedRoutes = (routes) => {
+  return routes.filter(route => {
+    if (route.meta?.requiresAuth === false) return false;
+    if (route.meta?.role && !hasRoutePermission(route)) return false;
+    if (route.children && route.children.length > 0) {
+      route.children = filterAuthorizedRoutes(route.children);
+      return route.children.length > 0;
+    }
+    return true;
+  });
 };

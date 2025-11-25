@@ -48,7 +48,7 @@
           </ul>
         </nav>
 
-        <!-- 仅显示头像 + 下拉菜单（核心简化） -->
+        <!-- 仅显示头像 + 下拉菜单（集成用户管理） -->
         <div class="user-menu" v-if="isLoggedIn" style="margin-left: 1.5rem !important; position: relative !important;">
           <!-- 可点击头像（带交互提示） -->
           <div 
@@ -63,17 +63,29 @@
             >
           </div>
 
-          <!-- 下拉菜单（简洁样式） -->
+          <!-- 下拉菜单（新增用户管理选项） -->
           <div 
             class="dropdown-menu"
             v-if="isDropdownOpen"
             style="position: absolute !important; top: calc(100% + 10px) !important; right: 0 !important; width: 150px !important; background: #1a1a3a !important; border-radius: 8px !important; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5) !important; border: 1px solid rgba(255, 255, 255, 0.1) !important; z-index: 999 !important; padding: 0.8rem 0 !important;"
           >
-            <!-- 用户信息项（下拉后显示） -->
+            <!-- 用户信息项 -->
             <div class="dropdown-item" style="padding: 0.6rem 1rem !important; color: #ccc !important; font-size: 0.9rem !important; cursor: default !important; border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;">
               <div style="font-weight: 500 !important; color: #00d4ff !important; margin-bottom: 0.2rem !important;">{{ currentUser.username }}</div>
               <div style="font-size: 0.8rem !important; color: #888 !important;">角色：{{ currentUser.role }}</div>
             </div>
+            
+            <!-- 管理员可见：用户管理选项 -->
+            <div 
+              class="dropdown-item"
+              v-if="isAdmin"
+              style="padding: 0.6rem 1rem !important; color: #00d4ff !important; font-size: 0.9rem !important; cursor: pointer !important; transition: background 0.2s ease !important; display: flex !important; align-items: center !important; gap: 0.5rem !important; border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;"
+              @click="isUserManagementOpen = true; isDropdownOpen = false"
+            >
+              <i class="el-icon-user" style="font-size: 0.9rem !important;"></i>
+              用户管理
+            </div>
+            
             <!-- 注销按钮项 -->
             <div 
               class="dropdown-item logout-item"
@@ -87,21 +99,32 @@
         </div>
       </div>
     </div>
+
+    <!-- AI聊天对话框 -->
     <AiChatDialog v-if="isChatDialogVisible" @close-ai-dialog="isChatDialogVisible = false" />
+    
+    <!-- 用户管理组件（弹窗） -->
+    <UserManagement 
+      v-model="isUserManagementOpen"
+      :current-user="currentUser"
+      @user-changed="handleUserChanged"
+    />
   </header>
 </template>
 
 <script>
-// 导入AI聊天组件和权限工具
+// 导入AI聊天组件、用户管理组件和权限工具
 import AiRobot from '../../aichat/AiRobot.vue';
 import AiChatDialog from '../../aichat/AiChatDialog.vue';
+import UserManagement from '../user/UserManagement.vue'; // 新增用户管理组件
 import { getCurrentUser, isLoggedIn } from '../../utils/auth';
 
 export default {
   name: 'Header',
   components: {
     AiRobot,
-    AiChatDialog
+    AiChatDialog,
+    UserManagement // 注册用户管理组件
   },
   props: {
     active: {
@@ -115,7 +138,8 @@ export default {
       currentUser: null,
       isLoggedIn: false,
       isAdmin: false,
-      isDropdownOpen: false // 控制下拉菜单显示
+      isDropdownOpen: false,
+      isUserManagementOpen: false // 控制用户管理弹窗显示/隐藏
     };
   },
   created() {
@@ -162,6 +186,8 @@ export default {
         this.$parent.logout();
       }
       this.isDropdownOpen = false; // 注销后关闭下拉菜单
+      // 🔥 关键：跳转到登录页
+      this.$router.push('/login');
     },
     // 点击页面其他地方关闭下拉菜单
     closeDropdownOnClickOutside(e) {
@@ -169,6 +195,12 @@ export default {
       if (userMenu && !userMenu.contains(e.target)) {
         this.isDropdownOpen = false;
       }
+    },
+    // 用户管理数据变更后的回调（可选：如需刷新用户信息）
+    handleUserChanged() {
+      console.log('用户数据已更新，可在此刷新用户信息');
+      // 如需同步当前用户角色变化，可重新获取用户信息
+      // this.currentUser = getCurrentUser();
     }
   }
 }
