@@ -20,8 +20,7 @@ from flask_cors import CORS
 import atexit
 import datetime # 确保 datetime 模块被导入
 from src.api.phishing_email import phishing_bp, init_phishing
-from flask_casbin import CasbinEnforcer
-from casbin.persist.adapters import FileAdapter  # 新增
+from src.utils.casbin_init import init_casbin
 
 # -----------------------------------------------
 load_dotenv()
@@ -42,16 +41,16 @@ app = Flask(__name__, static_folder='src/static', static_url_path='/')
 
 # 更完整的CORS配置
 CORS(app, resources={r"/api/*": {"origins": "*"}})
-
+# 新增Casbin配置
+casbin_enforcer = init_casbin()
+app.enforcer = casbin_enforcer
 # 注册蓝图
 app.register_blueprint(api_bp)
 
-# 新增Casbin配置
-app.config['CASBIN_MODEL'] = os.path.join(os.path.dirname(__file__), 'model.conf')
-app.config['CASBIN_ADAPTER'] = FileAdapter(os.path.join(os.path.dirname(__file__), 'policy.csv'))
-enforcer = CasbinEnforcer(app)  # 初始化Casbin实例
+# 导入并注册认证蓝图
 from src.api.auth import auth_bp
-app.register_blueprint(auth_bp, url_prefix='/api/auth')  # 认证接口前缀：/api/auth/login
+app.register_blueprint(auth_bp, url_prefix='/api/auth')
+
 
 # 错误处理
 @app.errorhandler(500)
