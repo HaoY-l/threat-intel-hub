@@ -74,6 +74,10 @@ class DatabaseAdapter(Adapter):
     def get_permission_white_list(self) -> list:
         """返回白名单接口路径"""
         return [
-            "/health", "/", "/static/*",
-            "/api/auth/login", "/api/auth/register"
+            "/health",
+            "/",
+            "/static/*",
+            "/api/auth/login",
+            "/api/auth/register",
+            "/api/permission/role/user/permissions"  # 加入这里
         ]

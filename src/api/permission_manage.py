@@ -35,7 +35,6 @@ def get_all_role_list():
 # ---------------- 查询指定角色权限 ----------------
 @permission_manage_bp.route('/role/<role>/permissions', methods=['GET'])
 @login_required
-@permission_required('permission:manage')
 def get_role_perm(role):
     try:
         role_perm_keys = get_role_permissions(role)  # 返回 ['phishing:predict','user:view']

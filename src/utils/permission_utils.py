@@ -9,18 +9,18 @@ def get_all_permissions():
     conn = get_db_connection()
     try:
         with conn.cursor() as cursor:
-            sql = "SELECT id, permission_name, permission_key, method, module_name FROM permissions"
+            sql = "SELECT id, permission_name, permission_key, method, route_path FROM permissions"
             cursor.execute(sql)
             result = cursor.fetchall()
             perms = []
             for row in result:
                 perms.append({
-                    "id": row[0],
-                    "permission_name": row[1],
-                    "permission_key": row[2],
-                    "method": row[3],
-                    "module": row[4] or "other",
-                    "is_selected": False  # 默认未选中
+                    "id": row["id"],
+                    "permission_name": row["permission_name"],
+                    "permission_key": row["permission_key"],
+                    "method": row["method"],
+                    "module": "other",  # 现有表没有 module 字段，统一用 other
+                    "is_selected": False
                 })
             return perms
     finally:
@@ -30,12 +30,14 @@ def get_all_permissions():
 def get_all_roles():
     """
     返回角色列表：['admin','user','guest']
+    因为没有单独的 roles 表，这里通过 role_permissions 表获取所有角色
     """
     conn = get_db_connection()
     try:
         with conn.cursor() as cursor:
-            cursor.execute("SELECT role_name FROM roles")
-            return [row[0] for row in cursor.fetchall()]
+            sql = "SELECT DISTINCT role FROM role_permissions"
+            cursor.execute(sql)
+            return [row["role"] for row in cursor.fetchall()]
     finally:
         conn.close()
 
@@ -51,11 +53,30 @@ def get_role_permissions(role_name):
                 SELECT p.permission_key
                 FROM role_permissions rp
                 JOIN permissions p ON rp.permission_id = p.id
-                JOIN roles r ON rp.role_id = r.id
-                WHERE r.role_name = %s
+                WHERE rp.role = %s
             """
             cursor.execute(sql, (role_name,))
-            return [row[0] for row in cursor.fetchall()]
+            return [row["permission_key"] for row in cursor.fetchall()]
+    finally:
+        conn.close()
+
+# ---------------- 检查用户是否有权限 ----------------
+def has_permission(role_name, permission_key):
+    """
+    判断某个角色是否拥有指定权限
+    """
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cursor:
+            sql = """
+                SELECT 1
+                FROM role_permissions rp
+                JOIN permissions p ON rp.permission_id = p.id
+                WHERE rp.role = %s AND p.permission_key = %s
+                LIMIT 1
+            """
+            cursor.execute(sql, (role_name, permission_key))
+            return cursor.fetchone() is not None
     finally:
         conn.close()
 
@@ -69,21 +90,13 @@ def update_role_permissions(role_name, permission_ids):
     conn = get_db_connection()
     try:
         with conn.cursor() as cursor:
-            # 获取角色ID
-            cursor.execute("SELECT id FROM roles WHERE role_name=%s", (role_name,))
-            role_row = cursor.fetchone()
-            if not role_row:
-                return False
-            role_id = role_row[0]
-
             # 删除原权限
-            cursor.execute("DELETE FROM role_permissions WHERE role_id=%s", (role_id,))
-
+            cursor.execute("DELETE FROM role_permissions WHERE role=%s", (role_name,))
             # 批量插入新权限
             if permission_ids:
-                insert_values = [(role_id, pid) for pid in permission_ids]
+                insert_values = [(role_name, pid) for pid in permission_ids]
                 cursor.executemany(
-                    "INSERT INTO role_permissions(role_id, permission_id) VALUES (%s, %s)",
+                    "INSERT INTO role_permissions(role, permission_id) VALUES (%s, %s)",
                     insert_values
                 )
         conn.commit()
@@ -91,29 +104,5 @@ def update_role_permissions(role_name, permission_ids):
     except Exception:
         conn.rollback()
         return False
-    finally:
-        conn.close()
-
-# ---------------- 判断角色是否拥有某个权限 ----------------
-def has_permission(role_name, permission_key):
-    """
-    判断指定角色是否拥有指定权限
-    :param role_name: 角色名
-    :param permission_key: 权限key
-    :return: True/False
-    """
-    conn = get_db_connection()
-    try:
-        with conn.cursor() as cursor:
-            sql = """
-                SELECT 1
-                FROM role_permissions rp
-                JOIN permissions p ON rp.permission_id = p.id
-                JOIN roles r ON rp.role_id = r.id
-                WHERE r.role_name=%s AND p.permission_key=%s
-                LIMIT 1
-            """
-            cursor.execute(sql, (role_name, permission_key))
-            return cursor.fetchone() is not None
     finally:
         conn.close()

@@ -137,7 +137,7 @@ const handleLogin = async () => {
   left: 0;
   width: 100%;
   height: 100%;
-  background: url('@/assets/login-bg.png') no-repeat center;
+  /* background: url('@/assets/login-bg.png') no-repeat center; */
   background-size: cover; /* 背景图自适应屏幕，保持比例 */
   opacity: 0.15;
 }
