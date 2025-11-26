@@ -4,6 +4,8 @@ from flask import Blueprint, request, jsonify, session, g
 from werkzeug.security import check_password_hash
 from data.db_init import get_db_connection
 from dotenv import load_dotenv
+from functools import wraps
+from src.utils.permission_utils import has_permission
 
 # 加载环境变量
 load_dotenv()
@@ -20,6 +22,34 @@ def login_required(func):
         return func(*args, **kwargs)
     wrapper.__name__ = func.__name__
     return wrapper
+
+def permission_required(permission_key: str):
+    """
+    动态权限装饰器：校验当前登录用户是否拥有指定权限
+    :param permission_key: 权限标识（如 'user:list'）
+    """
+    def decorator(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            # 先校验是否登录（依赖 login_required 装饰器，需放在其后面）
+            if not g.current_user:
+                return jsonify({
+                    "success": False,
+                    "message": "请先登录"
+                }), 401
+            
+            # 获取当前用户角色
+            user_role = g.current_user.get('role', 'user')
+            # 校验权限
+            if not has_permission(user_role, permission_key):
+                return jsonify({
+                    "success": False,
+                    "message": f"无「{permission_key}」权限，禁止访问"
+                }), 403
+            
+            return f(*args, **kwargs)
+        return wrapper
+    return decorator
 
 def admin_required(func):
     """管理员验证装饰器（供其他模块导入使用）"""

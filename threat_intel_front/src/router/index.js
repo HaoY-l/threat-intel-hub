@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { isLoggedIn, getCurrentUser } from '@/utils/auth';
+import { usePermission } from '@/utils/permission';  // 新增：导入权限工具
 import { ElMessage } from 'element-plus';
 
 // 👉 1. 仅同步导入登录页（未登录时唯一加载的组件）
@@ -32,21 +33,29 @@ const scanProtectedComponents = () => {
 
 const protectedComponents = scanProtectedComponents();
 
-// 👉 3. 动态生成受保护路由（自动根据组件名生成路由路径）
+// 👉 3. 动态生成受保护路由（自动根据组件名生成路由路径，新增权限标识配置）
 const generateProtectedRoutes = () => {
   return Object.entries(protectedComponents)
     .filter(([name]) => name !== 'Layout') // 排除布局组件，单独处理
     .map(([name, component]) => {
-      // 组件名转路由路径（如 Dashboard → dashboard，UserManagement → user-management）
+      // 组件名转路由路径（如 Dashboard.vue → dashboard，UserManagement → user-management）
       const path = name.toLowerCase().replace(/([A-Z])/g, '-$1').replace(/^-/, '');
-      // 权限约定：组件名含 Admin/Management 则为 admin 权限，否则为 user 权限
-      const role = name.includes('Admin') || name.includes('Management') ? 'admin' : 'user';
+      
+      // 路由权限标识配置（根据组件功能绑定对应的 permission_key）
+      let permissionKey = '';
+      if (name.includes('UserManagement')) permissionKey = 'user:list'; // 用户管理页面 → 需要 user:list 权限
+      else if (name.includes('Waf')) permissionKey = 'waf:blocked:list'; // WAF相关页面 → 需要 waf:blocked:list 权限
+      else if (name.includes('Phishing')) permissionKey = 'phishing:list'; // 钓鱼邮件页面 → 需要 phishing:list 权限
+      else permissionKey = ''; // 其他页面默认无需特殊权限（仅登录即可）
 
       return {
         path: path,
         name: name,
         component: component,
-        meta: { role: role }
+        meta: { 
+          requiresAuth: true, // 需要登录
+          permissionKey: permissionKey // 绑定权限标识（为空则仅登录即可访问）
+        }
       };
     });
 };
@@ -82,8 +91,8 @@ const router = createRouter({
   routes
 });
 
-// 👉 6. 全局路由守卫（固定逻辑，无需修改）
-router.beforeEach((to, from, next) => {
+// 👉 6. 全局路由守卫（修改为动态权限校验）
+router.beforeEach(async (to, from, next) => {
   // 公开路由（仅登录页）：放行
   if (to.meta.public) {
     isLoggedIn() ? next('/dashboard') : next();
@@ -97,19 +106,27 @@ router.beforeEach((to, from, next) => {
     return;
   }
 
-  // 已登录：校验角色权限
+  // 已登录：获取用户信息和权限工具
   const user = getCurrentUser();
-  const requiredRole = to.meta.role || 'user';
-  const hasPermission = user.role === 'admin' || user.role === requiredRole;
+  const { initUserPermissions, hasPerm } = usePermission();
+  
+  // 初始化用户权限（首次登录时加载，缓存到本地）
+  await initUserPermissions();
 
-  if (!hasPermission) {
-    ElMessage.error('无权限访问该页面');
-    next('/dashboard');
+  // 无需特殊权限的路由：直接放行（仅登录即可）
+  if (!to.meta.permissionKey) {
+    next();
     return;
   }
 
-  // 已登录+有权限：放行（此时才加载对应组件）
-  next();
+  // 需要特殊权限的路由：校验权限
+  const hasPermission = hasPerm(to.meta.permissionKey);
+  if (hasPermission) {
+    next(); // 有权限：放行
+  } else {
+    ElMessage.error(`无「${to.meta.permissionKey}」权限，禁止访问该页面`);
+    next(from.path); // 无权限：回退到之前的页面
+  }
 });
 
 export default router;

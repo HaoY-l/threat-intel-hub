@@ -1,5 +1,6 @@
 import { ElMessage } from 'element-plus';
-import router from '@/router'; // 导入路由实例，用于跳转
+import router from '@/router'; 
+import { clearPermissionCache } from './permission'; // 导入清除权限缓存的方法
 
 /**
  * 获取当前登录用户信息（从本地存储读取）
@@ -35,10 +36,11 @@ export const loginSuccess = (userInfo) => {
 };
 
 /**
- * 注销登录：清除本地存储 + 跳转登录页
+ * 注销登录：清除本地存储 + 清除权限缓存 + 跳转登录页
  */
 export const logout = () => {
   localStorage.removeItem('user');
+  clearPermissionCache(); // 注销时同时清除权限缓存
   ElMessage.success('已成功注销');
   router.push('/login'); // 跳登录页
 };

@@ -8,7 +8,7 @@
         <AiRobot @show-ai-dialog="isChatDialogVisible = true" />
       </div>
       <div class="right-section" style="display: flex !important; align-items: center !important; margin-left: auto !important; position: absolute !important; right: 1.5rem !important; top: 50% !important; transform: translateY(-50%) !important;">
-        <!-- 导航菜单 -->
+        <!-- 导航菜单（移除权限管理选项） -->
         <nav class="nav">
           <ul style="display: flex !important; gap: 2rem !important; margin: 0 !important; padding: 0 !important; list-style: none !important; flex-wrap: wrap !important; justify-content: flex-end !important;">
             <li>
@@ -19,8 +19,8 @@
                 @click.prevent="setActiveTab('threat')"
               >威胁情报🚨</a>
             </li>
-            <!-- 管理员可见：WAF协同 -->
-            <li v-if="isAdmin">
+            <!-- 有权限才显示：WAF协同（需要 waf:blocked:list 权限） -->
+            <li v-if="hasPerm('waf:blocked:list')">
               <a
                 href="#"
                 class="nav-link"
@@ -28,8 +28,8 @@
                 @click.prevent="setActiveTab('waf')"
               >WAF协同🚀</a>
             </li>
-            <!-- 管理员可见：钓鱼邮件检测 -->
-            <li v-if="isAdmin">
+            <!-- 有权限才显示：钓鱼邮件检测（需要 phishing:list 权限） -->
+            <li v-if="hasPerm('phishing:list')">
               <a
                 href="#"
                 class="nav-link"
@@ -45,10 +45,11 @@
                 @click.prevent="setActiveTab('tools')"
               >工具箱🧰</a>
             </li>
+            <!-- 已移除：导航菜单中的权限管理选项 -->
           </ul>
         </nav>
 
-        <!-- 仅显示头像 + 下拉菜单（集成用户管理） -->
+        <!-- 仅显示头像 + 下拉菜单（集成用户管理+权限管理） -->
         <div class="user-menu" v-if="isLoggedIn" style="margin-left: 1.5rem !important; position: relative !important;">
           <!-- 可点击头像（带交互提示） -->
           <div 
@@ -63,7 +64,7 @@
             >
           </div>
 
-          <!-- 下拉菜单（新增用户管理选项） -->
+          <!-- 下拉菜单（新增权限管理选项） -->
           <div 
             class="dropdown-menu"
             v-if="isDropdownOpen"
@@ -75,15 +76,26 @@
               <div style="font-size: 0.8rem !important; color: #888 !important;">角色：{{ currentUser.role }}</div>
             </div>
             
-            <!-- 管理员可见：用户管理选项 -->
+            <!-- 有权限才显示：用户管理选项（需要 user:list 权限） -->
             <div 
               class="dropdown-item"
-              v-if="isAdmin"
+              v-if="hasPerm('user:list')"
               style="padding: 0.6rem 1rem !important; color: #00d4ff !important; font-size: 0.9rem !important; cursor: pointer !important; transition: background 0.2s ease !important; display: flex !important; align-items: center !important; gap: 0.5rem !important; border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;"
               @click="isUserManagementOpen = true; isDropdownOpen = false"
             >
               <i class="el-icon-user" style="font-size: 0.9rem !important;"></i>
               用户管理
+            </div>
+            
+            <!-- 有权限才显示：权限管理选项（需要 permission:manage 权限） -->
+            <div 
+              class="dropdown-item"
+              v-if="hasPerm('permission:manage')"
+              style="padding: 0.6rem 1rem !important; color: #00d4ff !important; font-size: 0.9rem !important; cursor: pointer !important; transition: background 0.2s ease !important; display: flex !important; align-items: center !important; gap: 0.5rem !important; border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;"
+              @click="isPermissionManagementOpen = true; isDropdownOpen = false"
+            >
+              <i class="el-icon-setting" style="font-size: 0.9rem !important;"></i>
+              权限管理
             </div>
             
             <!-- 注销按钮项 -->
@@ -109,22 +121,31 @@
       :current-user="currentUser"
       @user-changed="handleUserChanged"
     />
+
+    <!-- 权限管理组件（弹窗） -->
+    <PermissionManagement 
+      v-model="isPermissionManagementOpen"
+      :current-user="currentUser"
+    />
   </header>
 </template>
 
 <script>
-// 导入AI聊天组件、用户管理组件和权限工具
+// 导入AI聊天组件、用户管理组件、权限管理组件和权限工具
 import AiRobot from '../../aichat/AiRobot.vue';
 import AiChatDialog from '../../aichat/AiChatDialog.vue';
-import UserManagement from '../user/UserManagement.vue'; // 新增用户管理组件
+import UserManagement from '../user/UserManagement.vue';
+import PermissionManagement from '../user/PermissionManagement.vue';
 import { getCurrentUser, isLoggedIn } from '../../utils/auth';
+import { usePermission } from '../../utils/permission';
 
 export default {
   name: 'Header',
   components: {
     AiRobot,
     AiChatDialog,
-    UserManagement // 注册用户管理组件
+    UserManagement,
+    PermissionManagement
   },
   props: {
     active: {
@@ -137,77 +158,79 @@ export default {
       isChatDialogVisible: false,
       currentUser: null,
       isLoggedIn: false,
-      isAdmin: false,
       isDropdownOpen: false,
-      isUserManagementOpen: false // 控制用户管理弹窗显示/隐藏
+      isUserManagementOpen: false,
+      isPermissionManagementOpen: false // 控制权限管理弹窗显示/隐藏
     };
   },
   created() {
     this.checkLoginStatus();
-    // 点击页面其他地方关闭下拉菜单
     document.addEventListener('click', this.closeDropdownOnClickOutside);
   },
   beforeUnmount() {
-    // 移除事件监听，避免内存泄露
     document.removeEventListener('click', this.closeDropdownOnClickOutside);
   },
+  async mounted() {
+    if (this.isLoggedIn) {
+      await this.initUserPermissions();
+    }
+  },
   watch: {
-    // 监听父组件（App.vue）的登录状态变化
     '$parent.isLoggedIn'(newVal) {
       this.isLoggedIn = newVal;
       this.checkLoginStatus();
-      this.isDropdownOpen = false; // 状态变化时关闭下拉
+      this.isDropdownOpen = false;
+      if (newVal) this.initUserPermissions();
     },
-    // 监听用户信息变化，同步管理员状态
     currentUser(newVal) {
-      this.isAdmin = newVal?.role === 'admin';
+      this.currentUser = newVal;
     }
   },
   methods: {
-    // 切换标签：触发事件通知App.vue更新
+    async initUserPermissions() {
+      const { initUserPermissions } = usePermission();
+      await initUserPermissions();
+    },
+    hasPerm(permissionKey) {
+      const { hasPerm } = usePermission();
+      return hasPerm(permissionKey);
+    },
     setActiveTab(tab) {
       this.$emit('tab-change', tab);
-      this.isDropdownOpen = false; // 切换标签时关闭下拉菜单
+      this.isDropdownOpen = false;
     },
-    // 检查登录状态和用户信息
     checkLoginStatus() {
       this.isLoggedIn = isLoggedIn();
       if (this.isLoggedIn) {
         this.currentUser = getCurrentUser();
-        this.isAdmin = this.currentUser?.role === 'admin';
       } else {
         this.currentUser = null;
-        this.isAdmin = false;
       }
     },
-    // 注销登录：调用父组件（App.vue）的logout方法
     handleLogout() {
       if (this.$parent?.logout) {
         this.$parent.logout();
       }
-      this.isDropdownOpen = false; // 注销后关闭下拉菜单
-      // 🔥 关键：跳转到登录页
+      this.isDropdownOpen = false;
       this.$router.push('/login');
     },
-    // 点击页面其他地方关闭下拉菜单
     closeDropdownOnClickOutside(e) {
       const userMenu = document.querySelector('.user-menu');
       if (userMenu && !userMenu.contains(e.target)) {
         this.isDropdownOpen = false;
       }
     },
-    // 用户管理数据变更后的回调（可选：如需刷新用户信息）
     handleUserChanged() {
       console.log('用户数据已更新，可在此刷新用户信息');
-      // 如需同步当前用户角色变化，可重新获取用户信息
-      // this.currentUser = getCurrentUser();
+      this.currentUser = getCurrentUser();
+      this.initUserPermissions();
     }
   }
 }
 </script>
 
 <style scoped>
-/* 原有样式保持不变，新增优化 */
+/* 原有样式保持不变 */
 .header {
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);

@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify, g
 from werkzeug.security import generate_password_hash, check_password_hash
 from data.db_init import get_db_connection
-from .auth import login_required, admin_required
+from .auth import login_required, permission_required  # 替换 admin_required 为 permission_required
 import os
 from dotenv import load_dotenv
 from flask_cors import CORS
@@ -14,7 +14,7 @@ auth_users_bp = Blueprint('auth_users', __name__, url_prefix='/auth')
 # -------------------------- 接口：查询所有用户（路由为 /users，配合前缀后是 /api/auth/users） --------------------------
 @auth_users_bp.route('/users', methods=['GET'])
 @login_required
-@admin_required
+@permission_required('user:list')  # 绑定权限标识：查询用户列表
 def get_all_users():
     conn = get_db_connection()
     try:
@@ -42,7 +42,7 @@ def get_all_users():
 # -------------------------- 接口：新增用户 --------------------------
 @auth_users_bp.route('/users', methods=['POST'])
 @login_required
-@admin_required
+@permission_required('user:add')  # 绑定权限标识：新增用户
 def add_user():
     try:
         data = request.get_json()
@@ -91,7 +91,7 @@ def add_user():
 # -------------------------- 接口：删除用户 --------------------------
 @auth_users_bp.route('/users/<username>', methods=['DELETE'])
 @login_required
-@admin_required
+@permission_required('user:delete')  # 绑定权限标识：删除用户
 def delete_user(username):
     if g.current_user and username == g.current_user.get('username'):
         return jsonify({"success": False, "message": "不能删除当前登录用户"}), 400
@@ -123,7 +123,7 @@ def delete_user(username):
 # -------------------------- 接口：重置用户密码 --------------------------
 @auth_users_bp.route('/users/<username>/reset_password', methods=['PUT'])
 @login_required
-@admin_required
+@permission_required('user:add')  # 绑定权限标识：复用新增用户权限（或单独新增 user:reset_password 权限）
 def reset_user_password(username):
     try:
         data = request.get_json() or {}

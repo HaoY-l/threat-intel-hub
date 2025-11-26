@@ -6,8 +6,15 @@
     :append-to-body="true"
     :close-on-click-modal="false"
   >
-    <!-- 新增用户表单 -->
-    <el-form :model="newUser" :rules="userRules" ref="userFormRef" label-width="100px" class="mb-4">
+    <!-- 新增用户表单（有权限才显示：需要 user:add 权限） -->
+    <el-form 
+      v-if="hasPerm('user:add')"
+      :model="newUser" 
+      :rules="userRules" 
+      ref="userFormRef" 
+      label-width="100px" 
+      class="mb-4"
+    >
       <el-form-item label="用户名" prop="username">
         <el-input v-model="newUser.username" placeholder="请输入用户名" :disabled="isLoading" class="black-text" />
       </el-form-item>
@@ -26,8 +33,8 @@
       </el-form-item>
     </el-form>
 
-    <!-- 分割线 -->
-    <div style="height: 1px; background: rgba(255,255,255,0.1); margin: 1rem 0;"></div>
+    <!-- 分割线（有新增表单时才显示） -->
+    <div v-if="hasPerm('user:add')" style="height: 1px; background: rgba(255,255,255,0.1); margin: 1rem 0;"></div>
 
     <!-- 用户列表 -->
     <div class="user-list-container" style="max-height: 400px; overflow-y: auto;">
@@ -42,22 +49,22 @@
         </el-table-column>
         <el-table-column label="操作" align="center" width="220">
           <template #default="scope">
-            <!-- 删除按钮（不能删除自己） -->
+            <!-- 删除按钮（有权限+不能删除自己） -->
             <el-button 
               type="text" 
               color="#ff4d4f" 
               @click="handleDeleteUser(scope.row.username)"
-              :disabled="scope.row.username === currentUser.username || isLoading"
+              :disabled="!hasPerm('user:delete') || scope.row.username === currentUser.username || isLoading"
             >
               删除
             </el-button>
 
-            <!-- 重置密码按钮（管理员自己也能重置） -->
+            <!-- 重置密码按钮（有权限才显示：需要 user:add 权限） -->
             <el-button 
               type="text" 
               color="#409EFF" 
               @click="handleResetPassword(scope.row.username)"
-              :disabled="isLoading"
+              :disabled="!hasPerm('user:add') || isLoading"
             >
               重置密码
             </el-button>
@@ -68,7 +75,7 @@
 
     <!-- 无用户提示 -->
     <div v-if="userList.length === 0 && !isLoading" style="text-align: center; padding: 2rem; color: #999;">
-      暂无用户数据，请新增用户
+      暂无用户数据{{ hasPerm('user:add') ? '，请新增用户' : '' }}
     </div>
   </el-dialog>
 </template>
@@ -76,6 +83,7 @@
 <script>
 import { ref, reactive, watch, inject, nextTick } from 'vue';
 import { ElMessage } from 'element-plus';
+import { usePermission } from '@/utils/permission'; // 新增：导入权限工具
 
 export default {
   name: 'UserManagement',
@@ -103,6 +111,7 @@ export default {
     const isLoading = ref(false);
     const userFormRef = ref(null);
     const userList = ref([]);
+    const { hasPerm } = usePermission(); // 新增：获取权限判断函数
 
     const newUser = reactive({
       username: '',
@@ -171,6 +180,10 @@ export default {
         ElMessage.warning('不能删除当前登录用户！');
         return;
       }
+      if (!hasPerm('user:delete')) { // 校验删除权限
+        ElMessage.error('无删除用户权限！');
+        return;
+      }
       if (window.confirm(`确定删除用户「${username}」吗？`)) {
         try {
           isLoading.value = true;
@@ -197,6 +210,10 @@ export default {
 
     const handleResetPassword = async (username) => {
       if (!username) return;
+      if (!hasPerm('user:add')) { // 校验重置密码权限（复用新增用户权限）
+        ElMessage.error('无重置密码权限！');
+        return;
+      }
       const newPassword = window.prompt(`请输入用户「${username}」的新密码（至少6位）`);
       if (!newPassword || newPassword.length < 6) {
         ElMessage.warning('密码长度至少6位');
@@ -231,7 +248,8 @@ export default {
       handleDeleteUser,
       resetForm,
       fetchUserList,
-      handleResetPassword
+      handleResetPassword,
+      hasPerm // 暴露权限判断函数到模板
     };
   }
 };
