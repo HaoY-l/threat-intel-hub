@@ -8,7 +8,6 @@
         <AiRobot @show-ai-dialog="isChatDialogVisible = true" />
       </div>
       <div class="right-section" style="display: flex !important; align-items: center !important; margin-left: auto !important; position: absolute !important; right: 1.5rem !important; top: 50% !important; transform: translateY(-50%) !important;">
-        <!-- 导航菜单（移除权限管理选项） -->
         <nav class="nav">
           <ul style="display: flex !important; gap: 2rem !important; margin: 0 !important; padding: 0 !important; list-style: none !important; flex-wrap: wrap !important; justify-content: flex-end !important;">
             <li>
@@ -19,7 +18,6 @@
                 @click.prevent="setActiveTab('threat')"
               >威胁情报🚨</a>
             </li>
-            <!-- 有权限才显示：WAF协同（需要 waf:blocked:list 权限） -->
             <li v-if="hasPerm('waf:blocked:list')">
               <a
                 href="#"
@@ -28,7 +26,6 @@
                 @click.prevent="setActiveTab('waf')"
               >WAF协同🚀</a>
             </li>
-            <!-- 有权限才显示：钓鱼邮件检测（需要 phishing:list 权限） -->
             <li v-if="hasPerm('phishing:list')">
               <a
                 href="#"
@@ -45,13 +42,10 @@
                 @click.prevent="setActiveTab('tools')"
               >工具箱🧰</a>
             </li>
-            <!-- 已移除：导航菜单中的权限管理选项 -->
-          </ul>
+            </ul>
         </nav>
 
-        <!-- 仅显示头像 + 下拉菜单（集成用户管理+权限管理） -->
         <div class="user-menu" v-if="isLoggedIn" style="margin-left: 1.5rem !important; position: relative !important;">
-          <!-- 可点击头像（带交互提示） -->
           <div 
             class="avatar"
             style="width: 40px !important; height: 40px !important; border-radius: 50% !important; overflow: hidden !important; box-shadow: 0 0 10px rgba(0, 212, 255, 0.4) !important; cursor: pointer !important; transition: all 0.3s ease !important; border: 1px solid rgba(255, 255, 255, 0.1) !important;"
@@ -64,19 +58,16 @@
             >
           </div>
 
-          <!-- 下拉菜单（新增权限管理选项） -->
           <div 
             class="dropdown-menu"
             v-if="isDropdownOpen"
             style="position: absolute !important; top: calc(100% + 10px) !important; right: 0 !important; width: 150px !important; background: #1a1a3a !important; border-radius: 8px !important; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5) !important; border: 1px solid rgba(255, 255, 255, 0.1) !important; z-index: 999 !important; padding: 0.8rem 0 !important;"
           >
-            <!-- 用户信息项 -->
             <div class="dropdown-item" style="padding: 0.6rem 1rem !important; color: #ccc !important; font-size: 0.9rem !important; cursor: default !important; border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;">
               <div style="font-weight: 500 !important; color: #00d4ff !important; margin-bottom: 0.2rem !important;">{{ currentUser.username }}</div>
               <div style="font-size: 0.8rem !important; color: #888 !important;">角色：{{ currentUser.role }}</div>
             </div>
             
-            <!-- 有权限才显示：用户管理选项（需要 user:list 权限） -->
             <div 
               class="dropdown-item"
               v-if="hasPerm('user:list')"
@@ -87,7 +78,6 @@
               用户管理
             </div>
             
-            <!-- 有权限才显示：权限管理选项（需要 permission:manage 权限） -->
             <div 
               class="dropdown-item"
               v-if="hasPerm('permission:manage')"
@@ -98,7 +88,6 @@
               权限管理
             </div>
             
-            <!-- 注销按钮项 -->
             <div 
               class="dropdown-item logout-item"
               style="padding: 0.6rem 1rem !important; color: #ff6b6b !important; font-size: 0.9rem !important; cursor: pointer !important; transition: background 0.2s ease !important; display: flex !important; align-items: center !important; gap: 0.5rem !important;"
@@ -112,17 +101,14 @@
       </div>
     </div>
 
-    <!-- AI聊天对话框 -->
     <AiChatDialog v-if="isChatDialogVisible" @close-ai-dialog="isChatDialogVisible = false" />
     
-    <!-- 用户管理组件（弹窗） -->
     <UserManagement 
       v-model="isUserManagementOpen"
       :current-user="currentUser"
       @user-changed="handleUserChanged"
     />
 
-    <!-- 权限管理组件（弹窗） -->
     <PermissionManagement 
       v-model="isPermissionManagementOpen"
       :current-user="currentUser"
@@ -207,12 +193,18 @@ export default {
         this.currentUser = null;
       }
     },
+    // 【已修改】添加对 this.$router 的检查，避免 TypeError: Cannot read properties of undefined (reading 'push')
     handleLogout() {
       if (this.$parent?.logout) {
         this.$parent.logout();
       }
       this.isDropdownOpen = false;
-      this.$router.push('/login');
+      
+      if (this.$router) {
+        this.$router.push('/login');
+      } else {
+        console.warn('Vue Router instance not found. Cannot redirect to /login.');
+      }
     },
     closeDropdownOnClickOutside(e) {
       const userMenu = document.querySelector('.user-menu');
