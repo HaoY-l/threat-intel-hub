@@ -20,5 +20,7 @@ nltk
 matplotlib
 tensorflow
 seaborn
-casbin
-flask-casbin
+casbin==1.19.0
+flask-authz
+jwt
+markupsafe==2.0.1

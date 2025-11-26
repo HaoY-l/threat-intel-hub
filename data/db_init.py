@@ -323,13 +323,59 @@ def create_database_and_tables():
                 permission_key VARCHAR(50) NOT NULL UNIQUE COMMENT '权限唯一标识（需与接口对应，如 user:list）',
                 permission_name VARCHAR(100) NOT NULL COMMENT '权限名称（如：查询用户列表）',
                 description VARCHAR(255) DEFAULT '' COMMENT '权限描述（说明该权限控制的功能）',
+                route_path VARCHAR(100) DEFAULT '' COMMENT '接口路径（如 /api/phishing/predict）',
+                method VARCHAR(10) DEFAULT 'ALL' COMMENT '允许的HTTP方法（ALL/GET/POST/PUT/DELETE）',
+                is_wildcard TINYINT DEFAULT 0 COMMENT '是否通配符匹配（0=精确匹配，1=前缀通配符）',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-                INDEX idx_permission_key (permission_key)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='系统权限表（控制接口/功能访问）';
+                INDEX idx_permission_key (permission_key),
+                INDEX idx_route_path (route_path)  -- 优化接口路径查询速度
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='系统权限表（控制接口/功能访问，含接口路径映射）';
             """
             cursor.execute(create_permissions_table_sql)
             logging.info("✅ permissions 表已创建或已存在")
+            # 初始化默认权限（新增 route_path/method/is_wildcard 字段值，直接关联接口路径）
+            init_permissions_sql = """
+            INSERT IGNORE INTO permissions (
+                permission_key, permission_name, description, route_path, method, is_wildcard
+            ) VALUES
+            -- 1. 用户管理相关权限
+            ('user:list', '查询用户列表', '查看系统所有用户信息', '/api/user/list', 'GET', 0),
+            ('user:add', '新增用户', '创建新的系统用户', '/api/user/add', 'POST', 0),
+            ('user:delete', '删除用户', '删除系统用户（不含自己）', '/api/user/delete', 'DELETE', 0),
+            -- 2. 威胁情报查询相关权限
+            ('threat:ip:query', '查询IP威胁情报', '查询 ip_threat_intel 表数据', '/api/threat/ip/query', 'POST', 0),
+            ('threat:url:query', '查询URL威胁情报', '查询 url_threat_intel 表数据', '/api/threat/url/query', 'POST', 0),
+            ('threat:file:query', '查询文件威胁情报', '查询 file_threat_intel 表数据', '/api/threat/file/query', 'POST', 0),
+            ('threat:cve:query', '查询CVE漏洞情报', '查询 cve_data 表数据', '/api/threat/cve/query', 'POST', 0),
+            -- 3. WAF相关权限
+            ('waf:blocked:list', '查看拦截IP列表', '查看 blocked_ips 表数据', '/api/waf/blocked/list', 'GET', 0),
+            ('waf:blocked:add', '新增拦截IP', '向 blocked_ips 表添加记录', '/api/waf/blocked/add', 'POST', 0),
+            ('waf:blocked:delete', '删除拦截IP', '删除 blocked_ips 表记录', '/api/waf/blocked/delete', 'DELETE', 0),
+            ('waf:protected:list', '查看保护IP列表', '查看 protected_ip 表数据', '/api/waf/protected/list', 'GET', 0),
+            -- 4. 操作历史相关权限
+            ('history:list', '查看查询历史', '查看 search_history 表数据', '/api/history/list', 'GET', 0),
+            ('history:delete', '删除查询历史', '删除 search_history 表数据', '/api/history/delete', 'DELETE', 0),
+            -- 5. 新闻/邮件相关权限
+            ('news:list', '查看安全新闻', '查看 news_data 表数据', '/api/news/list', 'GET', 0),
+            ('phishing:list', '查看钓鱼邮件预测结果', '查看 phishing_results 表数据', '/api/phishing/history', 'GET', 0),
+            ('email:config:manage', '管理邮箱配置', '增删改查 email_configs 表数据', '/api/phishing/email_configs', 'ALL', 1),
+            -- 6. AI模型相关权限
+            ('ai:model:list', '查看AI模型配置', '查看 ai_models 表数据', '/api/ai/models/list', 'GET', 0),
+            ('ai:model:manage', '管理AI模型配置', '增删改查 ai_models 表数据', '/api/ai/models/manage', 'ALL', 0),
+            -- 7. 权限管理相关权限（仅超级管理员可用）
+            ('permission:manage', '配置角色权限', '管理 role_permissions 表数据，分配角色权限', '/api/permission/manage', 'ALL', 0),
+            -- 8. 钓鱼邮件模块补充权限
+            ('phishing:predict', '钓鱼邮件预测', '调用 /api/phishing/predict 接口进行邮件检测', '/api/phishing/predict', 'POST', 0),
+            ('phishing:metrics', '查看模型指标', '调用 /api/phishing/metrics 接口查看模型性能', '/api/phishing/metrics', 'GET', 0),
+            ('phishing:retrain', '重新训练模型', '调用 /api/phishing/retrain 接口训练模型', '/api/phishing/retrain', 'POST', 0),
+            ('phishing:clear', '清理预测历史', '调用 /api/phishing/clear 接口清空预测结果', '/api/phishing/clear', 'GET', 0),
+            ('phishing:cron', '定时邮件检测', '调用 /api/phishing/cron_email_check 接口定时检测', '/api/phishing/cron_email_check', 'POST', 0),
+            ('phishing:dataset:info', '查看数据集信息', '调用 /api/phishing/dataset/info 接口查看数据详情', '/api/phishing/dataset/info', 'GET', 0),
+            ('phishing:dataset:upload', '上传数据集', '调用 /api/phishing/dataset/upload 接口上传数据', '/api/phishing/dataset/upload', 'POST', 0);
+            """
+            cursor.execute(init_permissions_sql)
+            logging.info("✅ 默认权限已初始化（含接口路径映射）")
 
             # 17. 创建角色-权限关联表
             create_role_permissions_table_sql = """
@@ -348,40 +394,8 @@ def create_database_and_tables():
             cursor.execute(create_role_permissions_table_sql)
             logging.info("✅ role_permissions 表已创建或已存在")
 
-            # 18. 初始化默认权限
-            init_permissions_sql = """
-            INSERT IGNORE INTO permissions (permission_key, permission_name, description) VALUES
-            -- 1. 用户管理相关权限
-            ('user:list', '查询用户列表', '查看系统所有用户信息'),
-            ('user:add', '新增用户', '创建新的系统用户'),
-            ('user:delete', '删除用户', '删除系统用户（不含自己）'),
-            -- 2. 威胁情报查询相关权限
-            ('threat:ip:query', '查询IP威胁情报', '查询 ip_threat_intel 表数据'),
-            ('threat:url:query', '查询URL威胁情报', '查询 url_threat_intel 表数据'),
-            ('threat:file:query', '查询文件威胁情报', '查询 file_threat_intel 表数据'),
-            ('threat:cve:query', '查询CVE漏洞情报', '查询 cve_data 表数据'),
-            -- 3. WAF相关权限
-            ('waf:blocked:list', '查看拦截IP列表', '查看 blocked_ips 表数据'),
-            ('waf:blocked:add', '新增拦截IP', '向 blocked_ips 表添加记录'),
-            ('waf:blocked:delete', '删除拦截IP', '删除 blocked_ips 表记录'),
-            ('waf:protected:list', '查看保护IP列表', '查看 protected_ip 表数据'),
-            -- 4. 操作历史相关权限
-            ('history:list', '查看查询历史', '查看 search_history 表数据'),
-            ('history:delete', '删除查询历史', '删除 search_history 表数据'),
-            -- 5. 新闻/邮件相关权限
-            ('news:list', '查看安全新闻', '查看 news_data 表数据'),
-            ('phishing:list', '查看钓鱼邮件预测结果', '查看 phishing_results 表数据'),
-            ('email:config:manage', '管理邮箱配置', '增删改查 email_configs 表数据'),
-            -- 6. AI模型相关权限
-            ('ai:model:list', '查看AI模型配置', '查看 ai_models 表数据'),
-            ('ai:model:manage', '管理AI模型配置', '增删改查 ai_models 表数据'),
-            -- 7. 权限管理相关权限（仅超级管理员可用）
-            ('permission:manage', '配置角色权限', '管理 role_permissions 表数据，分配角色权限');
-            """
-            cursor.execute(init_permissions_sql)
-            logging.info("✅ 默认权限已初始化")
 
-            # 19. 初始化角色-权限映射（核心修复：分条执行SQL）
+            # 18. 初始化角色-权限映射（核心修复：分条执行SQL）
             init_role_permissions_sql = [
                 # 管理员（admin）：拥有所有权限
                 "INSERT IGNORE INTO role_permissions (role, permission_id) SELECT 'admin', id FROM permissions;",

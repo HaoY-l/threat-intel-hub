@@ -1,24 +1,19 @@
-# src/utils/casbin_init.py
 import os
 import casbin
-from casbin.persist.adapters import FileAdapter
+from src.utils.casbin_adapter import DatabaseAdapter
 
-# 全局 enforcer（供其他模块直接使用）
+# 全局 enforcer（供 app.py 使用）
 enforcer = None
 
 def init_casbin():
-    """初始化 Casbin（不依赖 Flask，不需要 app）"""
-
+    """初始化 Casbin（使用数据库策略）"""
     global enforcer
 
+    # 模型文件路径（仍然需要）
     base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-
     model_path = os.path.join(base_dir, "model.conf")
-    policy_path = os.path.join(base_dir, "policy.csv")
 
-    adapter = FileAdapter(policy_path)
-
-    # 生成 enforcer
+    adapter = DatabaseAdapter()
     enforcer = casbin.Enforcer(model_path, adapter)
-
+    enforcer.load_policy()  # 从数据库加载策略
     return enforcer
