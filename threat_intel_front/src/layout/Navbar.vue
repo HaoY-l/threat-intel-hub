@@ -20,7 +20,7 @@
 
     <!-- WAF黑名单管理（仅管理员可见） -->
     <el-menu-item index="/waf-blacklist" v-if="isAdmin">
-      <el-icon><Shield /></el-icon>
+      <el-icon><Lock /></el-icon>
       <span>WAF黑名单管理</span>
     </el-menu-item>
 
@@ -46,7 +46,7 @@ import {
   House, 
   Search, 
   Setting, 
-  Shield, 
+  Lock, 
   ArrowLeft, 
   User 
 } from '@element-plus/icons-vue';
