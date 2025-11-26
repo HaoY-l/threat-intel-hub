@@ -11,7 +11,7 @@ const scanProtectedComponents = () => {
   const components = {};
 
   // 扫描布局组件（src/layout/Layout.vue）
-  components.Layout = () => import('@/layout/Layout.vue');
+  components.Layout = () => import('@/layout/Navbar.vue');
 
   // 扫描 views 目录下的受保护页面（src/views/ 下除了 Login.vue 之外的所有 .vue 文件）
   const viewModules = import.meta.glob('@/views/!(Login).vue', { eager: false });
