@@ -1,36 +1,68 @@
 <template>
-  <div class="login-container">
-    <div class="login-card">
-      <h2>威胁协同平台 - 登录</h2>
-      <!-- 账号输入框 -->
-      <el-input 
-        v-model="loginForm.username" 
-        placeholder="请输入用户名" 
-        prefix-icon="el-icon-user"
-        :disabled="isLoading"
-      ></el-input>
-      <!-- 密码输入框 -->
-      <el-input 
-        v-model="loginForm.password" 
-        type="password" 
-        placeholder="请输入密码" 
-        prefix-icon="el-icon-lock"
-        :disabled="isLoading"
-      ></el-input>
-      <!-- 错误提示 -->
-      <div class="error-message" v-if="errorMsg">{{ errorMsg }}</div>
-      <!-- 登录按钮 -->
-      <el-button 
-        type="primary" 
-        @click="handleLogin" 
-        :loading="isLoading"
-        class="login-btn"
-      >
-        登录
-      </el-button>
-      <!-- 默认账号提示 -->
-      <div class="login-tip">
-        默认账号：threatintel | 密码：threatintel
+  <div class="login-page">
+    <!-- 背景装饰层 -->
+    <div class="login-bg"></div>
+    <!-- 主内容区 -->
+    <div class="login-container">
+      <!-- 左侧可视化区域 -->
+      <div class="login-visual">
+        <div class="visual-icon">
+          <svg viewBox="0 0 100 100" width="80" height="80">
+            <path d="M20,20 L80,20 L80,80 L20,80 Z" fill="rgba(255,255,255,0.1)" stroke="rgba(0,212,255,0.5)" stroke-width="2"/>
+            <path d="M30,30 L70,30 L70,40 L30,40 Z" fill="rgba(0,212,255,0.3)"/>
+            <path d="M30,50 L70,50 L70,60 L30,60 Z" fill="rgba(0,212,255,0.3)"/>
+            <path d="M30,70 L70,70 L70,80 L30,80 Z" fill="rgba(0,212,255,0.3)"/>
+            <path d="M10,40 L20,40 L20,60 L10,60 Z" fill="rgba(255,107,157,0.3)"/>
+          </svg>
+        </div>
+        <div class="visual-title">威胁协同平台</div>
+        <div class="visual-desc">企业安全 · 威胁情报 · 协同防御</div>
+      </div>
+      <!-- 右侧登录表单区 -->
+      <div class="login-card">
+        <!-- 项目Logo + 标题 -->
+        <div class="card-header">
+          <div class="logo">
+            <span class="logo-dot"></span>
+            <span class="logo-dot"></span>
+            <span class="logo-dot"></span>
+          </div>
+          <div class="card-title">Threat Intel Hub</div>
+        </div>
+        <!-- 账号输入框 -->
+        <el-input 
+          v-model="loginForm.username" 
+          placeholder="请输入账号" 
+          prefix-icon="el-icon-user"
+          :disabled="isLoading"
+          class="input-item"
+        ></el-input>
+        <!-- 密码输入框 -->
+        <el-input 
+          v-model="loginForm.password" 
+          type="password" 
+          placeholder="请输入密码" 
+          prefix-icon="el-icon-lock"
+          :disabled="isLoading"
+          class="input-item"
+        ></el-input>
+        <!-- 错误提示 -->
+        <div class="error-message" v-if="errorMsg">{{ errorMsg }}</div>
+        <!-- 登录按钮 -->
+        <el-button 
+          type="primary" 
+          @click="handleLogin" 
+          :loading="isLoading"
+          class="login-btn"
+        >
+          登录
+        </el-button>
+
+        <!-- 默认账号提示 -->
+        <div class="login-tip">
+          默认账号：threatintel | 密码：threatintel<br>
+          首次登录后请修改密码！！！
+        </div>
       </div>
     </div>
   </div>
@@ -38,120 +70,221 @@
 
 <script setup>
 import { ref } from 'vue';
-// 移除 Vue Router 相关导入（useRouter）
 import axios from 'axios';
 import { ElMessage } from 'element-plus';
 
-// 定义登录成功事件（传递给父组件 App.vue）
 const emit = defineEmits(['login-success']);
 
-// 表单数据
 const loginForm = ref({
   username: '',
   password: ''
 });
-const isLoading = ref(false); // 登录加载状态
-const errorMsg = ref(''); // 错误提示信息
+const isLoading = ref(false);
+const errorMsg = ref('');
 
-// 登录核心逻辑
 const handleLogin = async () => {
-  // 1. 表单基础校验
   if (!loginForm.value.username.trim() || !loginForm.value.password.trim()) {
     errorMsg.value = '用户名和密码不能为空';
     return;
   }
-  errorMsg.value = ''; // 清空之前的错误提示
-  isLoading.value = true; // 开始加载
+  errorMsg.value = '';
+  isLoading.value = true;
 
   try {
-    // 2. 调用后端登录接口（适配 auth.py 返回格式）
     const res = await axios.post(
-      '/api/auth/login', // 后端登录接口路径
-      loginForm.value, // 请求参数（用户名+密码）
-      {
-        headers: {
-          'Content-Type': 'application/json' // 明确请求格式
-        }
-      }
+      '/api/auth/login',
+      loginForm.value,
+      { headers: { 'Content-Type': 'application/json' } }
     );
 
-    // 3. 处理后端响应
     const { status, data, message } = res.data;
     if (status === 'success' && data) {
-      // 登录成功：存储用户信息到本地存储（维持登录状态）
       localStorage.setItem('user', JSON.stringify(data));
-      // 触发事件，通知 App.vue 切换到功能页
       emit('login-success', data);
-      // 提示登录成功
       ElMessage.success(message || '登录成功！');
     } else {
-      // 登录失败（用户名/密码错误等）
       errorMsg.value = message || '登录失败，请检查账号密码';
     }
   } catch (err) {
-    // 4. 异常处理（网络错误、后端500等）
     console.error('登录异常：', err);
     const errMsg = err.response?.data?.message || '网络异常或服务器错误，请稍后重试';
     errorMsg.value = errMsg;
     ElMessage.error(errMsg);
   } finally {
-    // 5. 结束加载状态（无论成功失败）
     isLoading.value = false;
   }
 };
 </script>
 
 <style scoped>
-/* 保持原有样式，新增深色主题适配和提示样式 */
+/* 页面整体布局 - 全屏铺满 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+.login-page {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  position: relative;
+  background-color: #0f0f23;
+}
+/* 背景装饰 - 自适应铺满 */
+.login-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: url('@/assets/login-bg.png') no-repeat center;
+  background-size: cover; /* 背景图自适应屏幕，保持比例 */
+  opacity: 0.15;
+}
+/* 主内容容器 - 自适应屏幕，居中显示 */
 .login-container {
+  /* 用min/max-width限制范围，避免过宽或过窄 */
+  width: 100%;
+  max-width: 900px;
+  min-width: 320px;
+  /* 高度自适应，基于屏幕比例 */
+  height: auto;
+  min-height: 450px;
+  max-height: 550px;
+  /* 居中定位，随窗口移动 */
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   display: flex;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  z-index: 1;
+}
+/* 左侧可视化区域 - 自适应占比 */
+.login-visual {
+  flex: 1;
+  min-width: 280px; /* 最小宽度，避免挤压 */
+  background: linear-gradient(135deg, #0f172a, #1e293b);
+  display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
-  height: 100vh;
-  background-color: #0f0f23; /* 与项目深色主题一致 */
-}
-.login-card {
-  width: 400px;
   padding: 2rem;
-  background: rgba(255, 255, 255, 0.05); /* 半透明深色卡片 */
-  border-radius: 8px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-/* 标题样式（适配深色主题） */
-.login-card h2 {
-  text-align: center;
   color: #fff;
+}
+.visual-icon {
   margin-bottom: 1.5rem;
-  background: linear-gradient(135deg, #00d4ff, #ff6b9d);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  /* 图标自适应大小 */
+  transform: scale(clamp(0.8, calc(100vw / 1000), 1));
 }
-.login-btn {
-  width: 100%;
-  margin-top: 1rem;
+.visual-title {
+  font-size: clamp(1.4rem, calc(100vw / 60), 1.8rem); /* 自适应字体 */
+  font-weight: 600;
+  margin-bottom: 0.5rem;
 }
+.visual-desc {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: clamp(0.9rem, calc(100vw / 80), 1rem); /* 自适应字体 */
+}
+/* 右侧登录卡片 - 自适应占比 */
+.login-card {
+  flex: 1;
+  min-width: 280px; /* 最小宽度，避免挤压 */
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(12px);
+  padding: clamp(1.5rem, calc(100vw / 50), 2.5rem); /* 自适应内边距 */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+/* 卡片头部（Logo+标题） */
+.card-header {
+  margin-bottom: clamp(1.5rem, calc(100vw / 50), 2rem); /* 自适应间距 */
+  text-align: center;
+}
+.logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.5rem;
+}
+.logo-dot {
+  display: inline-block;
+  width: clamp(10px, calc(100vw / 80), 12px); /* 自适应圆点大小 */
+  height: clamp(10px, calc(100vw / 80), 12px);
+  border-radius: 50%;
+  background: #ff6b9d;
+  margin-right: 4px;
+}
+.logo-dot:nth-child(2) {
+  background: #00d4ff;
+}
+.logo-dot:nth-child(3) {
+  background: #facc15;
+}
+.logo-text {
+  font-size: clamp(1.2rem, calc(100vw / 65), 1.5rem); /* 自适应字体 */
+  font-weight: 700;
+  color: #fff;
+  margin-left: 8px;
+}
+.card-title {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: clamp(1rem, calc(100vw / 75), 1.2rem); /* 自适应字体 */
+  font-weight: 500;
+}
+/* 输入框样式 - 自适应间距 */
+.input-item {
+  margin-bottom: clamp(1rem, calc(100vw / 70), 1.2rem);
+}
+/* 错误提示 */
 .error-message {
   color: #ff4d4f;
   font-size: 0.875rem;
   margin: 0.5rem 0;
-  height: 1.2rem; /* 固定高度，避免页面抖动 */
+  height: 1.2rem;
 }
-/* 默认账号提示样式 */
+/* 登录按钮 - 自适应样式 */
+.login-btn {
+  width: 100%;
+  padding: clamp(0.7rem, calc(100vw / 100), 0.8rem) 0; /* 自适应内边距 */
+  font-size: clamp(0.9rem, calc(100vw / 85), 1rem); /* 自适应字体 */
+  background: linear-gradient(90deg, #00d4ff, #ff6b9d);
+  border: none;
+}
+/* 卡片底部链接 */
+.card-footer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: clamp(0.8rem, calc(100vw / 90), 1rem); /* 自适应间距 */
+}
+.footer-link {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.875rem;
+  cursor: pointer;
+  text-decoration: none;
+}
+.footer-link:hover {
+  color: #00d4ff;
+}
+/* 默认账号提示 */
 .login-tip {
   text-align: center;
-  color: #999;
-  font-size: 0.875rem;
-  margin-top: 1rem;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.8rem;
+  margin-top: clamp(1rem, calc(100vw / 80), 1.5rem); /* 自适应间距 */
 }
-/* Element Plus 输入框适配深色主题 */
+/* Element Plus 组件适配 - 自适应输入框 */
 ::v-deep(.el-input__wrapper) {
   background-color: rgba(255, 255, 255, 0.05) !important;
   border-color: rgba(255, 255, 255, 0.2) !important;
 }
 ::v-deep(.el-input__inner) {
   color: #fff !important;
+  font-size: clamp(0.9rem, calc(100vw / 85), 1rem) !important; /* 自适应输入框字体 */
 }
 ::v-deep(.el-input__placeholder) {
   color: #ccc !important;
@@ -159,5 +292,24 @@ const handleLogin = async () => {
 ::v-deep(.el-icon-user),
 ::v-deep(.el-icon-lock) {
   color: #ccc !important;
+}
+/* 响应式调整：小屏幕（平板/手机）隐藏左侧可视化区域 */
+@media (max-width: 768px) {
+  .login-visual {
+    display: none;
+  }
+  .login-card {
+    min-height: 420px;
+  }
+}
+/* 响应式调整：超小屏幕（手机）优化内边距 */
+@media (max-width: 375px) {
+  .login-container {
+    min-height: 380px;
+    padding: 0.5rem;
+  }
+  .login-card {
+    padding: 1.2rem;
+  }
 }
 </style>
