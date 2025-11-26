@@ -20,13 +20,13 @@
 
     <!-- WAF黑名单管理（仅管理员可见） -->
     <el-menu-item index="/waf-blacklist" v-if="isAdmin">
-      <el-icon><Shield /></el-icon>
+      <el-icon><ShieldCheck /></el-icon>
       <span>WAF黑名单管理</span>
     </el-menu-item>
 
     <!-- 注销按钮（已登录状态可见） -->
     <el-menu-item index="logout" v-if="isLoggedIn" @click="handleLogout">
-      <el-icon><SwitchButton /></el-icon>
+      <el-icon><ArrowLeft /></el-icon>
       <span>注销</span>
     </el-menu-item>
 
@@ -41,17 +41,15 @@
 <script setup>
 import { computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-
-// Element Plus 新图标名称（这是正确的）
+// 最新 Element Plus 图标
 import { 
   House, 
   Search, 
   Setting, 
-  Shield, 
-  SwitchButton, 
+  ShieldCheck, 
+  ArrowLeft, 
   User 
 } from '@element-plus/icons-vue';
-
 import { isLoggedIn, isAdmin, logout } from '@/utils/auth';
 
 // 路由
