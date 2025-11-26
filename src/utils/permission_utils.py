@@ -93,3 +93,27 @@ def update_role_permissions(role_name, permission_ids):
         return False
     finally:
         conn.close()
+
+# ---------------- 判断角色是否拥有某个权限 ----------------
+def has_permission(role_name, permission_key):
+    """
+    判断指定角色是否拥有指定权限
+    :param role_name: 角色名
+    :param permission_key: 权限key
+    :return: True/False
+    """
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cursor:
+            sql = """
+                SELECT 1
+                FROM role_permissions rp
+                JOIN permissions p ON rp.permission_id = p.id
+                JOIN roles r ON rp.role_id = r.id
+                WHERE r.role_name=%s AND p.permission_key=%s
+                LIMIT 1
+            """
+            cursor.execute(sql, (role_name, permission_key))
+            return cursor.fetchone() is not None
+    finally:
+        conn.close()
