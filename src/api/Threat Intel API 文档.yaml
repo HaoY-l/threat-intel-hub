@@ -1,0 +1,2766 @@
+openapi: 3.0.3
+info:
+  title: Integrated Security and AI Platform API
+  version: 1.0.0
+  description: 提供了Thhreat Intel API 文档。
+servers:
+  - url: /api
+    description: 基础 API 路径
+
+paths:
+  # --- AI Chat Paths ---
+  /aichat:
+    post:
+      tags:
+        - AI Chat
+      summary: 发起 AI 对话
+      description: 向指定的 AI 模型发送消息，获取专业的网络安全分析回复。默认使用 'doubao' 模型。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - message
+              properties:
+                message:
+                  type: string
+                  description: 用户发送的对话消息内容。
+                  example: 最近有没有新的高危 CVE 漏洞？
+                model:
+                  type: string
+                  description: 指定使用的 AI 模型名称。默认为 'doubao'。
+                  example: doubao
+      responses:
+        '200':
+          description: AI 模型的成功回复。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reply:
+                    type: string
+                    description: AI 模型的回复内容。
+                    example: 你好！作为专业的网络安全分析师，我很高兴为您提供信息。最近...
+        '400':
+          description: 缺少参数或模型未找到。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AIErrorResponse'
+              example:
+                error: 缺少消息参数
+        '500':
+          description: AI 服务调用失败或返回异常。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AIErrorResponse'
+              example:
+                error: 请求API失败: 证书验证错误
+
+  /models:
+    get:
+      tags:
+        - Model Management
+      summary: 获取所有可用的 AI 模型列表
+      description: 查询数据库中配置的所有 AI 模型信息。
+      responses:
+        '200':
+          description: 成功获取模型列表。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  models:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ModelConfig'
+        '500':
+          description: 数据库查询失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AIErrorResponse'
+    post:
+      tags:
+        - Model Management
+      summary: 创建新的 AI 模型配置
+      description: 在数据库中添加一个新的 AI 模型配置。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - api_key
+                - model_identifier
+                - api_endpoint
+              properties:
+                name:
+                  type: string
+                  description: 唯一且易识别的模型配置名称。
+                api_key:
+                  type: string
+                  description: 模型的 API 密钥。
+                model_identifier:
+                  type: string
+                  description: AI 平台的模型标识符（如 gpt-4o）。
+                api_endpoint:
+                  type: string
+                  format: url
+                  description: 模型的 API 请求地址。
+                is_active:
+                  type: boolean
+                  description: 是否启用该模型。
+                  default: true
+                config:
+                  type: object
+                  description: 模型的额外配置信息（如 temperature, organization）。
+              example:
+                name: gpt-4o
+                api_key: sk-xxx-yyy
+                model_identifier: gpt-4o-2024-05-13
+                api_endpoint: https://api.openai.com/v1/chat/completions
+      responses:
+        '201':
+          description: 模型配置创建成功。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: 模型配置创建成功
+                  model:
+                    $ref: '#/components/schemas/ModelConfig'
+        '400':
+          description: 缺少必要参数。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AIErrorResponse'
+        '409':
+          description: 模型名称已存在冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AIErrorResponse'
+              example:
+                error: 模型名称 'gpt-4o' 已存在。
+        '500':
+          description: 数据库操作失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AIErrorResponse'
+
+  /models/{model_id}:
+    parameters:
+      - name: model_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 模型配置的唯一 ID。
+    put:
+      tags:
+        - Model Management
+      summary: 更新 AI 模型配置
+      description: 根据 ID 更新指定的 AI 模型配置。只传入需要更新的字段。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: 模型配置的名称。
+                api_key:
+                  type: string
+                  description: 模型的 API 密钥。
+                model_identifier:
+                  type: string
+                  description: AI 平台的模型标识符。
+                api_endpoint:
+                  type: string
+                  format: url
+                  description: 模型的 API 请求地址。
+                is_active:
+                  type: boolean
+                  description: 是否启用该模型。
+                config:
+                  type: object
+                  description: 模型的额外配置信息。
+              example:
+                is_active: false
+                config:
+                  temperature: 0.5
+      responses:
+        '200':
+          description: 模型配置更新成功。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: 模型配置更新成功
+                  model:
+                    $ref: '#/components/schemas/ModelConfig'
+        '400':
+          description: 没有提供要更新的字段。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AIErrorResponse'
+        '404':
+          description: 未找到指定的模型配置。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AIErrorResponse'
+        '500':
+          description: 数据库操作失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AIErrorResponse'
+    delete:
+      tags:
+        - Model Management
+      summary: 删除 AI 模型配置
+      description: 根据 ID 删除指定的 AI 模型配置。
+      responses:
+        '200':
+          description: 模型配置删除成功。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: 模型配置删除成功
+        '404':
+          description: 未找到指定的模型配置。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AIErrorResponse'
+        '500':
+          description: 数据库操作失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AIErrorResponse'
+
+  # --- WAF Management Paths ---
+  /addwhite:
+    post:
+      tags:
+        - WAF Management
+      summary: 批量添加 WAF 白名单规则
+      description: |
+        调用阿里云 WAF API (CreateDefenseRule) 批量创建白名单（放行）规则。
+        每条规则都必须指定名称、标签、状态、来源和至少一个条件。
+        条件 (conditions) 中的 values 字段目前仅支持 **IP/CIDR**、**域名** 或 **URL 路径**。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              description: 规则数组，每项对应一条新的白名单规则。
+              items:
+                $ref: '#/components/schemas/WafWhitelistRule'
+            example:
+              - name: '放行运维IP'
+                tags: '{"tag_key":"运维", "tag_value":"IP"}'
+                status: 1 # 1 为开启
+                origin: 'custom' # 来源，如 custom
+                conditions:
+                  - field: 'ip'
+                    action: 'equal'
+                    values: '203.0.113.1/32'
+              - name: '放行特定路径'
+                tags: '{"tag_key":"应用", "tag_value":"API"}'
+                status: 1
+                origin: 'custom'
+                conditions:
+                  - field: 'url'
+                    action: 'equal'
+                    values: '/api/public/data'
+      responses:
+        '200':
+          description: 白名单规则添加成功。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: 白名单添加成功
+        '400':
+          description: 请求数据格式或内容校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WafErrorResponse'
+              examples:
+                missing_field:
+                  value:
+                    status: error
+                    message: 缺少必填字段: name
+                invalid_value:
+                  value:
+                    status: error
+                    message: 无效的 values: some-random-string
+        '500':
+          description: WAF API 调用失败或内部错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WafErrorResponse'
+              example:
+                status: error
+                message: 白名单添加失败
+
+  /deletewhite:
+    post:
+      tags:
+        - WAF Management
+      summary: 批量删除 WAF 白名单规则
+      description: |
+        调用阿里云 WAF API (DeleteDefenseRule) 批量删除指定的白名单规则。
+        需要传入一个或多个规则的 ID 字符串。
+        
+        **注意：** 传入的 `rule_id` 参数需要是规则 ID 的 JSON 字符串数组，例如 `"[123456, 789012]"`。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - rule_id
+              properties:
+                rule_id:
+                  type: string
+                  description: 要删除的 WAF 规则 ID，以 JSON 字符串形式传递。
+                  example: "[123456, 789012]"
+      responses:
+        '200':
+          description: 白名单规则删除成功。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  msg:
+                    type: string
+                    example: 删除成功
+        '400':
+          description: 缺少必填参数。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 400
+                  msg:
+                    type: string
+                    example: 缺少 rule_id 参数
+        '500':
+          description: WAF API 调用失败或服务器内部错误。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 500
+                  msg:
+                    type: string
+                    example: 内部错误: (400) The specified RuleId is invalid.
+
+  /descblackrule:
+    get:
+      tags:
+        - WAF Management
+      summary: 查询 WAF 黑名单规则详情并提取IP列表
+      description: |
+        调用阿里云 WAF API (DescribeDefenseRule) 查询指定 `BLACKLIST_TEMPLATE_ID` 下，
+        由 `BLACKLIST_RULES_ID` 环境变量指定的黑名单规则详情。
+        
+        接口将尝试解析返回的 `Config` 字段，提取出 `remoteAddr` 数组（即黑名单 IP 列表）返回。
+        
+        **注意：** 此接口的 `rule_id` 是通过服务器端环境变量获取的，而非通过查询参数传入。
+      responses:
+        '200':
+          description: 成功获取规则详情及 IP 列表。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BlacklistRuleDetail'
+              example:
+                status: success
+                message:
+                  - template_id: 12345
+                    rule_id: 987654
+                    rule_name: TestBlacklistRule
+                    ip_list:
+                      - 203.0.113.1
+                      - 192.0.2.2/32
+        '500':
+          description: WAF API 调用失败或解析返回数据失败。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  message:
+                    type: string
+                    description: 具体的错误信息。
+                    example: No Config field found.
+
+  /listwhite:
+    get:
+      tags:
+        - WAF Management
+      summary: 获取指定模板下的 WAF 白名单规则列表
+      description: |
+        调用阿里云 WAF API (DescribeDefenseRules) 获取所有白名单规则，然后通过服务器端逻辑
+        根据环境变量 `WHITELIST_TEMPLATE_ID` 筛选出该模板下的所有规则。
+        
+        返回结果包含规则的 ID、名称和所属模板 ID。
+      responses:
+        '200':
+          description: 成功返回白名单规则列表。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WafRuleSummary'
+              example:
+                status: success
+                message:
+                  - rule_template: 123456
+                    rule_id: 1001
+                    rule_name: Maintenance IP Whitelist
+                  - rule_template: 123456
+                    rule_id: 1002
+                    rule_name: API Path Exemption
+        '500':
+          description: WAF API 调用失败或发生内部错误。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  message:
+                    type: string
+                    description: 具体的错误信息。
+                    example: The specified RegionId is invalid.
+
+  /modifyblackrule:
+    post:
+      tags:
+        - WAF Management
+      summary: 添加 IP 到 WAF 现有黑名单规则
+      description: |
+        这是一个复合操作：
+        1. **内部调用:** 自动调用 `/api/descblackrule` 接口（硬编码为 `http://localhost:8891/api/descblackrule`）获取当前黑名单规则的 IP 列表和规则 ID。
+        2. **IP 检查:** 将用户传入的 `black_ip` 添加到现有 IP 列表中（如果该 IP 尚未存在）。
+        3. **外部调用:** 调用阿里云 WAF API (ModifyDefenseRule) 更新指定模板和规则 ID 下的黑名单配置。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - black_ip
+              properties:
+                black_ip:
+                  type: string
+                  description: 要添加到黑名单的 IP 地址或 CIDR。
+                  example: 1.1.1.1/32
+            examples:
+              add_single_ip:
+                value:
+                  black_ip: 203.0.113.5
+      responses:
+        '200':
+          description: 黑名单规则更新成功。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: 黑名单规则已更新
+        '400':
+          description: 请求参数无效或缺失。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  message:
+                    type: string
+                    example: 无效或缺失的 IP 地址
+        '500':
+          description: 内部错误，可能原因包括：内部接口调用失败、WAF API调用失败、或规则信息缺失。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  message:
+                    type: string
+                    description: 具体的错误信息。
+                    example: Failed to fetch data from descblackrule
+
+  # --- WAF Logs/Data Paths ---
+  /alert:
+    get:
+      tags:
+        - WAF Alert
+      summary: 触发 WAF 每日攻击拦截报告发送
+      description: |
+        调用阿里云日志服务（SLS）统计 WAF 前一天的攻击拦截日志（包括 ACL/CC/Antiscan 封禁），
+        计算每个攻击 IP 的请求总次数和拦截占比，并将报告格式化后通过钉钉机器人发送。
+        
+        **注意:** 1. 此接口的成功响应仅表示触发和执行逻辑成功，不保证钉钉消息一定送达（依赖于配置和网络）。
+        2. 统计时间范围是**前一天**的 00:00:00 到 23:59:59。
+      responses:
+        '200':
+          description: 日常报告成功触发并发送到钉钉。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: Daily report sent successfully.
+        '500':
+          description: 报告生成或发送过程中发生内部错误（如 SLS/钉钉 API 调用失败）。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  message:
+                    type: string
+                    description: 具体的错误信息。
+                    example: Error while fetching logs from SLS.
+  
+  /report:
+    get:
+      tags:
+        - WAF Report
+      summary: 获取 WAF 每日攻击拦截统计报告（内容）
+      description: |
+        调用阿里云日志服务（SLS）统计 WAF **前一天**的攻击拦截日志（包括 ACL/CC/Antiscan 封禁），
+        计算每个攻击 IP 的请求总次数和拦截占比，并将格式化后的报告内容（Markdown 格式）直接在 JSON 响应中返回。
+        
+        **统计时间范围**是前一天的 00:00:00 到 23:59:59。
+      responses:
+        '200':
+          description: 成功返回生成的攻击报告内容。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    description: 格式化后的 Markdown 报告内容。
+                    example: |
+                      ## 🛡️ WAF攻击情况统计🚨 (2025-11-25)
+                      
+                      **总攻击IP数**: 2
+                      
+                      - 🔹 **IP**: 203.0.113.1, **拦截次数**: 500, **拦截占比**: 90.1%
+                      - 🔹 **IP**: 198.51.100.2, **拦截次数**: 100, **拦截占比**: 65.5%
+                      
+                      ---
+                      
+                      > 📊 *统计时间: 2025-11-26 叫叫项目*
+        '500':
+          description: 报告生成过程中发生内部错误（如 SLS API 调用失败）。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  message:
+                    type: string
+                    description: 具体的错误信息。
+                    example: 获取封禁日志时出错: OSS client error.
+
+  /blocked_ips:
+    get:
+      tags:
+        - WAF Logs/Data
+      summary: 查询 WAF 封禁 IP 统计数据
+      description: |
+        从数据库 `blocked_ips` 表中查询被 WAF 封禁的 IP 详细统计数据。
+        支持按时间范围筛选数据。如果未提供时间参数，则默认返回从当天零点到当前时间的数据。
+      parameters:
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+            example: 2024-06-01 00:00:00
+          description: 起始时间 (YYYY-MM-DD HH:MM:SS 或 YYYY-MM-DD HH:MM)。
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+            example: 2024-06-01 23:59:59
+          description: 结束时间 (YYYY-MM-DD HH:MM:SS 或 YYYY-MM-DD HH:MM)。
+      responses:
+        '200':
+          description: 成功返回封禁 IP 列表。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BlockedIpData'
+        '500':
+          description: 数据库查询失败或服务器内部错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalErrorResponse'
+
+  /ip_request_frequency:
+    get:
+      tags:
+        - WAF Logs/Data
+      summary: 查询高频请求 IP 数据
+      description: |
+        从数据库 `ip_request_frequency` 表中查询请求数超过配置阈值 (`highfreq_ip_count`) 的 IP 数据。
+        支持按时间范围筛选数据。如果未提供时间参数，则默认返回从当天零点到当前时间的数据。
+      parameters:
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+            example: 2024-06-01 00:00:00
+          description: 起始时间 (YYYY-MM-DD HH:MM:SS 或 YYYY-MM-DD HH:MM)。
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+            example: 2024-06-01 23:59:59
+          description: 结束时间 (YYYY-MM-DD HH:MM:SS 或 YYYY-MM-DD HH:MM)。
+      responses:
+        '200':
+          description: 成功返回高频请求 IP 列表。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RequestFrequencyData'
+        '500':
+          description: 数据库查询失败或服务器内部错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalErrorResponse'
+
+  /protected_ip:
+    get:
+      tags:
+        - WAF Logs/Data
+      summary: 查询今天的 WAF 自动封禁记录
+      description: 从数据库 `protected_ip` 表中查询并返回今天（从 00:00:00 到当前时间）的所有自动封禁记录。
+      responses:
+        '200':
+          description: 成功返回今天的自动封禁记录列表。
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProtectedIpRecord'
+        '500':
+          description: 数据库查询失败或服务器内部错误。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: 数据库查询失败
+                  details:
+                    type: string
+                    example: (2003, "Can't connect to MySQL server...")
+
+  # --- User Management Paths ---
+  /auth/users:
+    get:
+      tags:
+        - User Management
+      summary: 查询所有用户列表
+      description: |
+        获取数据库中所有用户的基本信息（ID, 用户名, 角色, 创建时间）。
+        **需要登录且具有 `user:list` 权限。**
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 成功返回用户列表。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  count:
+                    type: integer
+                    description: 返回的用户数量。
+                    example: 2
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UserDetail'
+        '401':
+          description: 未授权或 Token 无效。
+        '403':
+          description: 权限不足 (`user:list` 权限缺失)。
+        '500':
+          description: 数据库查询失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserErrorResponse'
+    post:
+      tags:
+        - User Management
+      summary: 新增用户
+      description: |
+        创建一个新用户。用户名长度需在3-20位，密码至少6位，角色为 'user' 或 'admin'。
+        **需要登录且具有 `user:add` 权限。**
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                  description: 用户名 (3-20位)。
+                  example: new_security_analyst
+                password:
+                  type: string
+                  description: 密码 (至少6位)。
+                  format: password
+                  example: P@sswOrd123
+                role:
+                  type: string
+                  enum: [user, admin]
+                  default: user
+                  description: 用户的角色。
+                  example: user
+      responses:
+        '201':
+          description: 新增用户成功。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 新增用户成功
+                  data:
+                    type: object
+                    properties:
+                      username:
+                        type: string
+                      role:
+                        type: string
+        '400':
+          description: 参数校验失败或用户名已存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserErrorResponse'
+              examples:
+                invalid_length:
+                  value:
+                    success: false
+                    message: 密码长度至少6位
+                username_exists:
+                  value:
+                    success: false
+                    message: 用户名已存在
+        '401':
+          description: 未授权或 Token 无效。
+        '403':
+          description: 权限不足 (`user:add` 权限缺失)。
+        '500':
+          description: 数据库操作失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserErrorResponse'
+
+  /auth/users/{username}:
+    delete:
+      tags:
+        - User Management
+      summary: 删除指定用户
+      description: |
+        根据用户名删除用户。**不能删除当前登录用户。**
+        **需要登录且具有 `user:delete` 权限。**
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: username
+          in: path
+          required: true
+          schema:
+            type: string
+          description: 要删除的用户名。
+          example: old_user
+      responses:
+        '200':
+          description: 用户删除成功。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 用户「old_user」删除成功
+        '400':
+          description: 尝试删除当前登录用户。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserErrorResponse'
+              example:
+                success: false
+                message: 不能删除当前登录用户
+        '401':
+          description: 未授权或 Token 无效。
+        '403':
+          description: 权限不足 (`user:delete` 权限缺失)。
+        '404':
+          description: 用户不存在。
+        '500':
+          description: 数据库操作失败。
+
+  /auth/users/{username}/reset_password:
+    put:
+      tags:
+        - User Management
+      summary: 重置用户密码
+      description: |
+        为指定用户设置新密码。
+        **需要登录且具有 `user:add` 权限。**
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: username
+          in: path
+          required: true
+          schema:
+            type: string
+          description: 要重置密码的用户名。
+          example: test_user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - password
+              properties:
+                password:
+                  type: string
+                  description: 新密码 (至少6位)。
+                  format: password
+                  example: NewSecureP@ss
+      responses:
+        '200':
+          description: 密码重置成功。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 用户「test_user」的密码已重置成功
+        '400':
+          description: 密码不符合长度要求。
+        '401':
+          description: 未授权或 Token 无效。
+        '403':
+          description: 权限不足 (`user:add` 权限缺失)。
+        '404':
+          description: 用户不存在。
+        '500':
+          description: 数据库操作失败。
+
+  # --- Authentication Paths ---
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: 用户登录
+      description: |
+        用户通过用户名和密码进行身份验证。
+        成功后，服务器将设置持久化 Session（Cookie），用于后续请求的认证。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              username: admin
+              password: P@ssword123
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: 登录成功，Session 已设置。
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                example: session=...; Path=/; Expires=Wed, 26 Nov 2025 07:00:00 GMT; HttpOnly
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      username:
+                        type: string
+                        example: admin
+                      role:
+                        type: string
+                        example: admin
+                  message:
+                    type: string
+                    example: 登录成功
+        '400':
+          description: 缺失用户名或密码，或长度校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthErrorResponse'
+              example:
+                status: error
+                message: 用户名和密码不能为空
+        '401':
+          description: 用户名或密码错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthErrorResponse'
+              example:
+                status: error
+                message: 用户名或密码错误
+        '500':
+          description: 数据库连接或服务器内部错误。
+
+  /auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: 用户注销
+      description: |
+        清除当前用户的 Session，使其退出登录状态。
+      responses:
+        '200':
+          description: 注销成功，Session 已清除。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: 已成功注销，如需继续操作请重新登录
+        '500':
+          description: 服务器内部错误。
+
+  /auth/current-user:
+    get:
+      tags:
+        - Authentication
+      summary: 获取当前登录用户信息
+      description: |
+        检查并返回当前请求的登录状态和用户信息（仅用于调试和状态检查）。
+      responses:
+        '200':
+          description: 已登录，返回用户信息。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      username:
+                        type: string
+                        example: admin
+                      role:
+                        type: string
+                        example: admin
+        '401':
+          description: 未登录或登录状态已失效。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthErrorResponse'
+              example:
+                status: error
+                message: 未登录或登录状态已失效
+
+  # --- Permission Management Paths ---
+  /permission/all:
+    get:
+      tags:
+        - Permission Management
+      summary: 查询系统中的所有权限
+      description: |
+        获取系统中定义的所有权限列表，通常用于权限配置界面。
+        **需要登录且具有 `permission:manage` 权限。**
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 成功返回所有权限列表。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Permission'
+        '401':
+          description: 未登录或 Token 无效。
+        '403':
+          description: 权限不足 (`permission:manage` 权限缺失)。
+        '500':
+          description: 查询失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PermissionErrorResponse'
+
+  /permission/roles:
+    get:
+      tags:
+        - Permission Management
+      summary: 查询系统中所有角色列表
+      description: |
+        获取系统中定义的所有角色名称列表（如 ['admin', 'user']）。
+        **需要登录且具有 `permission:manage` 权限。**
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 成功返回角色名称列表。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      type: string
+                      example: admin
+        '401':
+          description: 未登录或 Token 无效。
+        '403':
+          description: 权限不足 (`permission:manage` 权限缺失)。
+        '500':
+          description: 查询失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PermissionErrorResponse'
+
+  /permission/role/{role}/permissions:
+    get:
+      tags:
+        - Permission Management
+      summary: 查询指定角色拥有的权限列表
+      description: |
+        查询指定角色当前配置的权限，并返回所有权限列表，同时标记该角色的选中状态 (`is_selected`)。
+        **需要登录。** (该接口未要求 `permission:manage` 权限)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: role
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [admin, user]
+          description: 要查询的角色名称。
+          example: user
+      responses:
+        '200':
+          description: 成功返回标记了选中状态的权限列表。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      allOf:
+                        - $ref: '#/components/schemas/Permission'
+                        - type: object
+                          properties:
+                            is_selected:
+                              type: boolean
+                              description: 当前角色是否拥有该权限。
+                              example: true
+        '401':
+          description: 未登录或 Token 无效。
+        '500':
+          description: 查询失败。
+    put:
+      tags:
+        - Permission Management
+      summary: 更新指定角色的权限配置
+      description: |
+        根据提供的权限 ID 列表，批量更新指定角色的权限。
+        **需要登录且具有 `permission:manage` 权限。**
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: role
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [admin, user]
+          description: 要更新的角色名称。
+          example: user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - permission_ids
+              properties:
+                permission_ids:
+                  type: array
+                  items:
+                    type: integer
+                  description: 授权给该角色的权限 ID 列表。
+                  example: [1, 2, 5, 8]
+      responses:
+        '200':
+          description: 角色权限更新成功。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 角色「user」权限更新成功
+        '400':
+          description: 请求体格式错误（权限ID列表非数组）。
+        '401':
+          description: 未登录或 Token 无效。
+        '403':
+          description: 权限不足 (`permission:manage` 权限缺失)。
+        '500':
+          description: 更新操作失败。
+
+  # --- Phishing Detection Paths ---
+  /phishing/predict:
+    post:
+      tags:
+        - Phishing Detection
+      summary: 预测邮件内容是否为钓鱼邮件
+      description: |
+        接收邮件内容，使用已加载的机器学习模型进行预测。
+        预测结果将记录到本地日志文件和数据库表 `phishing_results` 中。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email_content
+              properties:
+                email_content:
+                  type: string
+                  description: 待检测的邮件内容（正文）。
+                  example: Click the link below to verify your account immediately, or it will be suspended.
+      responses:
+        '200':
+          description: 成功返回预测结果和概率。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: string
+                    enum: [Phishing, Not Phishing]
+                    description: 预测的分类结果。
+                    example: Phishing
+                  probability:
+                    type: number
+                    format: float
+                    description: 预测为 Phishing 的概率 (0.0 到 1.0)。
+                    example: 0.9567
+
+  /phishing/metrics:
+    get:
+      tags:
+        - Phishing Detection
+      summary: 获取模型性能指标
+      description: |
+        从静态文件 `model_metrics.txt` 中读取当前模型的准确率、精确度、召回率和 F1 分数。
+      responses:
+        '200':
+          description: 成功返回模型评估指标。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accuracy:
+                    type: number
+                    format: float
+                    example: 0.9850
+                  precision:
+                    type: number
+                    format: float
+                    example: 0.9920
+                  recall:
+                    type: number
+                    format: float
+                    example: 0.9705
+                  f1_score:
+                    type: number
+                    format: float
+                    example: 0.9812
+        '400':
+          description: 模型未训练或指标文件不存在。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: 模型未训练
+
+  /phishing/retrain:
+    post:
+      tags:
+        - Phishing Detection
+      summary: 重新训练并保存机器学习模型
+      description: |
+        使用最新的数据集重新训练 Keras 深度学习模型，并保存模型文件和新的性能指标。
+      responses:
+        '200':
+          description: 重新训练成功，返回新模型的性能指标。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  metrics:
+                    type: object
+                    properties:
+                      accuracy:
+                        type: number
+                        format: float
+        '500':
+          description: 训练过程中发生错误。
+
+  # --- Phishing Results Paths ---
+  /phishing/history:
+    get:
+      tags:
+        - Phishing Results
+      summary: 获取最近的预测历史记录
+      description: |
+        从数据库表 `phishing_results` 中查询所有历史预测记录，按时间倒序排列。
+      responses:
+        '200':
+          description: 成功返回历史记录列表。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PredictionHistory'
+        '500':
+          description: 数据库查询失败。
+
+  /phishing/clear:
+    get:
+      tags:
+        - Phishing Results
+      summary: 清理所有历史预测结果
+      description: |
+        执行 SQL `TRUNCATE TABLE phishing_results`，清空整个历史预测表。
+      responses:
+        '200':
+          description: 清理成功。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: 预测结果已清理
+        '500':
+          description: 数据库操作失败。
+
+  # --- Email Configuration & Cron Paths ---
+  /phishing/cron_email_check:
+    post:
+      tags:
+        - Email Configuration & Cron
+      summary: 定时检查邮箱新邮件并进行钓鱼检测
+      description: |
+        定时任务接口。遍历数据库 `email_configs` 中配置的所有邮箱，
+        获取过去 `minutes` 内的新邮件，对邮件内容进行钓鱼检测，并发送告警（如果配置了 webhook）。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                minutes:
+                  type: integer
+                  description: 检查过去多少分钟内的邮件（默认 3 分钟）。
+                  example: 5
+      responses:
+        '200':
+          description: 邮件检查和检测完成。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  checked_email_ids:
+                    type: array
+                    items:
+                      type: string
+                    description: 检查过的邮件 ID 列表。
+                  phishing_count:
+                    type: integer
+                    description: 检测到的钓鱼邮件数量。
+                  total_count:
+                    type: integer
+                    description: 检查的邮件总数。
+        '500':
+          description: 获取邮箱配置或检查过程中出错。
+
+  /phishing/email_configs:
+    get:
+      tags:
+        - Email Configuration & Cron
+      summary: 获取所有邮箱配置列表
+      description: 从数据库 `email_configs` 表中查询所有已配置的邮箱连接信息。
+      responses:
+        '200':
+          description: 成功返回邮箱配置列表。
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EmailConfig'
+        '500':
+          description: 数据库查询失败。
+    post:
+      tags:
+        - Email Configuration & Cron
+      summary: 创建新的邮箱配置
+      description: |
+        向数据库 `email_configs` 表中添加一个新的邮箱连接配置。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/EmailConfigBase'
+                - type: object
+                  required: [username, passwd, server, port, webhook_url]
+      responses:
+        '201':
+          description: 创建成功，返回新配置的 ID。
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EmailConfigBase'
+                  - type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 10
+        '400':
+          description: 缺少必需字段。
+        '500':
+          description: 数据库操作失败。
+
+  /phishing/email_configs/{config_id}:
+    put:
+      tags:
+        - Email Configuration & Cron
+      summary: 更新指定邮箱配置
+      description: |
+        更新数据库 `email_configs` 表中指定 ID 的邮箱配置信息。
+        **需要权限：`/api/email_configs` 的 `PUT` 动作。**
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: config_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: 要更新的配置 ID。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/EmailConfigBase'
+                - type: object
+                  required: [username, passwd, server, port, webhook_url]
+      responses:
+        '200':
+          description: 更新成功。
+        '400':
+          description: 缺少必需字段。
+        '403':
+          description: 权限不足。
+        '404':
+          description: 邮箱配置不存在。
+        '500':
+          description: 数据库操作失败。
+    delete:
+      tags:
+        - Email Configuration & Cron
+      summary: 删除指定邮箱配置
+      description: 从数据库 `email_configs` 表中删除指定 ID 的邮箱配置。
+      parameters:
+        - name: config_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: 要删除的配置 ID。
+      responses:
+        '200':
+          description: 删除成功。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: 邮箱配置删除成功
+        '404':
+          description: 邮箱配置不存在。
+        '500':
+          description: 数据库操作失败。
+
+  # --- Dataset Management Paths ---
+  /phishing/dataset/info:
+    get:
+      tags:
+        - Dataset Management
+      summary: 获取当前数据集的元信息
+      description: |
+        检查数据集文件是否存在，并返回文件大小、最后修改时间、总行数以及垃圾邮件/非垃圾邮件的计数。
+      responses:
+        '200':
+          description: 成功返回数据集信息。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetInfo'
+        '500':
+          description: 读取文件或解析数据时发生错误。
+
+  /phishing/dataset/upload:
+    post:
+      tags:
+        - Dataset Management
+      summary: 上传新的数据集文件
+      description: |
+        上传新的 `spam_assassin.csv` 文件替换现有数据集。
+        新文件必须包含 `text` 和 `target` 列。上传成功后会自动触发 `load_resources`。
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: 新的 CSV 数据集文件。
+      responses:
+        '200':
+          description: 数据集上传并加载成功。
+        '400':
+          description: 未上传文件、文件类型错误或文件格式不正确（缺少 text/target 列）。
+        '500':
+          description: 服务器文件操作失败。
+
+  # --- Vulnerability Data (CVE) Paths ---
+  /cve:
+    get:
+      tags:
+        - Vulnerability Data (CVE)
+      summary: 查询 CVE 漏洞数据
+      description: |
+        从数据库 `cve_data` 表中查询 CVE 漏洞信息。
+        支持根据 CVE ID 精确查询，或查询最近发布的多条记录。
+        
+        **注意：** 无论查询单条还是多条，成功响应体都是 JSON 数组。
+      parameters:
+        - name: cve_id
+          in: query
+          required: false
+          schema:
+            type: string
+            example: CVE-2024-0001
+          description: 按 CVE ID 或数据库 ID 精确查询单条记录。
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 500
+            minimum: 1
+          description: 如果未提供 `cve_id`，则限制返回的最新记录数量。
+      responses:
+        '200':
+          description: 成功返回 CVE 记录列表（可能是单条或多条）。
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CveDataRecord'
+              examples:
+                single_record:
+                  summary: 查询单条记录
+                  value:
+                    - id: 10
+                      cve_id: CVE-2024-0001
+                      published: 2024-01-01T10:00:00Z
+                      description: A critical vulnerability in component X.
+                multiple_records:
+                  summary: 查询多条记录
+                  value:
+                    - id: 15
+                      cve_id: CVE-2024-0005
+                      published: 2024-01-05T12:00:00Z
+                    - id: 14
+                      cve_id: CVE-2024-0004
+                      published: 2024-01-04T09:00:00Z
+        '500':
+          description: 数据库查询失败。
+          content:
+            application/json:
+              schema:
+                type: array
+                description: 错误时返回空数组，以保持统一的响应格式。
+              example: []
+
+  # --- Security News Paths ---
+  /news:
+    get:
+      tags:
+        - Security News
+      summary: 获取并同步最新的网络安全新闻
+      description: |
+        该接口是一个复合操作：
+        1. **数据抓取:** 实时从配置的源 (CSDN, FreeBuf RSS) 抓取最新的新闻。
+        2. **数据同步:** 清空数据库表 `news_data`，并插入最新抓取到的数据。
+        3. **数据查询:** 根据查询参数从数据库中返回最终的新闻列表。
+        
+        **注意：** 每次调用都会重新触发抓取和数据库同步。
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 30
+            minimum: 1
+          description: 限制返回的新闻记录数量。
+        - name: source
+          in: query
+          required: false
+          schema:
+            type: string
+            example: FreeBuf
+          description: 按新闻来源筛选（如 FreeBuf, CSDN）。
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+            example: 网络安全
+          description: 按新闻类别筛选。
+        - name: keyword
+          in: query
+          required: false
+          schema:
+            type: string
+            description: 标题关键词模糊查询。
+      responses:
+        '200':
+          description: 成功返回新闻列表。
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/NewsItem'
+              examples:
+                success_response:
+                  value:
+                    - id: 1
+                      title: "某公司因配置错误导致数据泄露"
+                      summary: "FreeBuf 报道了最新的安全事件..."
+                      content: null
+                      source: "FreeBuf"
+                      category: "网络安全"
+                      author: "FreeBuf"
+                      url: "http://example.com/1"
+                      mobile_url: "http://example.com/1"
+                      cover: null
+                      hot: 150
+                      timestamp: 1732688400
+                      published_at: "2025-11-27T10:00:00"
+                      time: "1小时前"
+                      created_at: "2025-11-27T11:00:00"
+                      updated_at: "2025-11-27T11:00:00"
+        '500':
+          description: 抓取、同步或查询过程中发生错误。
+          content:
+            application/json:
+              schema:
+                type: array
+                description: 错误时返回空数组。
+              example: []
+
+  /news/stats:
+    get:
+      tags:
+        - Security News
+      summary: 获取新闻数据的统计信息
+      description: |
+        统计数据库中已有的新闻数据：总条数、24小时内新增条数、按来源和分类统计的条数。
+      responses:
+        '200':
+          description: 成功返回统计数据。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  stats:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                        description: 数据库中的新闻总数。
+                        example: 58
+                      recent_24h:
+                        type: integer
+                        description: 过去 24 小时内创建的新闻数。
+                        example: 30
+                      by_source:
+                        type: object
+                        description: 按新闻来源统计的数量。
+                        example:
+                          FreeBuf: 30
+                          CSDN: 28
+                      by_category:
+                        type: object
+                        description: 按新闻类别统计的数量。
+                        example:
+                          网络安全: 58
+        '500':
+          description: 数据库查询失败。
+
+  /news/sync:
+    post:
+      tags:
+        - Security News
+      summary: [已废弃] 手动同步新闻数据
+      description: 此接口已废弃，其功能已合并到 `GET /news` 接口中。
+      responses:
+        '410':
+          description: 接口已废弃。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 此接口已废弃，请使用 GET /news 接口来获取最新数据。
+
+  # --- Threat Intelligence Paths ---
+  /query:
+    post:
+      tags:
+        - Threat Intelligence
+      summary: 查询 IP、URL 或文件哈希的威胁情报
+      description: |
+        该接口集成多个威胁情报平台 (VirusTotal, AlienVault OTX) 进行查询。
+        
+        **查询逻辑：**
+        1. 自动检测或使用指定类型 (`ip`, `url`, `file`)。
+        2. 检查数据库缓存，如果数据在 $7$ 天内更新，则返回缓存结果。
+        3. 如果缓存过期或不存在，则调用外部 API 平台进行实时查询。
+        4. 实时查询结果将更新到数据库中。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - query
+              properties:
+                query:
+                  type: string
+                  description: 待查询的 IP 地址、URL 或文件哈希（MD5/SHA1/SHA256）。
+                  example: 1.1.1.1
+                type:
+                  type: string
+                  enum: [ip, url, file]
+                  nullable: true
+                  description: 强制指定查询类型。如果未提供，系统将尝试自动检测。
+            examples:
+              query_ip:
+                value:
+                  query: 104.24.12.10
+              query_url:
+                value:
+                  query: https://malicious.example.com/phish.html
+              query_file_hash:
+                value:
+                  query: 7cf3ac535c5c0d1b4636f8753a479153
+                  type: file
+      responses:
+        '200':
+          description: 成功返回来自所有平台的威胁情报结果（包含缓存状态）。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                    description: 实际使用的查询类型。
+                    example: ip
+                  value:
+                    type: string
+                    description: 实际查询的值。
+                    example: 104.24.12.10
+                  status:
+                    type: string
+                    example: success
+                  results:
+                    type: object
+                    properties:
+                      VirusTotal:
+                        $ref: '#/components/schemas/ThreatIntelResult'
+                      AlienVault OTX:
+                        $ref: '#/components/schemas/ThreatIntelResult'
+              example:
+                type: ip
+                value: 104.24.12.10
+                status: success
+                results:
+                  VirusTotal:
+                    id: 10
+                    source: VirusTotal
+                    target_ip: 104.24.12.10
+                    data: '{... VT 原始数据 ...}'
+                    last_update: "2025-11-20T10:00:00"
+                    from_cache: true
+                  AlienVault OTX:
+                    id: 11
+                    source: AlienVault OTX
+                    target_ip: 104.24.12.10
+                    data: '{... OTX 原始数据 ...}'
+                    last_update: "2025-11-26T15:30:00"
+                    from_cache: false
+        '400':
+          description: 请求参数错误，如查询内容为空或类型不支持。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: 查询内容不能为空
+        '500':
+          description: 服务器内部错误或平台 API 调用失败。
+
+  # --- Network Tools Paths ---
+  /ip_query:
+    get:
+      tags:
+        - Network Tools
+      summary: 查询 IP 地址归属地信息
+      description: |
+        使用 `ip-api.com` 的免费 API 查询指定 IP 地址的地理归属地和服务提供商 (ISP) 信息。
+      parameters:
+        - name: ip
+          in: query
+          required: true
+          schema:
+            type: string
+            format: ipv4
+            example: 8.8.8.8
+          description: 要查询的 IP 地址。
+      responses:
+        '200':
+          description: 成功返回 IP 归属地信息。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  ip:
+                    type: string
+                    example: 8.8.8.8
+                  country:
+                    type: string
+                    description: 国家名称（中文）。
+                    example: 美国
+                  city:
+                    type: string
+                    description: 城市名称（中文）。
+                    example: 弗吉尼亚州阿什本
+                  isp:
+                    type: string
+                    description: 互联网服务提供商。
+                    example: Google LLC
+        '400':
+          description: IP 地址参数缺失或无效。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: IP地址是必须的参数，请在URL中以'?ip=...'形式提供。
+        '500':
+          description: 外部 API 请求失败或内部处理错误。
+
+  /whois_query:
+    get:
+      tags:
+        - Network Tools
+      summary: 查询域名 Whois 信息
+      description: |
+        查询指定域名的注册信息，包括注册商、创建日期、过期日期等。
+      parameters:
+        - name: domain
+          in: query
+          required: true
+          schema:
+            type: string
+            example: example.com
+          description: 要查询的域名。
+      responses:
+        '200':
+          description: 成功返回 Whois 信息。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  domain_name:
+                    type: string
+                    example: EXAMPLE.COM
+                  registrar:
+                    type: string
+                    example: MARKMONITOR INC.
+                  creation_date:
+                    type: string
+                    format: date-time
+                    example: 1995-08-14 04:00:00
+                  expiration_date:
+                    type: string
+                    format: date-time
+                    example: 2026-08-13 04:00:00
+                  updated_date:
+                    type: string
+                    format: date-time
+                    example: 2024-08-13 04:00:00
+                  name_servers:
+                    type: array
+                    items:
+                      type: string
+                    example: [A.IANA-SERVERS.NET, B.IANA-SERVERS.NET]
+                  status:
+                    type: array
+                    items:
+                      type: string
+                    example: [client delete prohibited, client transfer prohibited]
+        '400':
+          description: 域名参数缺失。
+        '404':
+          description: 未找到 Whois 信息或域名无效。
+        '500':
+          description: 查询过程中发生错误（如 Whois 库异常）。
+
+  # --- WeChat Publisher Paths ---
+  /wxgzh:
+    post:
+      tags:
+        - WeChat Publisher
+      summary: 聚合 CVE/新闻并发布微信公众号文章
+      description: |
+        这是一个自动化内容聚合与发布接口，它执行以下步骤：
+        
+        1. **获取 Access Token:** 使用配置的环境变量 (wx_appid, wx_secret) 获取微信 Access Token。
+        2. **数据聚合:** - 从数据库 `cve_data` 查询最新的 30 条 CVE 漏洞信息。
+           - 实时抓取 CSDN 热榜和 GitHub Trending（最多 6 个项目）作为技术新闻。
+        3. **内容渲染:** 将 CVE（限制前 10 条）和新闻（限制前 10 条）渲染成符合微信公众号规范的 HTML 正文。
+        4. **上传草稿:** 调用微信 API (draft/add) 将渲染后的 HTML 上传至草稿箱。
+        5. **提交发布:** 调用微信 API (freepublish/submit) 提交草稿箱中的最新文章进行发布（可能需要人工审核）。
+        
+        **注意：** 此接口是全自动执行，不接受输入参数，直接触发内容生成、上传和发布流程。
+      responses:
+        '200':
+          description: 成功提交发布请求。返回微信 freepublish/submit 接口的原始响应。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  errcode:
+                    type: integer
+                    description: 微信 API 错误码 (0 表示成功)。
+                    example: 0
+                  errmsg:
+                    type: string
+                    description: 微信 API 错误信息。
+                    example: ok
+                  publish_id:
+                    type: string
+                    description: 微信发布的任务 ID。
+                    example: 123456789
+        '400':
+          description: 微信发布失败（例如草稿列表为空，无法获取 media_id）。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: 缺少 media_id
+        '500':
+          description: 获取 Access Token 失败、数据库查询失败或微信 API 调用失败。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: 获取 access_token 失败
+
+components:
+  schemas:
+    # --- AI Chat Schemas ---
+    ModelConfig:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: 模型配置的唯一 ID。
+        name:
+          type: string
+          description: 模型配置的名称。
+        model_identifier:
+          type: string
+          description: AI 平台的模型标识符。
+        api_endpoint:
+          type: string
+          format: url
+          description: 模型的 API 请求地址。
+        is_active:
+          type: boolean
+          description: 模型是否被启用。
+        config:
+          type: object
+          description: 模型的额外配置信息。
+      example:
+        id: 1
+        name: doubao
+        model_identifier: skylark-pro-public
+        api_endpoint: https://api.example.com/v1/chat/completions
+        is_active: true
+        config:
+          organization: SecurityTeam
+    AIErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: 错误详情信息。
+          example: 缺少消息参数
+
+    # --- WAF Schemas ---
+    WafWhitelistRule:
+      type: object
+      required:
+        - name
+        - tags
+        - status
+        - origin
+        - conditions
+      properties:
+        name:
+          type: string
+          description: 白名单规则名称。
+          example: '放行运维IP'
+        tags:
+          type: string
+          description: 规则标签（WAF API 要求 JSON 字符串格式）。
+          example: '{"tag_key":"运维", "tag_value":"IP"}'
+        status:
+          type: integer
+          description: 规则状态 (1: 开启, 0: 关闭)。
+          example: 1
+        origin:
+          type: string
+          description: 规则来源。通常为 'custom'。
+          example: custom
+        conditions:
+          type: array
+          minItems: 1
+          description: 规则匹配条件列表。
+          items:
+            $ref: '#/components/schemas/WafRuleCondition'
+    WafRuleCondition:
+      type: object
+      required:
+        - field
+        - action
+        - values
+      properties:
+        field:
+          type: string
+          description: 匹配字段 (如 'ip', 'url', 'header')。
+          example: ip
+        action:
+          type: string
+          description: 匹配操作 (如 'equal', 'contain')。
+          example: equal
+        values:
+          type: string
+          description: 匹配值。必须是有效的 IP/CIDR、域名或 URL 路径。
+          example: 203.0.113.1/32
+    WafErrorResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: error
+        message:
+          type: string
+          description: 错误详情信息。
+          example: 缺少必填字段: name
+    WafRuleSummary:
+      type: object
+      properties:
+        rule_template:
+          type: integer
+          description: 规则所属的模板 ID (WHITELIST_TEMPLATE_ID)。
+          example: 123456
+        rule_id:
+          type: integer
+          description: 白名单规则的唯一 ID。
+          example: 1001
+        rule_name:
+          type: string
+          description: 规则的名称。
+          example: Maintenance IP Whitelist
+    BlacklistRuleDetail:
+      type: object
+      properties:
+        template_id:
+          type: integer
+          description: 规则所属的模板 ID。
+          example: 12345
+        rule_id:
+          type: integer
+          description: 查询的规则 ID。
+          example: 987654
+        rule_name:
+          type: string
+          description: 规则的名称。
+          example: TestBlacklistRule
+        ip_list:
+          type: array
+          description: 从规则配置中提取出的黑名单 IP/CIDR 列表。
+          items:
+            type: string
+            example: 203.0.113.1
+
+    # --- WAF Logs/Data Schemas ---
+    BlockedIpData:
+      type: object
+      properties:
+        ip:
+          type: string
+          description: 被封禁的 IP 地址。
+          example: 103.25.100.1
+        attack_count:
+          type: integer
+          description: 攻击或拦截的次数。
+          example: 567
+        attack_type:
+          type: string
+          nullable: true
+          description: 攻击类型（如 SQLi, CC, XSS）。
+          example: CC
+        attack_ratio:
+          type: string
+          nullable: true
+          description: 攻击占总请求的比例。
+          example: 85.5%
+        blocked_time:
+          type: string
+          format: date-time
+          description: 封禁起始时间。
+        to_time:
+          type: string
+          format: date-time
+          description: 封禁结束时间或查询结束时间。
+        threat_score:
+          type: integer
+          description: 威胁评分（与 attack_count 相同）。
+          example: 567
+        created_at:
+          type: string
+          format: date-time
+          description: 数据库记录创建时间。
+    RequestFrequencyData:
+      type: object
+      properties:
+        ip:
+          type: string
+          description: 请求频率高的 IP 地址。
+          example: 192.168.1.10
+        request_count:
+          type: integer
+          description: 时间范围内的请求总数。
+          example: 4500
+        last_request_time:
+          type: string
+          format: date-time
+          description: 请求起始时间。
+        to_time:
+          type: string
+          format: date-time
+          description: 查询结束时间。
+        request_rate:
+          type: number
+          format: float
+          description: 每秒请求速率 (请求数 / 时间差秒数)。
+          example: 1.5
+        created_at:
+          type: string
+          format: date-time
+          description: 数据库记录创建时间。
+    ProtectedIpRecord:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: 记录 ID。
+        ip:
+          type: string
+          description: 被执行动作的 IP 地址。
+          example: 45.32.12.11
+        action:
+          type: string
+          description: 执行的动作 (如 'block', 'unblock')。
+          example: block
+        reason:
+          type: string
+          description: 触发动作的原因。
+          example: HighReputationScore
+        reputation_score:
+          type: integer
+          description: 触发动作时的信誉分。
+          example: 95
+        action_time:
+          type: string
+          format: date-time
+          description: 动作发生的时间 (ISO 8601 格式)。
+    InternalErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: 错误详情信息。
+          example: 数据库连接失败: [Errno 111] Connection refused
+
+    # --- User Schemas ---
+    UserDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: 用户 ID。
+          example: 5
+        username:
+          type: string
+          description: 用户名。
+          example: admin
+        role:
+          type: string
+          description: 用户的角色。
+          example: admin
+        created_at:
+          type: string
+          format: date-time
+          description: 用户创建时间。
+          example: 2024-05-15T10:30:00
+    UserErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          description: 错误详情信息。
+          example: 查询用户失败：(1049, "Unknown database 'waf_db'")
+
+    # --- Authentication Schemas ---
+    LoginRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          description: 登录用户名。
+          example: admin
+        password:
+          type: string
+          description: 登录密码。
+          format: password
+          example: P@ssword123
+    AuthErrorResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: error
+        message:
+          type: string
+          description: 具体的错误信息。
+          example: 用户名或密码错误
+          
+    # --- Permission Schemas ---
+    Permission:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: 权限的唯一ID。
+          example: 1
+        permission_key:
+          type: string
+          description: 权限标识符 (如 user:list)。
+          example: user:list
+        permission_name:
+          type: string
+          description: 权限的显示名称。
+          example: 查询用户列表
+        permission_group:
+          type: string
+          description: 权限所属的模块分组。
+          example: 用户管理
+    PermissionErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          description: 错误详情信息。
+          example: 查询所有权限失败：数据库连接中断
+
+    # --- Phishing Schemas ---
+    PredictionHistory:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 5
+        timestamp:
+          type: string
+          format: date-time
+          example: 2025-11-26 15:30:00
+        result:
+          type: string
+          example: Phishing
+        probability:
+          type: number
+          format: float
+          example: 0.981
+        email_content:
+          type: string
+          description: 预测时的邮件内容。
+          example: The email content predicted...
+          
+    EmailConfig:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+          description: 配置的唯一 ID。
+        username:
+          type: string
+          example: user@example.com
+          description: 邮箱用户名。
+        passwd:
+          type: string
+          example: StrongAppPassword
+          description: 邮箱密码或授权码。
+        server:
+          type: string
+          example: imap.example.com
+          description: IMAP 服务器地址。
+        port:
+          type: integer
+          example: 993
+          description: IMAP 端口。
+        webhook_url:
+          type: string
+          format: url
+          example: https://alerts.example.com/hook
+          description: 用于发送告警的 Webhook URL。
+    
+    EmailConfigBase:
+      type: object
+      properties:
+        username:
+          type: string
+          example: user@example.com
+        passwd:
+          type: string
+          example: StrongAppPassword
+        server:
+          type: string
+          example: imap.example.com
+        port:
+          type: integer
+          example: 993
+        webhook_url:
+          type: string
+          format: url
+          example: https://alerts.example.com/hook
+
+    DatasetInfo:
+      type: object
+      properties:
+        exists:
+          type: boolean
+          example: true
+          description: 数据集文件是否存在。
+        filename:
+          type: string
+          example: spam_assassin.csv
+        filepath:
+          type: string
+        file_size:
+          type: integer
+          example: 1548000
+          description: 文件大小（字节）。
+        last_modified:
+          type: string
+          format: date-time
+          example: 2025-11-26 15:30:00
+        total_rows:
+          type: integer
+          example: 4601
+          description: 数据集总行数。
+        spam_count:
+          type: integer
+          example: 1813
+          description: 标记为垃圾邮件（target=1）的行数。
+        ham_count:
+          type: integer
+          example: 2788
+          description: 标记为非垃圾邮件（target=0）的行数。
+        columns:
+          type: array
+          items:
+            type: string
+          example: [text, target, tokens]
+
+    # --- CVE Schemas ---
+    CveDataRecord:
+      type: object
+      description: CVE 漏洞数据库中的一条记录（字段可能因数据库定义而异）。
+      properties:
+        id:
+          type: integer
+          description: 数据库内部 ID。
+          example: 10
+        cve_id:
+          type: string
+          description: 漏洞的官方 CVE ID。
+          example: CVE-2024-0001
+        published:
+          type: string
+          format: date-time
+          description: 漏洞的发布时间。
+          example: 2024-01-01T10:00:00Z
+        description:
+          type: string
+          description: 漏洞的简短描述。
+          example: A critical vulnerability affecting product X.
+        cvss_score:
+          type: number
+          format: float
+          nullable: true
+          example: 9.8
+        vulnerability_status:
+          type: string
+          nullable: true
+          example: Analyzed
+
+    # --- News Schemas ---
+    NewsItem:
+      type: object
+      description: 单条新闻记录的详细信息。
+      properties:
+        id:
+          type: integer
+          description: 数据库 ID。
+          example: 1
+        title:
+          type: string
+          description: 新闻标题。
+          example: 某公司因配置错误导致数据泄露
+        summary:
+          type: string
+          nullable: true
+          description: 新闻摘要或简要描述。
+          example: FreeBuf 报道了最新的安全事件...
+        content:
+          type: string
+          nullable: true
+          description: 新闻内容（可能为空）。
+        source:
+          type: string
+          description: 新闻来源（如 FreeBuf, CSDN）。
+          example: FreeBuf
+        category:
+          type: string
+          description: 新闻分类。
+          example: 网络安全
+        author:
+          type: string
+          nullable: true
+          description: 文章作者。
+          example: FreeBuf
+        url:
+          type: string
+          format: url
+          description: 原始文章链接。
+          example: http://example.com/article
+        mobile_url:
+          type: string
+          format: url
+          description: 移动端文章链接（可能与 url 相同）。
+        cover:
+          type: string
+          format: url
+          nullable: true
+          description: 封面图片 URL。
+        hot:
+          type: integer
+          description: 热度评分。
+          example: 150
+        timestamp:
+          type: integer
+          description: 文章发布时间戳（Unix Time）。
+          example: 1732688400
+        published_at:
+          type: string
+          format: date-time
+          description: 文章发布时间（ISO 8601 格式）。
+          example: 2025-11-27T10:00:00
+        time:
+          type: string
+          description: 相对时间描述（如 '1小时前'）。
+          example: 1小时前
+        created_at:
+          type: string
+          format: date-time
+          description: 记录创建时间（ISO 8601 格式）。
+        updated_at:
+          type: string
+          format: date-time
+          description: 记录更新时间（ISO 8601 格式）。
+
+    # --- Threat Intel Schemas ---
+    ThreatIntelResult:
+      type: object
+      description: 单个威胁情报平台的查询结果。
+      properties:
+        id:
+          type: integer
+          nullable: true
+          description: 数据库内部 ID。
+        source:
+          type: string
+          example: VirusTotal
+        target_ip:
+          type: string
+          nullable: true
+          description: 目标 IP 地址（如果查询类型是 IP）。
+        target_url:
+          type: string
+          nullable: true
+          description: 目标 URL 地址（如果查询类型是 URL）。
+        target_hash:
+          type: string
+          nullable: true
+          description: 目标文件哈希（如果查询类型是 File）。
+        data:
+          type: string
+          description: 威胁情报平台的原始 JSON 响应数据（已序列化为字符串）。
+        last_update:
+          type: string
+          format: date-time
+          description: 数据最后一次更新时间。
+        from_cache:
+          type: boolean
+          nullable: true
+          description: 指示数据是否来自数据库缓存。
+        error:
+          type: string
+          nullable: true
+          description: 如果查询失败，则包含错误信息。
+          example: API限速，请稍后重试。
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: 用于认证的 JWT Token。
+    CookieAuth:
+      type: apiKey
+      in: cookie
+      name: session
+      description: 通过 Flask Session Cookie 进行身份验证。

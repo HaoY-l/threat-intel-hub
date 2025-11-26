@@ -199,4 +199,3 @@ def protected_ip():
     finally:
         if conn and conn.open:
             conn.close()
-    
