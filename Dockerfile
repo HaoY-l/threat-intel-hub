@@ -29,7 +29,7 @@ COPY app.py .
 COPY src/ src/
 COPY .env .
 COPY data/ data/
-
+COPY model.conf .
 # 暴露端口
 EXPOSE 8891
 
