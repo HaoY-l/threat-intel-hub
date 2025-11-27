@@ -21,8 +21,8 @@ services:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_PASSWORD}"]
       interval: 10s
       timeout: 5s
-      retries: 30
-      start_period: 120s
+      retries: 50
+      start_period: 180s
 
   app:
     image: monday1/threat-intel-hub:latest
