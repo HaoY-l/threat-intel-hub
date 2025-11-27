@@ -5,6 +5,8 @@ services:
     image: mysql:8.0
     container_name: threat-intel-hub-db
     restart: always
+    env_file:
+      - .env
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_NAME}
@@ -13,7 +15,7 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_PASSWORD}"]
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$MYSQL_PASSWORD || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 20
