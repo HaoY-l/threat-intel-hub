@@ -40,6 +40,8 @@ services:
       threat-intel-hub-db:
         condition: service_healthy
     restart: always
+    command: >
+      sh -c "python /app/data/db_init.py && python /app/app.py"
 
 volumes:
   mysql_data:
