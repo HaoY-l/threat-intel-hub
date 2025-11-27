@@ -5,8 +5,6 @@ services:
     image: mysql:8.0
     container_name: threat-intel-hub-db
     restart: always
-    env_file:
-      - .env
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_NAME}
@@ -14,29 +12,32 @@ services:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
+    command: >
+      --default-authentication-plugin=mysql_native_password
+      --skip-log-bin
+      --performance-schema=OFF
+      --max-connections=100
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$MYSQL_PASSWORD || exit 1"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_PASSWORD}"]
       interval: 10s
       timeout: 5s
-      retries: 20
-      start_period: 30s
+      retries: 10
+      start_period: 90s
 
   app:
     image: monday1/threat-intel-hub:latest
-    # image: threat-intel-hub:latest
     container_name: threat-intel-hub-app
-    env_file:
-      - .env
     environment:
-      MYSQL_HOST: threat-intel-hub-db
-      MYSQL_PORT: 3306
+      DB_TYPE: ${DB_TYPE}
+      MYSQL_HOST: ${MYSQL_HOST}
+      MYSQL_PORT: ${MYSQL_PORT}
       MYSQL_USER: root
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
       MYSQL_NAME: ${MYSQL_NAME}
     ports:
       - "8891:8891"
     depends_on:
-      threat-intel-hub-db  :
+      threat-intel-hub-db:
         condition: service_healthy
     restart: always
 
