@@ -24,6 +24,7 @@
 - 新增用户管理功能，支持用户列表、新建用户、删除用户
 - 新增角色管理功能，支持角色列表、新建角色、删除角色
 - 新增权限管理功能，支持角色权限分配（基于cahbin权限模型）
+- 增加docker-deploy.sh脚本，用于部署docker容器(yml去掉mysql部署，为了增加部署效率和方便管理mysql)
 
 [查看完整更新日志](./CHANGELOG.md)
 
@@ -120,7 +121,7 @@
 - **权限管理**: RBAC
 
 ## 📦 快速开始 && 部署方式
-### 本地部署
+### 本地部署（不推荐）
 #### 环境要求
 - Python 3.8+ 或 Node.js 16+
 - MySQL 8.0+
@@ -176,7 +177,12 @@ FLASK_SECRET_KEY = '9VrH*QZkPXXXXXXXX' # 加密密钥，用于会话管理，确
 Login_timed_out = 900 # 登录超时时间，单位秒，默认15分钟
 ```
 ### Docker部署（推荐）
-Docker Hub搜索🔍：monday1/threat-intel-hub:latest
+Docker Hub搜索🔍：monday1/threat-intel-hub:latest   
+```bash
+脚本一键docker部署:
+./docker-deploy.sh
+```
+
 ```bash
 # 下载仓库代码到本地
 git clone https://github.com/HaoY-l/threat-intel-hub.git
@@ -184,7 +190,10 @@ git clone https://github.com/HaoY-l/threat-intel-hub.git
 cd threat-intel-hub
 # 创建.env文件并配置环境变量，记得添加正确的配置
 mv .env.example .env
-# 后台执行
+# 创建数据库容器,库名固定为threat_intel,密码自定义
+docker pull mysql
+docker run -d --name threat-intel-hub-db -p 3306:3306 -e MYSQL_ROOT_PASSWORD=threat_intel -e MYSQL_DATABASE=threat_intel mysql
+# 后台执行threat-intel-hub-app容器
 docker compose up -d
 ```
 

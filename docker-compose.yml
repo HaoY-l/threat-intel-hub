@@ -1,26 +1,8 @@
 services:
-  # threat-intel-hub-db:
-  #   image: mysql:8.0
-  #   container_name: threat-intel-hub-db
-  #   restart: always
-  #   environment:
-  #     MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD}
-  #     MYSQL_DATABASE: ${MYSQL_NAME}
-  #   ports:
-  #     - "3306:3306"
-  #   volumes:
-  #     - mysql_data:/var/lib/mysql
-  #   command: --default-authentication-plugin=mysql_native_password
-  #   healthcheck:
-  #     test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_PASSWORD}"]
-  #     interval: 5s
-  #     timeout: 2s
-  #     retries: 20
-  #     start_period: 30s
 
   app:
-  # image: monday1/threat-intel-hub:latest
-    image: monday1/threat-intel-hub:v2.0.2
+  image: monday1/threat-intel-hub:latest
+    # image: monday1/threat-intel-hub:v2.0.2
     container_name: threat-intel-hub-app
     volumes:
       - ./.env:/app/.env:ro  # 挂载宿主机的 .env（只读）
@@ -33,12 +15,4 @@ services:
       MYSQL_NAME: ${MYSQL_NAME}
     ports:
       - "8891:8891"
-    # depends_on:
-    #   - threat-intel-hub-db
     restart: always
-
-
-# volumes:
-#   mysql_data:
-
-# docker run -itd --name threat-db -p 3306:3306 -e MYSQL_ROOT_PASSWORD=threat_intel -e MYSQL_DATABASE=threat_intel 34178dbaefd0
