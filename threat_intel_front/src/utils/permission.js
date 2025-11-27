@@ -8,7 +8,7 @@ const PERMISSION_CACHE_KEY = 'user_permissions';
 /**
  * 清除权限缓存（注销登录时调用）
  */
-export const clearPermissionCache = () => { // ✅ 移到函数外部定义
+export const clearPermissionCache = () => {
   localStorage.removeItem(PERMISSION_CACHE_KEY);
 };
 
@@ -34,7 +34,9 @@ export function usePermission() {
 
     try {
       const user = getCurrentUser();
-      const res = await request.get(`/api/permission/role/${user.role}/permissions`);
+      
+      // ✅ 核心修复：移除 URL 中的 /api 前缀，request 实例的 baseURL 会自动添加 /api
+      const res = await request.get(`/api/permission/role/${user.role}/permissions`); 
       
       if (res?.success) {
         const permissions = res.data
@@ -49,6 +51,7 @@ export function usePermission() {
         return [];
       }
     } catch (error) {
+      console.error('权限初始化请求失败:', error);
       ElMessage.error(`网络异常，权限初始化失败: ${error.message || ''}`);
       clearPermissionCache();
       return [];
@@ -90,10 +93,6 @@ export function usePermission() {
     hasPerm,
     getPermissionCache,
     setPermissionCache,
-    clearPermissionCache // ✅ 通过 return 暴露给函数外部
+    clearPermissionCache
   };
 }
-
-// 全局注册（可选）
-// import { usePermission } from '@/utils/permission';
-// app.config.globalProperties.$hasPerm = usePermission().hasPerm;

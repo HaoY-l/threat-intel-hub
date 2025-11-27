@@ -4,10 +4,7 @@ import { ElMessage } from 'element-plus';
 import { isLoggedIn, logout, getCurrentUser } from './auth';
 
 // 核心修改：无论开发环境还是生产环境，baseURL 都设置为 '/api'
-// 这样请求会变成 /api/cve, /api/news 等。
-// - 本地开发: 通过 vite.config.js 代理到 http://localhost:8891/api
-// - 容器部署: 请求直接发送到 http://10.130.201.29:8891/api (这是后端期望的路径)
-const BASE_URL = '/api'; 
+const BASE_URL = '/'; 
 
 // 创建 Axios 实例（适配 Session 认证）
 const service = axios.create({
@@ -19,13 +16,18 @@ const service = axios.create({
   withCredentials: true, 
 });
 
-// ... (请求拦截器和响应拦截器保持不变)
+// ✅ 白名单列表：不需要登录校验的接口路径
+const whiteList = ['/api/auth/login']; 
 
 // 请求拦截器：校验登录状态
 service.interceptors.request.use(
   (config) => {
-    // 未登录则终止请求
-    if (!isLoggedIn()) {
+    // 检查请求路径是否在白名单中
+    // config.url 是相对路径，例如 '/auth/login'
+    const isLoginRequest = whiteList.some(path => config.url === path);
+
+    // 未登录且不是登录请求，则终止请求
+    if (!isLoggedIn() && !isLoginRequest) {
       ElMessage.warning('请先登录后再操作');
       return Promise.reject(new Error('未登录，请求终止'));
     }
@@ -55,11 +57,10 @@ service.interceptors.response.use(
         break;
       case 404:
         ElMessage.error('接口地址错误，请联系管理员');
-        // 🚨 404 错误通常是路径问题，现在我们修复了 /api 前缀，应该能解决大部分 404
+        // 🚨 404 错误通常是路径问题
         break;
       case 500:
         ElMessage.error(`服务器错误：${errorMsg}`);
-        // 🚨 **/api/descblackrule** 接口报 500，需要检查后端代码
         break;
       default:
         ElMessage.error(errorMsg);

@@ -1,10 +1,7 @@
 <template>
   <div class="login-page">
-    <!-- 背景装饰层 -->
     <div class="login-bg"></div>
-    <!-- 主内容区 -->
     <div class="login-container">
-      <!-- 左侧可视化区域 -->
       <div class="login-visual">
         <div class="visual-icon">
           <svg viewBox="0 0 100 100" width="80" height="80">
@@ -18,9 +15,7 @@
         <div class="visual-title">威胁协同平台</div>
         <div class="visual-desc">企业安全 · 威胁情报 · 协同防御</div>
       </div>
-      <!-- 右侧登录表单区 -->
       <div class="login-card">
-        <!-- 项目Logo + 标题 -->
         <div class="card-header">
           <div class="logo">
             <span class="logo-dot"></span>
@@ -29,7 +24,6 @@
           </div>
           <div class="card-title">Threat Intel Hub</div>
         </div>
-        <!-- 账号输入框 -->
         <el-input 
           v-model="loginForm.username" 
           placeholder="请输入账号" 
@@ -37,7 +31,6 @@
           :disabled="isLoading"
           class="input-item"
         ></el-input>
-        <!-- 密码输入框 -->
         <el-input 
           v-model="loginForm.password" 
           type="password" 
@@ -46,9 +39,7 @@
           :disabled="isLoading"
           class="input-item"
         ></el-input>
-        <!-- 错误提示 -->
         <div class="error-message" v-if="errorMsg">{{ errorMsg }}</div>
-        <!-- 登录按钮 -->
         <el-button 
           type="primary" 
           @click="handleLogin" 
@@ -58,7 +49,6 @@
           登录
         </el-button>
 
-        <!-- 默认账号提示 -->
         <div class="login-tip">
           默认账号：threatintel | 密码：threatintel<br>
           首次登录后请修改密码！！！
@@ -70,7 +60,8 @@
 
 <script setup>
 import { ref } from 'vue';
-import axios from 'axios';
+// ⚠️ 关键修改 1: 替换 axios 为项目配置的 request 实例
+import request from '@/utils/request'; 
 import { ElMessage } from 'element-plus';
 
 const emit = defineEmits(['login-success']);
@@ -91,13 +82,19 @@ const handleLogin = async () => {
   isLoading.value = true;
 
   try {
-    const res = await axios.post(
+    // ✅ 关键修改 2: 使用 request 实例
+    // ✅ 关键修改 3: URL 移除 /api 前缀，只保留 /auth/login
+    // 注意：由于 request 实例已经配置了 Content-Type 和 withCredentials，可以简化配置对象
+    const res = await request.post(
       '/api/auth/login',
       loginForm.value,
-      { headers: { 'Content-Type': 'application/json' } }
+      // 如果需要覆盖 request.js 中的默认配置，才保留 {}
+      {} 
     );
 
-    const { status, data, message } = res.data;
+    // ✅ 关键修改 4: request 拦截器返回的是 res.data，因此这里直接解构 res
+    const { status, data, message } = res;
+    
     if (status === 'success' && data) {
       localStorage.setItem('user', JSON.stringify(data));
       emit('login-success', data);
@@ -107,7 +104,9 @@ const handleLogin = async () => {
     }
   } catch (err) {
     console.error('登录异常：', err);
-    const errMsg = err.response?.data?.message || '网络异常或服务器错误，请稍后重试';
+    // ✅ 关键修改 5: request 拦截器已经处理了错误，抛出的是一个带有 message 的 Error 对象，
+    // 直接使用 error.message (或 err.response?.data?.message 如果 request.js 没有处理干净)
+    const errMsg = err.message || '网络异常或服务器错误，请稍后重试'; 
     errorMsg.value = errMsg;
     ElMessage.error(errMsg);
   } finally {
