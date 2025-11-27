@@ -21,6 +21,8 @@ import seaborn as sns
 from flask_cors import CORS
 from data.db_init import get_db_connection
 from src.routes.email.get_qx_email import main as get_qx_email
+# 新增导入权限装饰器
+from src.utils.casbin import permission_required
 
 # 创建蓝图
 phishing_bp = Blueprint('phishing_bp', __name__, url_prefix='/phishing')
@@ -404,6 +406,7 @@ def create_email_config():
 
 # 更新邮箱配置
 @phishing_bp.route('/email_configs/<int:config_id>', methods=['PUT'])
+@permission_required(obj='/api/email_configs', act='PUT')  # 新增：校验权限
 def update_email_config(config_id):
     try:
         data = request.get_json()

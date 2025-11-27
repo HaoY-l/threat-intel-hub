@@ -18,7 +18,7 @@
                 @click.prevent="setActiveTab('threat')"
               >威胁情报🚨</a>
             </li>
-            <li>
+            <li v-if="hasPerm('waf:blocked:list')">
               <a
                 href="#"
                 class="nav-link"
@@ -26,7 +26,7 @@
                 @click.prevent="setActiveTab('waf')"
               >WAF协同🚀</a>
             </li>
-            <li>
+            <li v-if="hasPerm('phishing:list')">
               <a
                 href="#"
                 class="nav-link"
@@ -42,25 +42,96 @@
                 @click.prevent="setActiveTab('tools')"
               >工具箱🧰</a>
             </li>
-          </ul>
+            </ul>
         </nav>
+
+        <div class="user-menu" v-if="isLoggedIn" style="margin-left: 1.5rem !important; position: relative !important;">
+          <div 
+            class="avatar"
+            style="width: 40px !important; height: 40px !important; border-radius: 50% !important; overflow: hidden !important; box-shadow: 0 0 10px rgba(0, 212, 255, 0.4) !important; cursor: pointer !important; transition: all 0.3s ease !important; border: 1px solid rgba(255, 255, 255, 0.1) !important;"
+            @click="isDropdownOpen = !isDropdownOpen"
+          >
+            <img 
+              src="/UserAvatar.svg" 
+              alt="用户头像"
+              style="width: 100% !important; height: 100% !important; object-fit: cover !important;"
+            >
+          </div>
+
+          <div 
+            class="dropdown-menu"
+            v-if="isDropdownOpen"
+            style="position: absolute !important; top: calc(100% + 10px) !important; right: 0 !important; width: 150px !important; background: #1a1a3a !important; border-radius: 8px !important; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5) !important; border: 1px solid rgba(255, 255, 255, 0.1) !important; z-index: 999 !important; padding: 0.8rem 0 !important;"
+          >
+            <div class="dropdown-item" style="padding: 0.6rem 1rem !important; color: #ccc !important; font-size: 0.9rem !important; cursor: default !important; border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;">
+              <div style="font-weight: 500 !important; color: #00d4ff !important; margin-bottom: 0.2rem !important;">{{ currentUser.username }}</div>
+              <div style="font-size: 0.8rem !important; color: #888 !important;">角色：{{ currentUser.role }}</div>
+            </div>
+            
+            <div 
+              class="dropdown-item"
+              v-if="hasPerm('user:list')"
+              style="padding: 0.6rem 1rem !important; color: #00d4ff !important; font-size: 0.9rem !important; cursor: pointer !important; transition: background 0.2s ease !important; display: flex !important; align-items: center !important; gap: 0.5rem !important; border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;"
+              @click="isUserManagementOpen = true; isDropdownOpen = false"
+            >
+              <i class="el-icon-user" style="font-size: 0.9rem !important;"></i>
+              用户管理
+            </div>
+            
+            <div 
+              class="dropdown-item"
+              v-if="hasPerm('permission:manage')"
+              style="padding: 0.6rem 1rem !important; color: #00d4ff !important; font-size: 0.9rem !important; cursor: pointer !important; transition: background 0.2s ease !important; display: flex !important; align-items: center !important; gap: 0.5rem !important; border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;"
+              @click="isPermissionManagementOpen = true; isDropdownOpen = false"
+            >
+              <i class="el-icon-setting" style="font-size: 0.9rem !important;"></i>
+              权限管理
+            </div>
+            
+            <div 
+              class="dropdown-item logout-item"
+              style="padding: 0.6rem 1rem !important; color: #ff6b6b !important; font-size: 0.9rem !important; cursor: pointer !important; transition: background 0.2s ease !important; display: flex !important; align-items: center !important; gap: 0.5rem !important;"
+              @click="handleLogout"
+            >
+              <i class="el-icon-logout" style="font-size: 0.9rem !important;"></i>
+              注销
+            </div>
+          </div>
+        </div>
       </div>
     </div>
+
     <AiChatDialog v-if="isChatDialogVisible" @close-ai-dialog="isChatDialogVisible = false" />
+    
+    <UserManagement 
+      v-model="isUserManagementOpen"
+      :current-user="currentUser"
+      @user-changed="handleUserChanged"
+    />
+
+    <PermissionManagement 
+      v-model="isPermissionManagementOpen"
+      :current-user="currentUser"
+    />
   </header>
 </template>
 
 <script>
-// 1. 导入 AiRobot 和 AiChatDialog 组件
+// 导入AI聊天组件、用户管理组件、权限管理组件和权限工具
 import AiRobot from '../../aichat/AiRobot.vue';
 import AiChatDialog from '../../aichat/AiChatDialog.vue';
+import UserManagement from '../user/UserManagement.vue';
+import PermissionManagement from '../user/PermissionManagement.vue';
+import { getCurrentUser, isLoggedIn } from '../../utils/auth';
+import { usePermission } from '../../utils/permission';
 
 export default {
   name: 'Header',
-  // 2. 注册 AiRobot 组件
   components: {
     AiRobot,
-    AiChatDialog
+    AiChatDialog,
+    UserManagement,
+    PermissionManagement
   },
   props: {
     active: {
@@ -70,19 +141,88 @@ export default {
   },
   data() {
     return {
-      isChatDialogVisible: false
+      isChatDialogVisible: false,
+      currentUser: null,
+      isLoggedIn: false,
+      isDropdownOpen: false,
+      isUserManagementOpen: false,
+      isPermissionManagementOpen: false // 控制权限管理弹窗显示/隐藏
     };
   },
+  created() {
+    this.checkLoginStatus();
+    document.addEventListener('click', this.closeDropdownOnClickOutside);
+  },
+  beforeUnmount() {
+    document.removeEventListener('click', this.closeDropdownOnClickOutside);
+  },
+  async mounted() {
+    if (this.isLoggedIn) {
+      await this.initUserPermissions();
+    }
+  },
+  watch: {
+    '$parent.isLoggedIn'(newVal) {
+      this.isLoggedIn = newVal;
+      this.checkLoginStatus();
+      this.isDropdownOpen = false;
+      if (newVal) this.initUserPermissions();
+    },
+    currentUser(newVal) {
+      this.currentUser = newVal;
+    }
+  },
   methods: {
+    async initUserPermissions() {
+      const { initUserPermissions } = usePermission();
+      await initUserPermissions();
+    },
+    hasPerm(permissionKey) {
+      const { hasPerm } = usePermission();
+      return hasPerm(permissionKey);
+    },
     setActiveTab(tab) {
       this.$emit('tab-change', tab);
+      this.isDropdownOpen = false;
+    },
+    checkLoginStatus() {
+      this.isLoggedIn = isLoggedIn();
+      if (this.isLoggedIn) {
+        this.currentUser = getCurrentUser();
+      } else {
+        this.currentUser = null;
+      }
+    },
+    // 【已修改】添加对 this.$router 的检查，避免 TypeError: Cannot read properties of undefined (reading 'push')
+    handleLogout() {
+      if (this.$parent?.logout) {
+        this.$parent.logout();
+      }
+      this.isDropdownOpen = false;
+      
+      if (this.$router) {
+        this.$router.push('/login');
+      } else {
+        console.warn('Vue Router instance not found. Cannot redirect to /login.');
+      }
+    },
+    closeDropdownOnClickOutside(e) {
+      const userMenu = document.querySelector('.user-menu');
+      if (userMenu && !userMenu.contains(e.target)) {
+        this.isDropdownOpen = false;
+      }
+    },
+    handleUserChanged() {
+      console.log('用户数据已更新，可在此刷新用户信息');
+      this.currentUser = getCurrentUser();
+      this.initUserPermissions();
     }
   }
 }
 </script>
 
 <style scoped>
-/* 你的原有样式保持不变 */
+/* 原有样式保持不变 */
 .header {
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);
@@ -148,10 +288,27 @@ export default {
   border-color: rgba(255, 255, 255, 0.4);
 }
 
-/* 优化小屏幕下的菜单显示 */
+/* 头像交互效果 */
+.avatar:hover {
+  transform: scale(1.1) !important;
+  box-shadow: 0 0 15px rgba(0, 212, 255, 0.6) !important;
+}
+
+/* 下拉菜单项hover效果 */
+::v-deep(.dropdown-item:hover:not(.logout-item)) {
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+::v-deep(.logout-item:hover) {
+  background: rgba(255, 107, 107, 0.15) !important;
+}
+
+/* 响应式适配 */
 @media (max-width: 1200px) {
   .nav ul {
     gap: 1rem;
+  }
+  .user-menu {
+    margin-left: 1rem !important;
   }
 }
 
@@ -162,6 +319,10 @@ export default {
   .nav-link {
     padding: 0.5rem 0.75rem;
     font-size: 0.9rem;
+  }
+  .avatar {
+    width: 36px !important;
+    height: 36px !important;
   }
 }
 
@@ -182,6 +343,8 @@ export default {
     margin-left: 0;
     position: static !important;
     transform: none !important;
+    flex-direction: column !important;
+    gap: 1rem !important;
   }
   .logo {
     text-align: center;
@@ -194,9 +357,9 @@ export default {
     justify-content: center;
     gap: 1rem;
   }
-  .nav-link {
-    padding: 0.4rem 0.8rem;
-    font-size: 0.9rem;
+  .user-menu {
+    margin-left: 0 !important;
+    margin-top: 0.5rem !important;
   }
 }
 
@@ -210,6 +373,10 @@ export default {
   .nav-link {
     padding: 0.3rem 0.6rem;
     font-size: 0.85rem;
+  }
+  .avatar {
+    width: 34px !important;
+    height: 34px !important;
   }
 }
 </style>

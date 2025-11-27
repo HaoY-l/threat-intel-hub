@@ -1,6 +1,6 @@
 # ---- 基础镜像 ----
-# FROM python:3.11-slim
-FROM registry.cn-hangzhou.aliyuncs.com/libraries/python:3.11-slim
+FROM python:3.11-slim
+# FROM registry.cn-hangzhou.aliyuncs.com/libraries/python:3.11-slim
 
 WORKDIR /app
 
@@ -27,9 +27,9 @@ RUN pip install --no-cache-dir -r requirements.txt -i https://pypi.tuna.tsinghua
 # 复制后端代码和前端静态文件
 COPY app.py .
 COPY src/ src/
-COPY .env .
+# COPY .env .
 COPY data/ data/
-
+COPY model.conf .
 # 暴露端口
 EXPOSE 8891
 
