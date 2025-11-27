@@ -27,7 +27,7 @@ RUN pip install --no-cache-dir -r requirements.txt -i https://pypi.tuna.tsinghua
 # 复制后端代码和前端静态文件
 COPY app.py .
 COPY src/ src/
-COPY .env .
+# COPY .env .
 COPY data/ data/
 COPY model.conf .
 # 暴露端口

@@ -17,7 +17,7 @@ import atexit
 import datetime
 from src.api.phishing_email import phishing_bp, init_phishing
 
-# casbin 相关
+# casbin 相关 - 只导入函数，不立即初始化
 from src.utils.casbin_init import init_casbin
 from src.utils.casbin_adapter import DatabaseAdapter
 
@@ -48,12 +48,10 @@ CORS(app,
 )
 
 # -----------------------------------------------------------
-# Casbin 初始化
+# Casbin 初始化 - 延迟到数据库初始化之后
 # -----------------------------------------------------------
-casbin_enforcer = init_casbin()
-db_adapter = DatabaseAdapter()
-
-WHITE_LIST = db_adapter.get_permission_white_list()  # 不需要权限的路径
+casbin_enforcer = None  # 先设为None
+db_adapter = None
 
 
 # -----------------------------------------------------------
@@ -61,6 +59,10 @@ WHITE_LIST = db_adapter.get_permission_white_list()  # 不需要权限的路径
 # -----------------------------------------------------------
 @app.before_request
 def casbin_auth_middleware():
+    # 如果Casbin还未初始化，跳过权限检查
+    if casbin_enforcer is None or db_adapter is None:
+        return
+        
     path = request.path
     method = request.method
 
@@ -166,9 +168,19 @@ def protected_ip_task_in_context():
 # -----------------------------------------------------------
 if __name__ == '__main__':
     scheduler = None
+    
+    # 1. 先初始化数据库
+    logging.info("开始初始化数据库...")
     create_database_and_tables()
-    logging.info("数据库初始化完成")
+    logging.info("✓ 数据库初始化完成")
 
+    # 2. 再初始化 Casbin（现在表已存在）
+    logging.info("开始初始化 Casbin...")
+    casbin_enforcer = init_casbin()
+    db_adapter = DatabaseAdapter()
+    logging.info("✓ Casbin 初始化完成")
+
+    # 3. 初始化钓鱼邮件模块
     init_phishing()
 
     try:
