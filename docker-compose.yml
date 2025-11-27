@@ -1,7 +1,7 @@
 services:
 
   app:
-  image: monday1/threat-intel-hub:latest
+    image: monday1/threat-intel-hub:latest
     # image: monday1/threat-intel-hub:v2.0.2
     container_name: threat-intel-hub-app
     volumes:
