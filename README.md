@@ -179,8 +179,13 @@ Login_timed_out = 900 # 登录超时时间，单位秒，默认15分钟
 ### Docker部署（推荐）
 Docker Hub搜索🔍：monday1/threat-intel-hub:latest   
 ```bash
-脚本一键docker部署:
+# 脚本一键docker部署:
 ./docker-deploy.sh
+# 如果这里app容器启动失败，请几分钟后执行
+docker compose down -v
+# 再执行 
+docker compose up -d
+# （第一次mysql初始化有点久）
 ```
 
 ```bash

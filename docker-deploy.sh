@@ -52,23 +52,23 @@ echo "   - 用户: $MYSQL_USER"
 echo "-------------------------------------"
 
 
-# --- 3. 停止并删除同名旧容器 (如果存在) ---
-echo "--- 2. 正在检查并停止/删除旧的 MySQL 容器 ($CONTAINER_NAME)..."
+# --- 3. 停止并删除同名旧的独立 MySQL 容器 ---
+echo "--- 2. 正在检查并停止/删除旧的独立 MySQL 容器 ($CONTAINER_NAME)..."
 docker stop "$CONTAINER_NAME" > /dev/null 2>&1
 docker rm "$CONTAINER_NAME" > /dev/null 2>&1
 echo "   - 旧容器清理完成。"
 
 
-# --- 4. 部署并启动 MySQL 容器 ---
+# --- 4. 部署并启动新的独立 MySQL 容器 ---
 echo "--- 3. 正在拉取和启动 MySQL 容器 ($CONTAINER_NAME)..."
 
+# 注意：这里我们移除 MYSQL_USER，解决与 MYSQL_ROOT_PASSWORD 的冲突
+# 但保留 MYSQL_PASSWORD，用于设置 root 密码，因为 .env 中 MYSQL_USER=root
 docker run -d \
     --name "$CONTAINER_NAME" \
     -p "$MYSQL_PORT":3306 \
     -e MYSQL_ROOT_PASSWORD="$MYSQL_PASSWORD" \
     -e MYSQL_DATABASE="$MYSQL_NAME" \
-    -e MYSQL_USER="$MYSQL_USER" \
-    -e MYSQL_PASSWORD="$MYSQL_PASSWORD" \
     --restart unless-stopped \
     "$MYSQL_IMAGE" 
 
@@ -84,16 +84,20 @@ echo "--- 4. 等待 MySQL 启动 (15秒)..."
 sleep 15 
 echo "--- 5. 正在通过 docker compose 启动应用服务..."
 
-# 关键修正：优先检查 docker-compose (旧版)，然后检查 docker compose (新版)
+# 检查 Compose 命令
 if command -v docker-compose >/dev/null 2>&1; then
     COMPOSE_CMD="docker-compose"
 elif command -v docker compose >/dev/null 2>&1; then
     COMPOSE_CMD="docker compose"
 else
-    echo "致命错误：未找到 'docker-compose' 或 'docker compose' 命令。"
-    echo "请先安装 Docker Compose 工具。"
+    echo "致命错误：未找到 'docker-compose' 或 'docker compose' 命令。请先安装 Docker Compose 工具。"
     exit 1
 fi
+
+# 增加的步骤：清理旧的 Compose 服务
+echo "   - 正在清理旧的 Compose 服务（停止并移除容器/网络/卷）..."
+# 使用 -v 移除数据卷，确保全新部署，但请注意这会清除之前的数据卷数据！
+$COMPOSE_CMD -f "$COMPOSE_FILE" down -v
 
 # 启动服务
 $COMPOSE_CMD -f "$COMPOSE_FILE" up -d
