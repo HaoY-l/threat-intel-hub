@@ -125,14 +125,25 @@ def handle_exception(e):
 # -----------------------------------------------------------
 # 静态页面
 # -----------------------------------------------------------
-@app.route('/')
-def index():
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def catch_all(path):
+    # API路由不处理，交给蓝图
+    if path.startswith('api/'):
+        return jsonify({"error": "Not Found"}), 404
+    
+    # 静态资源直接返回
+    if path and '.' in path:
+        return send_from_directory(app.static_folder, path)
+    
+    # 其他所有路由返回 index.html（前端路由）
     return send_from_directory(app.static_folder, 'index.html')
 
 
 @app.route('/health')
 def health_check():
     return jsonify({"status": "healthy", "timestamp": datetime.datetime.now().isoformat()})
+
 
 
 # -----------------------------------------------------------

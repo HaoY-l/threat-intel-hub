@@ -1,10 +1,16 @@
+// src/utils/request.js (你第一个提供的文件内容)
 import axios from 'axios';
 import { ElMessage } from 'element-plus';
 import { isLoggedIn, logout, getCurrentUser } from './auth';
 
+// 核心修改：根据环境设置 baseURL
+// 开发环境 (npm run dev): '/api' (触发 vite.config.js 的代理)
+// 生产/容器环境 (npm run build): '' (使用相对路径)
+const BASE_URL = import.meta.env.DEV ? '/api' : '';
+
 // 创建 Axios 实例（适配 Session 认证）
 const service = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8891', // 后端地址（与 Flask 端口一致）
+  baseURL: BASE_URL,
   timeout: 8000, // 延长超时时间（避免数据库操作超时）
   headers: {
     'Content-Type': 'application/json'

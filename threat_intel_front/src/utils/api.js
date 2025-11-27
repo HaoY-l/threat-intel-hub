@@ -1,12 +1,19 @@
+// src/utils/api.js (你第二个提供的文件内容)
 import axios from 'axios'
+
+// 核心修改：根据环境设置 baseURL
+// 开发环境 (npm run dev): '/api' (触发 vite.config.js 的代理)
+// 生产/容器环境 (npm run build): '' (使用相对路径)
+const BASE_URL = import.meta.env.DEV ? '/api' : '';
 
 // 创建axios实例
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: BASE_URL, 
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json'
-  }
+  },
+  withCredentials: true, // 确保这个实例也能携带Cookie
 })
 
 // 请求拦截器
@@ -36,7 +43,7 @@ api.interceptors.response.use(
 export const getAllCVE = async () => {
   try {
     const res = await api.get('/cve')  // 对应 Flask 的 GET /api/cve
-    return res  // 这里正确，因为拦截器已经返回了data
+    return res  // 拦截器已返回data
   } catch (error) {
     throw error
   }
@@ -59,11 +66,10 @@ export const queryThreatIntel = async (queryObj) => {
  */
 export async function getNewsData() {
   try {
-    const response = await api.get('/news');
-    // 修复：由于响应拦截器已经返回了response.data，这里直接返回response即可
-    // 不要再访问response.data，因为response本身就是数据
-    console.log('getNewsData response:', response);
-    return response;  // 修复：直接返回response，而不是response.data
+    // 拦截器已经返回 response.data，所以这里直接获取返回值即可
+    const responseData = await api.get('/news');
+    console.log('getNewsData responseData:', responseData);
+    return responseData; // 返回的是数据本身
   } catch (error) {
     console.error('Error fetching news data:', error);
     throw error;

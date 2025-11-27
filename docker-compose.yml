@@ -20,7 +20,7 @@ services:
 
   app:
   # image: monday1/threat-intel-hub:latest
-    image: monday1/threat-intel-hub:v2.0.1
+    image: monday1/threat-intel-hub:v2.0.2
     container_name: threat-intel-hub-app
     volumes:
       - ./.env:/app/.env:ro  # 挂载宿主机的 .env（只读）
@@ -33,8 +33,8 @@ services:
       MYSQL_NAME: ${MYSQL_NAME}
     ports:
       - "8891:8891"
-    depends_on:
-      - threat-intel-hub-db
+    # depends_on:
+    #   - threat-intel-hub-db
     restart: always
 
 
