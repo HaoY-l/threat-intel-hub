@@ -2,7 +2,7 @@
 
 # --- 脚本配置 ---
 CONTAINER_NAME="threat-intel-hub-db"
-MYSQL_IMAGE="mysql:8.0" 
+MYSQL_IMAGE="mysql:latest" 
 
 # --- 1. 检查文件是否存在 ---
 ENV_FILE=".env"
@@ -70,7 +70,8 @@ docker run -d \
     -e MYSQL_ROOT_PASSWORD="$MYSQL_PASSWORD" \
     -e MYSQL_DATABASE="$MYSQL_NAME" \
     --restart unless-stopped \
-    "$MYSQL_IMAGE" 
+    "$MYSQL_IMAGE" \
+    --default-authentication-plugin=mysql_native_password
 
 if [ $? -eq 0 ]; then
     echo "   - MySQL 容器启动成功！"

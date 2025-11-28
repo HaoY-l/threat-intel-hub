@@ -180,6 +180,10 @@ Login_timed_out = 900 # 登录超时时间，单位秒，默认15分钟
 Docker Hub搜索🔍：monday1/threat-intel-hub:latest   
 ```bash
 # 脚本一键docker部署:
+# 创建.env文件并配置环境变量，记得添加正确的配置
+mv .env.example .env
+# 修改数据库连接地址为宿主机的IP地址
+MYSQL_HOST=127.0.0.1   # 请替换成自己宿主机的IP地址
 ./docker-deploy.sh
 # 如果这里app容器启动失败，请几分钟后执行
 docker compose down -v
@@ -189,12 +193,15 @@ docker compose up -d
 ```
 
 ```bash
+# 手动docker部署
 # 下载仓库代码到本地
 git clone https://github.com/HaoY-l/threat-intel-hub.git
 # 进入项目目录
 cd threat-intel-hub
 # 创建.env文件并配置环境变量，记得添加正确的配置
 mv .env.example .env
+# 修改数据库连接地址为宿主机的IP地址
+MYSQL_HOST=127.0.0.1   # 请替换成自己宿主机的IP地址
 # 创建数据库容器,库名固定为threat_intel,密码自定义
 docker pull mysql
 docker run -d --name threat-intel-hub-db -p 3306:3306 -e MYSQL_ROOT_PASSWORD=threat_intel -e MYSQL_DATABASE=threat_intel mysql
