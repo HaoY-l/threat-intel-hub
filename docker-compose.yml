@@ -1,33 +1,50 @@
 services:
   db:
-    image: mysql:latest
+    image: mysql:8.0.40
     container_name: threat-intel-hub-db
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_NAME}
+      MYSQL_ROOT_HOST: '%'
+      MYSQL_CHARACTER_SET_SERVER: utf8mb4
+      MYSQL_COLLATION_SERVER: utf8mb4_unicode_ci
     ports:
-      - "${MYSQL_PORT}:3306"
+      - "${MYSQL_PORT:-3306}:3306"
     volumes:
       - mysql_data:/var/lib/mysql
-    command: --default-authentication-plugin=mysql_native_password
+    command: 
+      - --default-authentication-plugin=mysql_native_password
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --explicit_defaults_for_timestamp=true
+      - --bind-address=0.0.0.0
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_PASSWORD}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "--silent"]
       interval: 10s
-      timeout: 5s
-      retries: 5
+      timeout: 10s
+      retries: 10
       start_period: 120s
+
   app:
     image: monday1/threat-intel-hub:latest
-    # image: monday1/threat-intel-hub:v2.0.2
     container_name: threat-intel-hub-app
     restart: always
-    volumes:
-      - ./.env:/app/.env:ro  # 挂载宿主机的 .env（只读）
+    # volumes:
+    #   - ./.env:/app/.env:ro
+    env_file:
+      - .env
     ports:
       - "8891:8891"
     depends_on:
       db:
         condition: service_healthy
+
 volumes:
   mysql_data:
+    driver: local
+
+networks:
+  default:
+    name: threat-intel-hub_network
+    driver: bridge

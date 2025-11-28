@@ -71,7 +71,7 @@ docker run -d \
     -e MYSQL_DATABASE="$MYSQL_NAME" \
     --restart unless-stopped \
     "$MYSQL_IMAGE" \
-    --default-authentication-plugin=mysql_native_password
+    # --default-authentication-plugin=mysql_native_password
 
 if [ $? -eq 0 ]; then
     echo "   - MySQL 容器启动成功！"
