@@ -1,5 +1,5 @@
 services:
-  db:
+  threat-intel-hub-db:
     image: mysql:8.0.40
     container_name: threat-intel-hub-db
     restart: unless-stopped
@@ -34,17 +34,17 @@ services:
     #   - ./.env:/app/.env:ro
     env_file:
       - .env
+    environment:
+      MYSQL_HOST: threat-intel-hub-db
+      MYSQL_PORT: 3306
+      MYSQL_USER: root
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_NAME: ${MYSQL_NAME}
     ports:
       - "8891:8891"
     depends_on:
-      db:
+      threat-intel-hub-db:
         condition: service_healthy
 
 volumes:
   mysql_data:
-    driver: local
-
-networks:
-  default:
-    name: threat-intel-hub_network
-    driver: bridge
